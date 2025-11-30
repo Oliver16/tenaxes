@@ -23,6 +23,7 @@ export function QuestionEditor({
   onCancel
 }: Props) {
   const [text, setText] = useState(question?.text || '')
+  const [educationalContent, setEducationalContent] = useState(question?.educational_content || '')
   const [key, setKey] = useState<1 | -1>(question?.key || 1)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -45,6 +46,7 @@ export function QuestionEditor({
         axis_id: axisId,
         key,
         text: text.trim(),
+        educational_content: educationalContent.trim() || undefined,
         display_order: question?.display_order
       })
     } catch (err) {
@@ -71,6 +73,23 @@ export function QuestionEditor({
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-800"
             rows={3}
             placeholder="Enter the question statement..."
+          />
+        </div>
+
+        {/* Educational Content */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Educational Content
+          </label>
+          <p className="text-xs text-gray-500 mb-2">
+            Optional: Add examples, context, or explanations to help users understand the question (1-2 paragraphs max)
+          </p>
+          <textarea
+            value={educationalContent}
+            onChange={(e) => setEducationalContent(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-800"
+            rows={4}
+            placeholder="Example: This question explores the balance between individual liberty and collective action. Consider how different societies prioritize personal freedom versus community obligations..."
           />
         </div>
 
