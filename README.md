@@ -21,7 +21,8 @@ A Next.js application with Supabase backend for a 98-item political orientation 
 1. Go to [supabase.com](https://supabase.com) and create a new project
 2. Once created, go to **SQL Editor**
 3. Paste the contents of `supabase/schema.sql` and run it
-4. Go to **Settings → API** and copy:
+4. Paste the contents of `supabase/seed.sql` and run it (loads default questions)
+5. Go to **Settings → API** and copy:
    - Project URL
    - `anon` public key
 
@@ -65,6 +66,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
 | `/survey` | 98-question questionnaire |
 | `/results/[sessionId]` | Individual results with visualizations |
 | `/admin` | Analytics dashboard |
+| `/admin/questions` | Question management (add/edit/delete) |
 
 ---
 
@@ -95,21 +97,28 @@ political-compass-app/
 │   │   ├── page.tsx              # Landing page
 │   │   ├── survey/page.tsx       # Survey questionnaire
 │   │   ├── results/[sessionId]/  # Results display
-│   │   └── admin/page.tsx        # Analytics dashboard
+│   │   └── admin/
+│   │       ├── page.tsx          # Analytics dashboard
+│   │       └── questions/page.tsx # Question manager
 │   ├── components/
 │   │   ├── charts/
 │   │   │   ├── CoreAxesRadar.tsx # Spider/radar chart
 │   │   │   ├── AxisScale.tsx     # Horizontal scale bars
 │   │   │   ├── FlavorCharts.tsx  # Flavor visualizations
 │   │   │   └── AdminCharts.tsx   # Analytics charts
+│   │   ├── admin/
+│   │   │   ├── QuestionEditor.tsx # Add/edit question form
+│   │   │   └── QuestionList.tsx   # Question list with actions
 │   │   └── ResultsActions.tsx    # Share/copy buttons
 │   └── lib/
-│       ├── instrument.ts         # Questions & axes data
+│       ├── instrument.ts         # Axis definitions & default questions
+│       ├── questions.ts          # Question CRUD operations
 │       ├── scorer.ts             # Scoring calculations
 │       ├── analytics.ts          # Admin data fetching
 │       └── supabase.ts           # Database client
 └── supabase/
-    └── schema.sql                # Database schema
+    ├── schema.sql                # Database schema
+    └── seed.sql                  # Default question data
 ```
 
 ---
@@ -127,6 +136,45 @@ political-compass-app/
 - **Horizontal Bar Chart**: Population average by axis (red/green for polarity)
 - **Flavor Popularity**: Most common archetype matches weighted by rank
 - **Recent Sessions**: Quick links to individual results
+
+### Question Manager (`/admin/questions`)
+- **Axis Sidebar**: View all core axes and facets with question counts
+- **Question Editor**: Add new questions with text and pole direction
+- **Question List**: Edit, reorder, activate/deactivate, or delete questions
+- **Balance Indicator**: Shows if questions are balanced between poles
+
+---
+
+## Question Management
+
+Questions are stored in Supabase and can be edited without redeploying.
+
+### First-Time Setup
+
+After running `schema.sql`, seed the default questions:
+
+```sql
+-- Run in Supabase SQL Editor
+\i seed.sql
+-- Or paste contents of supabase/seed.sql
+```
+
+### Question Properties
+
+| Field | Description |
+|-------|-------------|
+| `axis_id` | Which axis (C1-C10, F1-F3) |
+| `key` | `-1` = agreement indicates negative pole, `+1` = positive pole |
+| `text` | The question statement |
+| `display_order` | Order in the survey |
+| `active` | Whether to include in survey |
+
+### Best Practices
+
+1. **Balance poles**: Each axis should have ~equal questions for each pole
+2. **Avoid double-barreled**: One concept per question
+3. **Clear wording**: Avoid jargon, keep statements simple
+4. **Test changes**: Deactivate rather than delete to preserve data
 
 ---
 

@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { ORDERED_ITEMS } from '@/lib/instrument'
-import { calculateScores } from '@/lib/scorer'
+import { AXES } from '@/lib/instrument'
+import { fetchActiveQuestions, type Question } from '@/lib/questions'
+import { calculateScoresFromQuestions } from '@/lib/scorer'
 import { supabase } from '@/lib/supabase'
 import { nanoid } from 'nanoid'
 
@@ -17,22 +18,38 @@ const RESPONSE_OPTIONS = [
 
 export default function SurveyPage() {
   const router = useRouter()
+  const [questions, setQuestions] = useState<Question[]>([])
+  const [loading, setLoading] = useState(true)
   const [responses, setResponses] = useState<Record<number, number>>({})
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const currentItem = ORDERED_ITEMS[currentIndex]
+  // Fetch questions from database
+  useEffect(() => {
+    async function loadQuestions() {
+      setLoading(true)
+      const data = await fetchActiveQuestions()
+      // Sort by display_order
+      data.sort((a, b) => a.display_order - b.display_order)
+      setQuestions(data)
+      setLoading(false)
+    }
+    loadQuestions()
+  }, [])
+
+  const currentItem = questions[currentIndex]
   const answeredCount = Object.keys(responses).length
-  const percent = Math.round((answeredCount / ORDERED_ITEMS.length) * 100)
-  const isComplete = answeredCount === ORDERED_ITEMS.length
+  const percent = questions.length > 0 ? Math.round((answeredCount / questions.length) * 100) : 0
+  const isComplete = questions.length > 0 && answeredCount === questions.length
 
   const handleResponse = useCallback((value: number) => {
+    if (!currentItem) return
     setResponses(prev => ({ ...prev, [currentItem.id]: value }))
-    if (currentIndex < ORDERED_ITEMS.length - 1) {
+    if (currentIndex < questions.length - 1) {
       setTimeout(() => setCurrentIndex(prev => prev + 1), 150)
     }
-  }, [currentIndex, currentItem.id])
+  }, [currentIndex, currentItem, questions.length])
 
   const handlePrevious = useCallback(() => {
     if (currentIndex > 0) {
@@ -41,10 +58,10 @@ export default function SurveyPage() {
   }, [currentIndex])
 
   const handleSkip = useCallback(() => {
-    if (currentIndex < ORDERED_ITEMS.length - 1) {
+    if (currentIndex < questions.length - 1) {
       setCurrentIndex(prev => prev + 1)
     }
-  }, [currentIndex])
+  }, [currentIndex, questions.length])
 
   const handleSubmit = useCallback(async () => {
     if (!isComplete) return
@@ -54,7 +71,7 @@ export default function SurveyPage() {
 
     try {
       const sessionId = nanoid(12)
-      const results = calculateScores(responses)
+      const results = calculateScoresFromQuestions(responses, questions)
 
       // Save to Supabase
       const { error: responseError } = await supabase
@@ -84,7 +101,30 @@ export default function SurveyPage() {
       setError('Failed to save results. Please try again.')
       setIsSubmitting(false)
     }
-  }, [isComplete, responses, router])
+  }, [isComplete, responses, questions, router])
+
+  // Loading state
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-gray-100 py-8 px-4">
+        <div className="max-w-2xl mx-auto text-center">
+          <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading survey...</p>
+        </div>
+      </main>
+    )
+  }
+
+  // No questions loaded
+  if (questions.length === 0) {
+    return (
+      <main className="min-h-screen bg-gray-100 py-8 px-4">
+        <div className="max-w-2xl mx-auto text-center">
+          <p className="text-gray-600">No questions available. Please check back later.</p>
+        </div>
+      </main>
+    )
+  }
 
   return (
     <main className="min-h-screen bg-gray-100 py-8 px-4">
@@ -99,7 +139,7 @@ export default function SurveyPage() {
         <div className="mb-6">
           <div className="flex justify-between text-sm text-gray-600 mb-1">
             <span>Progress</span>
-            <span>{answeredCount} / {ORDERED_ITEMS.length}</span>
+            <span>{answeredCount} / {questions.length}</span>
           </div>
           <div className="w-full bg-gray-300 rounded-full h-3 overflow-hidden">
             <div 
@@ -110,38 +150,40 @@ export default function SurveyPage() {
         </div>
 
         {/* Question Card */}
-        <div className="bg-white rounded-xl shadow-lg p-6 mb-6 animate-fade-in" key={currentItem.id}>
-          <div className="flex justify-between items-center mb-4">
-            <span className="text-sm font-medium text-gray-500">
-              Question {currentIndex + 1} of {ORDERED_ITEMS.length}
-            </span>
-            <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded">
-              {currentItem.axis}
-            </span>
-          </div>
-          
-          <p className="text-lg text-gray-800 mb-8 leading-relaxed">
-            {currentItem.text}
-          </p>
+        {currentItem && (
+          <div className="bg-white rounded-xl shadow-lg p-6 mb-6 animate-fade-in" key={currentItem.id}>
+            <div className="flex justify-between items-center mb-4">
+              <span className="text-sm font-medium text-gray-500">
+                Question {currentIndex + 1} of {questions.length}
+              </span>
+              <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded">
+                {currentItem.axis_id}
+              </span>
+            </div>
+            
+            <p className="text-lg text-gray-800 mb-8 leading-relaxed">
+              {currentItem.text}
+            </p>
 
-          {/* Response Buttons */}
-          <div className="space-y-3">
-            {RESPONSE_OPTIONS.map(opt => (
-              <button
-                key={opt.value}
-                onClick={() => handleResponse(opt.value)}
-                className={`w-full py-3 px-4 rounded-lg border-2 transition-all text-left flex items-center gap-3 ${
-                  responses[currentItem.id] === opt.value
-                    ? 'border-blue-500 bg-blue-50 text-blue-700'
-                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                }`}
-              >
-                <span className={`w-3 h-3 rounded-full ${opt.color}`} />
-                <span className="font-medium">{opt.label}</span>
-              </button>
-            ))}
+            {/* Response Buttons */}
+            <div className="space-y-3">
+              {RESPONSE_OPTIONS.map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => handleResponse(opt.value)}
+                  className={`w-full py-3 px-4 rounded-lg border-2 transition-all text-left flex items-center gap-3 ${
+                    responses[currentItem.id] === opt.value
+                      ? 'border-blue-500 bg-blue-50 text-blue-700'
+                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  <span className={`w-3 h-3 rounded-full ${opt.color}`} />
+                  <span className="font-medium">{opt.label}</span>
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Navigation */}
         <div className="flex justify-between items-center">
@@ -157,7 +199,7 @@ export default function SurveyPage() {
             {!isComplete && (
               <button
                 onClick={handleSkip}
-                disabled={currentIndex === ORDERED_ITEMS.length - 1}
+                disabled={currentIndex === questions.length - 1}
                 className="px-4 py-2 text-gray-500 hover:text-gray-700"
               >
                 Skip
@@ -178,7 +220,7 @@ export default function SurveyPage() {
 
         {/* Remaining count */}
         <p className="text-center text-sm text-gray-500 mt-6">
-          {ORDERED_ITEMS.length - answeredCount} questions remaining
+          {questions.length - answeredCount} questions remaining
         </p>
 
         {/* Error message */}
@@ -190,7 +232,7 @@ export default function SurveyPage() {
 
         {/* Quick navigation */}
         <div className="mt-8 flex flex-wrap gap-1 justify-center">
-          {ORDERED_ITEMS.map((item, idx) => (
+          {questions.map((item, idx) => (
             <button
               key={item.id}
               onClick={() => setCurrentIndex(idx)}

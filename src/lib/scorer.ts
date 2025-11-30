@@ -1,5 +1,6 @@
 import { AXES, ITEMS, FLAVOR_ARCHETYPES, AxisId } from './instrument'
 import type { AxisScore, FlavorMatch } from './supabase'
+import type { Question } from './questions'
 
 export type Responses = Record<number, number>
 
@@ -26,25 +27,26 @@ function getMatchStrength(affinity: number): string {
   return 'Minimal'
 }
 
-export function calculateScores(responses: Responses): CompassResults {
-  // Group items by axis
-  const itemsByAxis: Record<string, typeof ITEMS> = {}
-  ITEMS.forEach(item => {
-    if (!itemsByAxis[item.axis]) itemsByAxis[item.axis] = []
-    itemsByAxis[item.axis].push(item)
+// Calculate scores using database questions
+export function calculateScoresFromQuestions(responses: Responses, questions: Question[]): CompassResults {
+  // Group questions by axis
+  const questionsByAxis: Record<string, Question[]> = {}
+  questions.forEach(q => {
+    if (!questionsByAxis[q.axis_id]) questionsByAxis[q.axis_id] = []
+    questionsByAxis[q.axis_id].push(q)
   })
 
   // Calculate axis scores
   const axisScores: Record<string, AxisScore> = {}
   
   Object.entries(AXES).forEach(([axisId, axisDef]) => {
-    const items = itemsByAxis[axisId] || []
+    const axisQuestions = questionsByAxis[axisId] || []
     let rawSum = 0
     let count = 0
 
-    items.forEach(item => {
-      if (responses[item.id] !== undefined) {
-        const adjusted = responses[item.id] * item.key
+    axisQuestions.forEach(q => {
+      if (responses[q.id] !== undefined) {
+        const adjusted = responses[q.id] * q.key
         rawSum += adjusted
         count++
       }
@@ -100,4 +102,19 @@ export function calculateScores(responses: Responses): CompassResults {
     topFlavors: flavorMatches.slice(0, 5),
     allFlavors: flavorMatches
   }
+}
+
+// Original function using hardcoded ITEMS (for backwards compatibility)
+export function calculateScores(responses: Responses): CompassResults {
+  // Convert ITEMS to Question format
+  const questions: Question[] = ITEMS.map(item => ({
+    id: item.id,
+    axis_id: item.axis,
+    key: item.key,
+    text: item.text,
+    display_order: item.order,
+    active: true
+  }))
+  
+  return calculateScoresFromQuestions(responses, questions)
 }

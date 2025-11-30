@@ -1,7 +1,28 @@
 -- Supabase Schema for Political Compass
 -- Run this in your Supabase SQL Editor
 
--- Survey responses table (stores raw answers)
+-- =====================
+-- QUESTIONS TABLE
+-- =====================
+CREATE TABLE questions (
+  id SERIAL PRIMARY KEY,
+  axis_id TEXT NOT NULL,
+  key INTEGER NOT NULL CHECK (key IN (-1, 1)),
+  text TEXT NOT NULL,
+  display_order INTEGER NOT NULL,
+  active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Index for fetching active questions by axis
+CREATE INDEX idx_questions_axis ON questions(axis_id);
+CREATE INDEX idx_questions_active ON questions(active);
+CREATE INDEX idx_questions_order ON questions(display_order);
+
+-- =====================
+-- SURVEY RESPONSES TABLE
+-- =====================
 CREATE TABLE survey_responses (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   session_id TEXT NOT NULL UNIQUE,
@@ -25,25 +46,50 @@ CREATE INDEX idx_results_session ON survey_results(session_id);
 CREATE INDEX idx_responses_created ON survey_responses(created_at);
 CREATE INDEX idx_results_created ON survey_results(created_at);
 
--- Enable Row Level Security
+-- =====================
+-- ROW LEVEL SECURITY
+-- =====================
+ALTER TABLE questions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE survey_responses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE survey_results ENABLE ROW LEVEL SECURITY;
 
--- Allow anonymous inserts (no auth required)
+-- Questions: anyone can read, only authenticated can modify
+-- For simplicity, we'll use anon for everything (add auth later if needed)
+CREATE POLICY "Allow read questions" ON questions FOR SELECT TO anon USING (true);
+CREATE POLICY "Allow insert questions" ON questions FOR INSERT TO anon WITH CHECK (true);
+CREATE POLICY "Allow update questions" ON questions FOR UPDATE TO anon USING (true);
+CREATE POLICY "Allow delete questions" ON questions FOR DELETE TO anon USING (true);
+
+-- Survey data policies
 CREATE POLICY "Allow anonymous insert responses" ON survey_responses
-  FOR INSERT TO anon
-  WITH CHECK (true);
+  FOR INSERT TO anon WITH CHECK (true);
 
 CREATE POLICY "Allow anonymous insert results" ON survey_results
-  FOR INSERT TO anon
-  WITH CHECK (true);
+  FOR INSERT TO anon WITH CHECK (true);
 
--- Allow reading results by session_id (for results page)
 CREATE POLICY "Allow read own results" ON survey_results
-  FOR SELECT TO anon
-  USING (true);
+  FOR SELECT TO anon USING (true);
 
--- Optional: Analytics views
+-- =====================
+-- HELPER FUNCTION
+-- =====================
+-- Auto-update updated_at timestamp
+CREATE OR REPLACE FUNCTION update_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER questions_updated_at
+  BEFORE UPDATE ON questions
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at();
+
+-- =====================
+-- ANALYTICS VIEWS
+-- =====================
 
 -- View: Response counts by day
 CREATE VIEW daily_responses AS
@@ -77,7 +123,19 @@ LATERAL jsonb_array_elements(top_flavors) as flavor
 GROUP BY flavor->>'name'
 ORDER BY count DESC;
 
+-- View: Question counts by axis
+CREATE VIEW questions_by_axis AS
+SELECT 
+  axis_id,
+  COUNT(*) FILTER (WHERE active = true) as active_count,
+  COUNT(*) FILTER (WHERE active = false) as inactive_count,
+  COUNT(*) as total_count
+FROM questions
+GROUP BY axis_id
+ORDER BY axis_id;
+
 -- Grant access to views
 GRANT SELECT ON daily_responses TO anon;
 GRANT SELECT ON aggregate_scores TO anon;
 GRANT SELECT ON popular_flavors TO anon;
+GRANT SELECT ON questions_by_axis TO anon;

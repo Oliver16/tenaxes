@@ -74,12 +74,20 @@ export default function AdminPage() {
             <h1 className="text-3xl font-bold text-gray-800">Analytics Dashboard</h1>
             <p className="text-gray-500">Survey response analytics and insights</p>
           </div>
-          <Link
-            href="/"
-            className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-sm"
-          >
-            ← Back to Survey
-          </Link>
+          <div className="flex gap-3">
+            <Link
+              href="/admin/questions"
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm"
+            >
+              Manage Questions →
+            </Link>
+            <Link
+              href="/"
+              className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-sm"
+            >
+              ← Back to Survey
+            </Link>
+          </div>
         </div>
 
         {/* Stat Cards */}
