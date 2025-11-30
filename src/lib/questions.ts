@@ -6,6 +6,7 @@ export type Question = {
   axis_id: string
   key: 1 | -1
   text: string
+  educational_content?: string
   display_order: number
   active: boolean
   created_at?: string
@@ -16,6 +17,7 @@ export type QuestionInput = {
   axis_id: string
   key: 1 | -1
   text: string
+  educational_content?: string
   display_order?: number
   active?: boolean
 }
@@ -63,6 +65,7 @@ export async function fetchActiveQuestions(): Promise<Question[]> {
       axis_id: item.axis,
       key: item.key,
       text: item.text,
+      educational_content: item.educational_content,
       display_order: item.order,
       active: true
     }))
@@ -75,6 +78,7 @@ export async function fetchActiveQuestions(): Promise<Question[]> {
       axis_id: item.axis,
       key: item.key,
       text: item.text,
+      educational_content: item.educational_content,
       display_order: item.order,
       active: true
     }))
@@ -120,6 +124,7 @@ export async function createQuestion(input: QuestionInput): Promise<Question | n
       axis_id: input.axis_id,
       key: input.key,
       text: input.text,
+      educational_content: input.educational_content,
       display_order: displayOrder,
       active: input.active ?? true
     })
@@ -231,6 +236,7 @@ export async function seedQuestions(): Promise<boolean> {
     axis_id: item.axis,
     key: item.key,
     text: item.text,
+    educational_content: item.educational_content,
     display_order: item.order,
     active: true
   }))

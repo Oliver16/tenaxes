@@ -9,6 +9,7 @@ CREATE TABLE questions (
   axis_id TEXT NOT NULL,
   key INTEGER NOT NULL CHECK (key IN (-1, 1)),
   text TEXT NOT NULL,
+  educational_content TEXT,
   display_order INTEGER NOT NULL,
   active BOOLEAN DEFAULT true,
   created_at TIMESTAMPTZ DEFAULT NOW(),
