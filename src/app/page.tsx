@@ -1,8 +1,33 @@
 import Link from 'next/link'
+import { supabase } from '@/lib/supabase'
 
-export default function Home() {
+async function getUser() {
+  const { data: { user } } = await supabase.auth.getUser()
+  return user
+}
+
+export default async function Home() {
+  const user = await getUser()
+
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800">
+      {/* Navigation Header */}
+      <nav className="border-b border-slate-800">
+        <div className="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
+          <div className="text-white font-bold text-xl">Political Compass</div>
+          {user ? (
+            <Link
+              href="/profile"
+              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-sm font-medium transition-colors"
+            >
+              My Results
+            </Link>
+          ) : (
+            <div className="text-slate-400 text-sm">No login required</div>
+          )}
+        </div>
+      </nav>
+
       {/* Hero Section */}
       <div className="max-w-6xl mx-auto px-4 py-20">
         <div className="text-center mb-16">
@@ -131,7 +156,7 @@ export default function Home() {
         <div className="text-center">
           <div className="inline-block bg-slate-800/50 rounded-lg px-6 py-4 border border-slate-700">
             <p className="text-slate-300">
-              <span className="text-green-400">🔒 Anonymous</span> — No login required. No personal data collected.
+              <span className="text-green-400">🔒 Anonymous</span> — No login required. Optional account to save results.
             </p>
           </div>
         </div>
