@@ -131,7 +131,7 @@ export default function SurveyPage() {
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="text-center mb-6">
-          <h1 className="text-2xl font-bold text-gray-800">Political Compass Survey</h1>
+          <h1 className="text-2xl font-bold text-gray-800">TenAxes Survey</h1>
           <p className="text-gray-600">Answer honestly — there are no right or wrong answers.</p>
         </div>
 

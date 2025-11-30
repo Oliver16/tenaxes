@@ -14,7 +14,7 @@ export function ResultsActions({ sessionId, coreAxes, topFlavor }: Props) {
   const [copySuccess, setCopySuccess] = useState(false)
 
   const handleCopyText = () => {
-    const heading = 'My Political Compass Results:'
+    const heading = 'My TenAxes Results:'
     const axisLines = coreAxes
       .map(
         a => `${a.name}: ${a.pole_label} (${a.score > 0 ? '+' : ''}${(a.score * 100).toFixed(0)}%)`

@@ -1,4 +1,4 @@
-# Multidimensional Political Compass
+# TenAxes
 
 A Next.js application with Supabase backend for a 98-item political orientation survey.
 
@@ -91,7 +91,7 @@ npm run dev
 ## Project Structure
 
 ```
-political-compass-app/
+tenaxes/
 ├── src/
 │   ├── app/
 │   │   ├── page.tsx              # Landing page
@@ -197,6 +197,21 @@ After running `schema.sql`, seed the default questions:
 | facets | JSONB | Array of facet scores |
 | top_flavors | JSONB | Top 5 matching archetypes |
 | created_at | TIMESTAMPTZ | Calculation timestamp |
+
+---
+
+## Content provenance
+
+- Archetype descriptions and survey questions were authored specifically for this project by the TenAxes contributors and are original to the repository. No third-party licensed text was incorporated.
+- If future updates incorporate external wording or data, include clear attribution (source name, URL, and license) in this section and ensure the license permits reuse within this project.
+
+### Contributor checklist for new archetypes or questions
+
+1. Confirm the text is original or properly licensed for inclusion; record attribution and license details here if external.
+2. Keep wording concise, neutral, and free of jargon; avoid double-barreled statements.
+3. Maintain balance across axes (similar counts per pole) and verify `axis_id`, `key`, and `display_order` values are consistent with schema expectations.
+4. Run through the survey flow locally to ensure new items render correctly and results pages reflect the changes.
+5. Update seed data or migration scripts if the additions require database changes.
 
 ---
 

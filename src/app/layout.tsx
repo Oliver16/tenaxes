@@ -5,10 +5,10 @@ import './globals.css'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Multidimensional Political Compass',
+  title: 'TenAxes',
   description: 'A 98-item survey measuring political orientation across 10 core axes and 3 behavioral facets.',
   openGraph: {
-    title: 'Multidimensional Political Compass',
+    title: 'TenAxes',
     description: 'Discover your political profile across 10 dimensions',
     type: 'website',
   },
