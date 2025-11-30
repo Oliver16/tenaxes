@@ -6,6 +6,9 @@ import { CoreAxesRadar } from '@/components/charts/CoreAxesRadar'
 import { AxisScale } from '@/components/charts/AxisScale'
 import { FlavorList, FlavorBarChart } from '@/components/charts/FlavorCharts'
 
+// Force dynamic rendering to avoid build-time data fetching
+export const dynamic = 'force-dynamic'
+
 type Props = {
   params: { sessionId: string }
 }
