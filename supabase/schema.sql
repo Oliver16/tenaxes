@@ -1,4 +1,4 @@
--- Supabase Schema for Political Compass
+-- Supabase Schema for TenAxes
 -- Run this in your Supabase SQL Editor
 
 -- =====================
