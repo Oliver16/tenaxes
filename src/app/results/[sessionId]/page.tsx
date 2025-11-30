@@ -18,7 +18,14 @@ async function getResults(sessionId: string) {
     .single()
 
   if (error || !data) return null
-  return data
+
+  // Cast JSONB fields to proper types
+  return {
+    ...data,
+    core_axes: data.core_axes as unknown as AxisScore[],
+    facets: data.facets as unknown as AxisScore[],
+    top_flavors: data.top_flavors as unknown as FlavorMatch[]
+  }
 }
 
 export default async function ResultsPage({ params }: Props) {
