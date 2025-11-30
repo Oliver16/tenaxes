@@ -209,8 +209,8 @@ export function getAxisInfo(axisId: string) {
 export function getAllAxes() {
   return Object.entries(AXES).map(([id, axis]) => ({
     ...axis,
-    isCore: !axis.is_facet,
-    isFacet: !!axis.is_facet
+    isCore: !(axis as any).is_facet,
+    isFacet: !!(axis as any).is_facet
   }))
 }
 
