@@ -155,6 +155,7 @@ function computeFlavorPopularity(data: { top_flavors: any[] }[]): FlavorPopulari
     (result.top_flavors || []).forEach((flavor: any, index: number) => {
       // Weight by rank (top match = 5 points, second = 4, etc.)
       const weight = 5 - index
+      if (weight <= 0) return
       if (!flavorStats[flavor.name]) {
         flavorStats[flavor.name] = { count: 0, affinities: [] }
       }
