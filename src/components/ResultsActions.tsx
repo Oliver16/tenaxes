@@ -11,12 +11,16 @@ type Props = {
 
 export function ResultsActions({ sessionId, coreAxes, topFlavor }: Props) {
   const handleCopy = () => {
-    const text = `My Political Compass Results:
-${coreAxes.map(a => `${a.name}: ${a.pole_label} (${a.score > 0 ? '+' : ''}${(a.score * 100).toFixed(0)}%)`).join('\n')}
+    const heading = 'My Political Compass Results:'
+    const axisLines = coreAxes
+      .map(
+        a => `${a.name}: ${a.pole_label} (${a.score > 0 ? '+' : ''}${(a.score * 100).toFixed(0)}%)`
+      )
+      .join('\n')
+    const topMatch = `Top Match: ${topFlavor?.name || 'N/A'}`
+    const surveyLink = `Take the survey: ${window.location.origin}`
 
-Top Match: ${topFlavor?.name || 'N/A'}
-
-Take the survey: ${window.location.origin}`
+    const text = [heading, axisLines, '', topMatch, '', surveyLink].join('\n')
     navigator.clipboard.writeText(text)
     alert('Results copied to clipboard!')
   }
@@ -46,8 +50,8 @@ Take the survey: ${window.location.origin}`
 }
 
 export function ShareUrl({ sessionId }: { sessionId: string }) {
-  const url = typeof window !== 'undefined' 
-    ? window.location.href 
+  const url = typeof window !== 'undefined'
+    ? window.location.href
     : `/results/${sessionId}`
 
   return (
