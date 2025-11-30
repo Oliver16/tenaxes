@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { useAuth } from '@/contexts/AuthContext'
 import { fetchAnalytics, type AnalyticsData } from '@/lib/analytics'
 import {
   ResponsesOverTimeChart,
@@ -11,11 +13,21 @@ import {
 } from '@/components/charts/AdminCharts'
 
 export default function AdminPage() {
+  const { user, loading: authLoading } = useAuth()
+  const router = useRouter()
   const [data, setData] = useState<AnalyticsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/')
+    }
+  }, [user, authLoading, router])
+
+  useEffect(() => {
+    if (!user) return
+
     async function load() {
       setLoading(true)
       const result = await fetchAnalytics()
@@ -27,7 +39,12 @@ export default function AdminPage() {
       setLoading(false)
     }
     load()
-  }, [])
+  }, [user])
+
+  // Show loading while checking authentication
+  if (authLoading || !user) {
+    return null
+  }
 
   if (loading) {
     return (
