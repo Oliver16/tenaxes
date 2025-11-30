@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import { notFound } from 'next/navigation'
-import type { AxisScore, FlavorMatch } from '@/lib/supabase'
+import type { AxisScore, FlavorMatch, SurveyResult } from '@/lib/supabase'
 import { ResultsActions } from '@/components/ResultsActions'
 import { SaveResultsPrompt } from '@/components/SaveResultsPrompt'
 import { CoreAxesRadar } from '@/components/charts/CoreAxesRadar'
@@ -11,7 +11,7 @@ type Props = {
   params: { sessionId: string }
 }
 
-async function getResults(sessionId: string) {
+async function getResults(sessionId: string): Promise<SurveyResult | null> {
   const { data, error } = await supabase
     .from('survey_results')
     .select('*')
@@ -19,7 +19,16 @@ async function getResults(sessionId: string) {
     .single()
 
   if (error || !data) return null
-  return data
+
+  // Cast JSONB fields from Supabase into strongly typed arrays
+  const typedData = data as unknown as SurveyResult
+
+  return {
+    ...typedData,
+    core_axes: typedData.core_axes ?? [],
+    facets: typedData.facets ?? [],
+    top_flavors: typedData.top_flavors ?? []
+  }
 }
 
 export default async function ResultsPage({ params }: Props) {
