@@ -1,7 +1,8 @@
 import { supabase } from '@/lib/supabase'
 import { notFound } from 'next/navigation'
 import type { AxisScore, FlavorMatch } from '@/lib/supabase'
-import { ResultsActions, ShareUrl } from '@/components/ResultsActions'
+import { ResultsActions } from '@/components/ResultsActions'
+import { SaveResultsPrompt } from '@/components/SaveResultsPrompt'
 import { CoreAxesRadar } from '@/components/charts/CoreAxesRadar'
 import { AxisScale } from '@/components/charts/AxisScale'
 import { FlavorList, FlavorBarChart } from '@/components/charts/FlavorCharts'
@@ -114,7 +115,7 @@ export default async function ResultsPage({ params }: Props) {
                 .sort((a, b) => Math.abs(b.score) - Math.abs(a.score))
                 .slice(0, 3)
                 .map((axis: AxisScore) => (
-                  <span 
+                  <span
                     key={axis.axis_id}
                     className="px-3 py-1 bg-white/20 rounded-full text-sm"
                   >
@@ -126,15 +127,17 @@ export default async function ResultsPage({ params }: Props) {
           </div>
         </section>
 
+        {/* Save Results Prompt */}
+        <section className="mb-6">
+          <SaveResultsPrompt sessionId={params.sessionId} />
+        </section>
+
         {/* Actions */}
-        <ResultsActions 
+        <ResultsActions
           sessionId={params.sessionId}
           coreAxes={core_axes}
           topFlavor={top_flavors[0] || null}
         />
-
-        {/* Share URL */}
-        <ShareUrl sessionId={params.sessionId} />
 
         {/* Admin Link */}
         <div className="mt-8 text-center">
