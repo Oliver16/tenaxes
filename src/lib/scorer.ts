@@ -93,8 +93,8 @@ export function calculateScoresFromQuestions(responses: Responses, questions: Qu
   }).sort((a, b) => b.affinity - a.affinity)
 
   // Split into core axes and facets
-  const coreAxes = Object.values(axisScores).filter(a => !AXES[a.axis_id as AxisId]?.is_facet)
-  const facets = Object.values(axisScores).filter(a => AXES[a.axis_id as AxisId]?.is_facet)
+  const coreAxes = Object.values(axisScores).filter(a => !(AXES[a.axis_id as AxisId] as any)?.is_facet)
+  const facets = Object.values(axisScores).filter(a => (AXES[a.axis_id as AxisId] as any)?.is_facet)
 
   return {
     coreAxes,
