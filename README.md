@@ -1,4 +1,4 @@
-# Multidimensional Political Compass
+# TenAxes
 
 A Next.js application with Supabase backend for a 98-item political orientation survey.
 
@@ -91,7 +91,7 @@ npm run dev
 ## Project Structure
 
 ```
-political-compass-app/
+tenaxes/
 ├── src/
 │   ├── app/
 │   │   ├── page.tsx              # Landing page

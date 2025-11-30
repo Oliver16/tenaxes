@@ -7,13 +7,12 @@ export default function Home() {
       <div className="max-w-6xl mx-auto px-4 py-20">
         <div className="text-center mb-16">
           <h1 className="text-5xl md:text-6xl font-bold text-white mb-6">
-            Multidimensional
             <span className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">
-              Political Compass
+              TenAxes
             </span>
           </h1>
           <p className="text-xl text-slate-300 max-w-2xl mx-auto mb-8">
-            Go beyond left vs. right. Discover your political profile across 10 core 
+            Go beyond left vs. right. Discover your political profile across 10 core
             dimensions and 3 behavioral facets with our 98-question assessment.
           </p>
           <Link
