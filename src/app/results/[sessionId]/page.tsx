@@ -46,12 +46,12 @@ function formatScore(score?: number) {
   return `${(score * 100).toFixed(0)}%`
 }
 
-export default async function ResultsPage({ 
-  params 
-}: { 
-  params: { sessionId: string } 
+export default async function ResultsPage({
+  params
+}: {
+  params: { sessionId: string }
 }) {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   // Fetch survey results
   const { data, error } = await (supabase

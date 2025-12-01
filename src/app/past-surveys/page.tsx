@@ -15,7 +15,7 @@ type SurveyResultsListItem = {
 }
 
 export default async function PastSurveysPage() {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   // Get user session
   const { data: { user }, error: userError } = await supabase.auth.getUser()
