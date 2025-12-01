@@ -69,35 +69,13 @@ export async function fetchActiveQuestions(): Promise<Question[]> {
 
   if (error) {
     console.error('Error fetching active questions:', error)
-    console.log('Using fallback ITEMS (98 questions)')
-    // Fallback to hardcoded questions
-    return ITEMS.map((item, i) => ({
-      id: item.id,
-      axis_id: item.axis,
-      key: item.key,
-      text: item.text,
-      educational_content: item.educational_content,
-      display_order: item.order,
-      active: true,
-      weight: 1.0,
-      question_type: 'conceptual'
-    }))
+    throw new Error(`Failed to fetch active questions: ${error.message}`)
   }
 
-  // If no questions in DB, return hardcoded ones
+  // If no questions in DB, that's a real problem
   if (!data || data.length === 0) {
-    console.log('No questions in database, using fallback ITEMS (98 questions)')
-    return ITEMS.map((item, i) => ({
-      id: item.id,
-      axis_id: item.axis,
-      key: item.key,
-      text: item.text,
-      educational_content: item.educational_content,
-      display_order: item.order,
-      active: true,
-      weight: 1.0,
-      question_type: 'conceptual'
-    }))
+    console.warn('No active questions found in database')
+    return []
   }
 
   console.log(`Loaded ${data.length} active questions from database`)
