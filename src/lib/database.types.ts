@@ -31,6 +31,52 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
+      }
+      roles: {
+        Row: {
+          id: string
+          name: string
+          description: string | null
+          created_at: string
+        }
+        Insert: {
+          id: string
+          name: string
+          description?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          description?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          user_id: string
+          role_id: string
+          assigned_at: string
+          assigned_by: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          role_id: string
+          assigned_at?: string
+          assigned_by?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          role_id?: string
+          assigned_at?: string
+          assigned_by?: string | null
+        }
+        Relationships: []
       }
       questions: {
         Row: {
