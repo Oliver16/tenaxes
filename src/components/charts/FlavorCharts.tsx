@@ -11,6 +11,7 @@ import {
   Cell
 } from 'recharts'
 import type { FlavorMatch } from '@/lib/supabase'
+import { buildFlavorChartData, getDisplayFlavors } from '@/lib/flavorDisplay'
 
 type Props = {
   flavors: FlavorMatch[]
@@ -18,16 +19,7 @@ type Props = {
 }
 
 export function FlavorBarChart({ flavors, showAll = false }: Props) {
-  const displayFlavors = showAll ? flavors.filter(f => f.affinity > 0) : flavors.slice(0, 5)
-  
-  const data = displayFlavors.map(f => ({
-    name: f.name.length > 20 ? f.name.substring(0, 18) + '...' : f.name,
-    fullName: f.name,
-    affinity: Math.round(f.affinity * 100),
-    color: f.color,
-    description: f.description,
-    matchStrength: f.match_strength
-  }))
+  const data = buildFlavorChartData(flavors, showAll)
 
   return (
     <div className="w-full h-[300px]">
@@ -87,9 +79,8 @@ function FlavorTooltip({ active, payload }: any) {
 // Expandable flavor list
 export function FlavorList({ flavors }: { flavors: FlavorMatch[] }) {
   const [showAll, setShowAll] = useState(false)
-  
   const positiveFlavors = flavors.filter(f => f.affinity > 0)
-  const displayFlavors = showAll ? positiveFlavors : flavors.slice(0, 5)
+  const displayFlavors = getDisplayFlavors(flavors, showAll)
   
   return (
     <div>
