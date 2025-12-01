@@ -14,7 +14,7 @@ export default async function Home() {
       {/* Navigation Header */}
       <nav className="border-b border-slate-800">
         <div className="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="text-white font-bold text-xl">Political Compass</div>
+          <div className="text-white font-bold text-xl">TenAxes</div>
           {user ? (
             <Link
               href="/profile"

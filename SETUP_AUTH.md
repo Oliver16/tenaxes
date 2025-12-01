@@ -1,6 +1,6 @@
 # Setup Guide: User Authentication & Accounts
 
-This guide explains how to set up user authentication and account features for the Political Compass application.
+This guide explains how to set up user authentication and account features for the TenAxes application.
 
 ## Overview
 
