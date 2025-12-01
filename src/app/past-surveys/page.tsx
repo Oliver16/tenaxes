@@ -5,6 +5,15 @@ import type { Database } from '@/lib/database.types'
 
 type SurveyResult = Database['public']['Tables']['survey_results']['Row']
 
+type SurveyResultsListItem = {
+  id: string
+  session_id: string
+  core_axes: any
+  facets: any
+  top_flavors: any
+  created_at: string
+}
+
 export default async function PastSurveysPage() {
   const supabase = createClient()
 
@@ -23,6 +32,7 @@ export default async function PastSurveysPage() {
     .select('id, session_id, core_axes, facets, top_flavors, created_at')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
+    .returns<SurveyResultsListItem[]>()
 
   if (resultsError) {
     console.error('Error fetching results:', resultsError)
