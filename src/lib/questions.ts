@@ -69,6 +69,7 @@ export async function fetchActiveQuestions(): Promise<Question[]> {
 
   if (error) {
     console.error('Error fetching active questions:', error)
+    console.log('Using fallback ITEMS (98 questions)')
     // Fallback to hardcoded questions
     return ITEMS.map((item, i) => ({
       id: item.id,
@@ -85,6 +86,7 @@ export async function fetchActiveQuestions(): Promise<Question[]> {
 
   // If no questions in DB, return hardcoded ones
   if (!data || data.length === 0) {
+    console.log('No questions in database, using fallback ITEMS (98 questions)')
     return ITEMS.map((item, i) => ({
       id: item.id,
       axis_id: item.axis,
@@ -97,6 +99,12 @@ export async function fetchActiveQuestions(): Promise<Question[]> {
       question_type: 'conceptual'
     }))
   }
+
+  console.log(`Loaded ${data.length} active questions from database`)
+  console.log('Question types:', data.reduce((acc: any, q: any) => {
+    acc[q.question_type] = (acc[q.question_type] || 0) + 1
+    return acc
+  }, {}))
 
   return data.map(normalizeQuestion)
 }

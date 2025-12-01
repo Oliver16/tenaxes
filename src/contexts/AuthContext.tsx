@@ -116,7 +116,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signUp,
     signIn,
     signOut,
-    isAdmin: profile?.is_admin ?? false || hasRoleCheck('admin'),
+    isAdmin: (profile?.is_admin ?? false) || hasRoleCheck('admin'),
     roles,
     hasRole: hasRoleCheck,
     isModerator: hasRoleCheck('admin') || hasRoleCheck('moderator'),
