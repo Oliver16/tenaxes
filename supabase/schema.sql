@@ -174,12 +174,11 @@ CREATE POLICY "Only admins can remove roles" ON user_roles
     )
   );
 
--- Questions: anyone can read active questions, only admins can modify
-CREATE POLICY "Anyone can read active questions" ON questions
-  FOR SELECT USING (active = true);
-
-CREATE POLICY "Authenticated users can read all questions" ON questions
-  FOR SELECT USING (auth.role() = 'authenticated');
+-- Questions: anyone can read active questions, authenticated users can read all
+CREATE POLICY "Read questions policy" ON questions
+  FOR SELECT USING (
+    active = true OR auth.uid() IS NOT NULL
+  );
 
 CREATE POLICY "Admins can insert questions" ON questions
   FOR INSERT WITH CHECK (
