@@ -56,15 +56,32 @@ async function getResults(sessionId: string): Promise<SurveyResult & {
     .select('*')
     .eq('active', true)
 
-  const questions = (questionsData || []) as Question[]
+  const questions = (questionsData || []).map((q: any) => ({
+    ...q,
+    weight: q.weight ?? 1.0,
+    question_type: q.question_type ?? 'conceptual'
+  })) as Question[]
 
   // Separate questions by type
   const conceptualQuestions = questions.filter(q => q.question_type === 'conceptual')
   const appliedQuestions = questions.filter(q => q.question_type === 'applied')
 
+  // Debug logging
+  console.log('Total questions:', questions.length)
+  console.log('Conceptual questions:', conceptualQuestions.length)
+  console.log('Applied questions:', appliedQuestions.length)
+  console.log('Sample applied question:', appliedQuestions[0])
+
   // Count responses by type
   const conceptualCount = conceptualQuestions.filter(q => responses[q.id] !== undefined).length
   const appliedCount = appliedQuestions.filter(q => responses[q.id] !== undefined).length
+
+  // Debug: Check what response IDs we have
+  const responseIds = Object.keys(responses).map(Number)
+  console.log('Response IDs range:', Math.min(...responseIds), '-', Math.max(...responseIds))
+  console.log('Applied question IDs:', appliedQuestions.map(q => q.id).slice(0, 5))
+  console.log('Conceptual responses count:', conceptualCount)
+  console.log('Applied responses count:', appliedCount)
 
   // Calculate separate scores for conceptual and applied
   const conceptualResults = calculateScoresFromQuestions(responses, conceptualQuestions)
