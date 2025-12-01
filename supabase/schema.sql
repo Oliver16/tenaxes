@@ -108,11 +108,13 @@ CREATE POLICY "Anyone can insert responses" ON survey_responses
 
 CREATE POLICY "Users can read own responses" ON survey_responses
   FOR SELECT USING (
-    auth.uid() = user_id OR user_id IS NULL
+    auth.uid() = user_id
   );
 
-CREATE POLICY "Authenticated users can read all responses" ON survey_responses
-  FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "Admins can read all responses" ON survey_responses
+  FOR SELECT USING (
+    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin = true)
+  );
 
 -- Survey results: anyone can view by session_id, users can view their own
 CREATE POLICY "Anyone can read results by session" ON survey_results

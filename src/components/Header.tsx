@@ -32,7 +32,7 @@ export default function Header() {
                 <Link href="/survey" className="text-sm font-medium text-gray-700 hover:text-gray-900">
                   Take Survey
                 </Link>
-                {user && (
+                {isAdmin && (
                   <Link href="/admin" className="text-sm font-medium text-gray-700 hover:text-gray-900">
                     Analytics
                   </Link>

@@ -13,20 +13,20 @@ import {
 } from '@/components/charts/AdminCharts'
 
 export default function AdminPage() {
-  const { user, loading: authLoading } = useAuth()
+  const { user, isAdmin, loading: authLoading } = useAuth()
   const router = useRouter()
   const [data, setData] = useState<AnalyticsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!authLoading && !user) {
+    if (!authLoading && (!user || !isAdmin)) {
       router.push('/')
     }
-  }, [user, authLoading, router])
+  }, [user, isAdmin, authLoading, router])
 
   useEffect(() => {
-    if (!user) return
+    if (!user || !isAdmin) return
 
     async function load() {
       setLoading(true)
@@ -39,10 +39,10 @@ export default function AdminPage() {
       setLoading(false)
     }
     load()
-  }, [user])
+  }, [user, isAdmin])
 
   // Show loading while checking authentication
-  if (authLoading || !user) {
+  if (authLoading || !user || !isAdmin) {
     return null
   }
 
