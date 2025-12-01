@@ -82,7 +82,7 @@ export default function SurveyPage() {
           session_id: sessionId,
           user_id: user?.id || null,
           responses: responses
-        })
+        } as any)
 
       if (responseError) throw responseError
 
@@ -94,7 +94,7 @@ export default function SurveyPage() {
           core_axes: results.coreAxes,
           facets: results.facets,
           top_flavors: results.allFlavors.filter(f => f.affinity > 0.1) // All positive matches
-        })
+        } as any)
 
       if (resultError) throw resultError
 
