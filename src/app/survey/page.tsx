@@ -103,7 +103,8 @@ export default function SurveyPage() {
       router.push(`/results/${sessionId}`)
     } catch (err) {
       console.error('Error saving results:', err)
-      setError('Failed to save results. Please try again.')
+      const errorMessage = err instanceof Error ? err.message : 'Failed to save results. Please try again.'
+      setError(errorMessage)
       setIsSubmitting(false)
     }
   }, [isComplete, responses, questions, router, user])

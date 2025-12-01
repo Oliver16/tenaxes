@@ -27,6 +27,8 @@ CREATE TABLE questions (
   educational_content TEXT,
   display_order INTEGER NOT NULL,
   active BOOLEAN DEFAULT true,
+  weight DECIMAL(4,2) DEFAULT 1.0,
+  question_type TEXT DEFAULT 'conceptual' CHECK (question_type IN ('conceptual', 'applied')),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -35,6 +37,7 @@ CREATE TABLE questions (
 CREATE INDEX idx_questions_axis ON questions(axis_id);
 CREATE INDEX idx_questions_active ON questions(active);
 CREATE INDEX idx_questions_order ON questions(display_order);
+CREATE INDEX idx_questions_type ON questions(question_type);
 
 -- =====================
 -- SURVEY RESPONSES TABLE
