@@ -45,7 +45,9 @@ async function getResults(sessionId: string): Promise<SurveyResult & {
     .eq('session_id', sessionId)
     .single()
 
-  const responses = responseData?.responses || {}
+  type SurveyResponseRow = Pick<Database['public']['Tables']['survey_responses']['Row'], 'responses'>
+  const typedResponseData = responseData as SurveyResponseRow | null
+  const responses = (typedResponseData?.responses as Record<number, number>) || {}
   const responseCount = Object.keys(responses).length
 
   // Fetch all questions to calculate separate scores
