@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import type { Database, Json } from '@/lib/database.types'
 import { calculateAxisScoresFromLinks } from '@/lib/scorer'
 import { analyzeCollisions } from '@/lib/collision-analyzer'
 import { fetchQuestionsWithLinks } from '@/lib/api/questions'
+
+type SurveyResultInsert = Database['public']['Tables']['survey_results']['Insert']
 
 export async function POST(request: NextRequest) {
   try {
@@ -65,17 +68,19 @@ export async function POST(request: NextRequest) {
     const sessionId = crypto.randomUUID()
     
     // Store results
+    const payload: SurveyResultInsert = {
+      session_id: sessionId,
+      scores: allScores as Json,
+      conceptual_scores: conceptualScores as Json,
+      applied_scores: appliedScores as Json,
+      collision_pairs: collisionScores as Json,
+      responses: responses as Json,
+      completed_at: new Date().toISOString(),
+    }
+
     const { data: result, error: insertError } = await supabase
       .from('survey_results')
-      .insert({
-        session_id: sessionId,
-        scores: allScores,
-        conceptual_scores: conceptualScores,
-        applied_scores: appliedScores,
-        collision_pairs: collisionScores,  // NEW: store collision analysis
-        responses: responses,
-        completed_at: new Date().toISOString()
-      })
+      .insert(payload)
       .select()
       .single()
     
