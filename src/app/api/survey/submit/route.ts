@@ -3,6 +3,9 @@ import { createClient } from '@/lib/supabase/server'
 import { calculateAxisScoresFromLinks } from '@/lib/scorer'
 import { analyzeCollisions } from '@/lib/collision-analyzer'
 import { fetchQuestionsWithLinks } from '@/lib/api/questions'
+import { Database } from '@/lib/database.types'
+
+type AxisRow = Database['public']['Tables']['axes']['Row']
 
 export async function POST(request: NextRequest) {
   try {
@@ -29,7 +32,8 @@ export async function POST(request: NextRequest) {
     
     if (axesError) throw axesError
     
-    const axesById = Object.fromEntries((axes || []).map(a => [a.id, a]))
+    const axesList: AxisRow[] = axes ?? []
+    const axesById = Object.fromEntries(axesList.map(axis => [axis.id, axis]))
     
     // Separate questions by type
     const conceptualQuestions = questions.filter(q => q.question_type === 'conceptual')
@@ -58,7 +62,7 @@ export async function POST(request: NextRequest) {
     const collisionScores = analyzeCollisions(
       responses,
       appliedQuestions,
-      axes || []
+      axesList
     )
     
     // Create session ID
