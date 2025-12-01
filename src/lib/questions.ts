@@ -143,7 +143,7 @@ export async function createQuestion(input: QuestionInput): Promise<Question | n
       active: input.active ?? true,
       weight: input.weight ?? 1.0,
       question_type: input.question_type ?? 'conceptual'
-    })
+    } as any)
     .select()
     .single()
 

@@ -41,6 +41,8 @@ export interface Database {
           educational_content: string | null
           display_order: number
           active: boolean
+          weight: number
+          question_type: string
           created_at: string
           updated_at: string
         }
@@ -50,8 +52,10 @@ export interface Database {
           key: number
           text: string
           educational_content?: string | null
-          display_order: number
+          display_order?: number
           active?: boolean
+          weight?: number
+          question_type?: string
           created_at?: string
           updated_at?: string
         }
@@ -63,6 +67,8 @@ export interface Database {
           educational_content?: string | null
           display_order?: number
           active?: boolean
+          weight?: number
+          question_type?: string
           created_at?: string
           updated_at?: string
         }
