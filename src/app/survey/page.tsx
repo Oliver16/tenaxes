@@ -8,6 +8,7 @@ import { fetchActiveQuestions, type Question } from '@/lib/questions'
 import { calculateScoresFromQuestions } from '@/lib/scorer'
 import type { Database } from '@/lib/database.types'
 import { nanoid } from 'nanoid'
+import { seededShuffle } from '@/lib/shuffle'
 
 const RESPONSE_OPTIONS = [
   { value: -2, label: 'Strongly Disagree', short: 'SD', color: 'bg-red-600' },
@@ -20,6 +21,8 @@ const RESPONSE_OPTIONS = [
 export default function SurveyPage() {
   const router = useRouter()
   const { user } = useAuth()
+  // Generate session ID once on mount for deterministic question randomization
+  const [sessionId] = useState(() => nanoid(12))
   const [questions, setQuestions] = useState<Question[]>([])
   const [loading, setLoading] = useState(true)
   const [responses, setResponses] = useState<Record<number, number>>({})
@@ -27,18 +30,20 @@ export default function SurveyPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Fetch questions from database
+  // Fetch questions from database and randomize order per session
   useEffect(() => {
     async function loadQuestions() {
       setLoading(true)
       const data = await fetchActiveQuestions()
-      // Sort by display_order
+      // Sort by display_order first for consistency
       data.sort((a, b) => a.display_order - b.display_order)
-      setQuestions(data)
+      // Then shuffle using session ID as seed for per-user randomization
+      const shuffled = seededShuffle(data, sessionId)
+      setQuestions(shuffled)
       setLoading(false)
     }
     loadQuestions()
-  }, [])
+  }, [sessionId])
 
   const currentItem = questions[currentIndex]
   const answeredCount = Object.keys(responses).length
@@ -72,7 +77,7 @@ export default function SurveyPage() {
     setError(null)
 
     try {
-      const sessionId = nanoid(12)
+      // Use the same sessionId that was used to randomize questions
       const results = calculateScoresFromQuestions(responses, questions)
 
       // Persist via API route to avoid client-side Supabase insert failures
@@ -82,7 +87,8 @@ export default function SurveyPage() {
         responses,
         core_axes: results.coreAxes,
         facets: results.facets,
-        top_flavors: results.allFlavors.filter(f => f.affinity > 0.1)
+        top_flavors: results.allFlavors.filter(f => f.affinity > 0.1),
+        question_order: questions.map(q => q.id) // Store randomized order for reproducibility
       }
 
       const response = await fetch('/api/survey/submit', {
@@ -106,7 +112,7 @@ export default function SurveyPage() {
       setError(errorMessage)
       setIsSubmitting(false)
     }
-  }, [isComplete, responses, questions, router, user])
+  }, [isComplete, responses, questions, router, user, sessionId])
 
   // Loading state
   if (loading) {
