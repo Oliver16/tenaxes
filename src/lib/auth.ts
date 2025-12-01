@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import type { Database } from './database.types'
 
 export type User = {
   id: string
@@ -124,7 +125,7 @@ export async function linkResultToUser(sessionId: string, userId: string) {
 export async function getUserResults(userId: string) {
   const { data, error } = await supabase.rpc('get_user_results', {
     p_user_id: userId
-  })
+  } as Database['public']['Functions']['get_user_results']['Args'])
 
   if (error) {
     console.error('Error fetching user results:', error)
