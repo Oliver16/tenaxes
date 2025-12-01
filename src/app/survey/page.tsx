@@ -5,8 +5,6 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { AXES } from '@/lib/instrument'
 import { fetchActiveQuestions, type Question } from '@/lib/questions'
-import { calculateScoresFromQuestions } from '@/lib/scorer'
-import type { Database } from '@/lib/database.types'
 import { nanoid } from 'nanoid'
 import { seededShuffle } from '@/lib/shuffle'
 
@@ -77,26 +75,12 @@ export default function SurveyPage() {
     setError(null)
 
     try {
-      // Use the same sessionId that was used to randomize questions
-      const results = calculateScoresFromQuestions(responses, questions)
-
-      // Persist via API route to avoid client-side Supabase insert failures
-      const payload = {
-        session_id: sessionId,
-        user_id: user?.id ?? null,
-        responses,
-        core_axes: results.coreAxes,
-        facets: results.facets,
-        top_flavors: results.allFlavors.filter(f => f.affinity > 0.1),
-        question_order: questions.map(q => q.id) // Store randomized order for reproducibility
-      }
-
       const response = await fetch('/api/survey/submit', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ responses }),
       })
 
       if (!response.ok) {
@@ -104,8 +88,11 @@ export default function SurveyPage() {
         throw new Error(errorPayload.error || 'Failed to save results')
       }
 
+      const payload = await response.json()
+      const resultSessionId = payload.sessionId || sessionId
+
       // Navigate to results
-      router.push(`/results/${sessionId}`)
+      router.push(`/results/${resultSessionId}`)
     } catch (err) {
       console.error('Error saving results:', err)
       const errorMessage = err instanceof Error ? err.message : 'Failed to save results. Please try again.'

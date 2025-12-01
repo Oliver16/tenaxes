@@ -1,123 +1,127 @@
-import { AXES, ITEMS, FLAVOR_ARCHETYPES, AxisId } from './instrument'
-import type { AxisScore, FlavorMatch } from './supabase'
-import type { Question } from './questions'
+import { QuestionWithLinks, AxisScore, QuestionContribution, ResponsesMap } from './database.types'
 
-export type Responses = Record<number, number>
-
-export type CompassResults = {
-  coreAxes: AxisScore[]
-  facets: AxisScore[]
-  topFlavors: FlavorMatch[]
-  allFlavors: FlavorMatch[]
-}
-
-function getPoleLabel(score: number, negLabel: string, posLabel: string): string {
-  if (score < -0.6) return `Strong ${negLabel}`
-  if (score < -0.2) return `Moderate ${negLabel}`
-  if (score <= 0.2) return 'Centrist / Mixed'
-  if (score <= 0.6) return `Moderate ${posLabel}`
-  return `Strong ${posLabel}`
-}
-
-function getMatchStrength(affinity: number): string {
-  if (affinity >= 0.7) return 'Very Strong'
-  if (affinity >= 0.5) return 'Strong'
-  if (affinity >= 0.3) return 'Moderate'
-  if (affinity >= 0.1) return 'Weak'
-  return 'Minimal'
-}
-
-// Calculate scores using database questions
-export function calculateScoresFromQuestions(responses: Responses, questions: Question[]): CompassResults {
-  // Group questions by axis
-  const questionsByAxis: Record<string, Question[]> = {}
-  questions.forEach(q => {
-    if (!questionsByAxis[q.axis_id]) questionsByAxis[q.axis_id] = []
-    questionsByAxis[q.axis_id].push(q)
-  })
-
-  // Calculate axis scores
-  const axisScores: Record<string, AxisScore> = {}
+/**
+ * Calculate axis scores from questions with multi-axis links
+ * Uses normalization to prevent overfitting from multi-axis questions
+ */
+export function calculateAxisScoresFromLinks(
+  responses: ResponsesMap,
+  questions: QuestionWithLinks[],
+  axesById: Record<string, { id: string; name: string }>
+): {
+  axisScores: AxisScore[]
+  questionContributions: QuestionContribution[]
+} {
   
-  Object.entries(AXES).forEach(([axisId, axisDef]) => {
-    const axisQuestions = questionsByAxis[axisId] || []
-    let rawSum = 0
-    let totalWeight = 0
-
-    axisQuestions.forEach(q => {
-      if (responses[q.id] !== undefined) {
-        const weight = q.weight ?? 1
-        const adjusted = responses[q.id] * q.key * weight
-        rawSum += adjusted
-        totalWeight += weight
-      }
-    })
-
-    const normalized = totalWeight > 0 ? rawSum / (2 * totalWeight) : 0
-    const clamped = Math.max(-1, Math.min(1, normalized))
-
-    axisScores[axisId] = {
-      axis_id: axisId,
-      name: axisDef.name,
-      score: clamped,
-      pole_negative: axisDef.pole_negative,
-      pole_positive: axisDef.pole_positive,
-      pole_label: getPoleLabel(clamped, axisDef.pole_negative, axisDef.pole_positive)
+  const sums: Record<string, number> = {}
+  const weights: Record<string, number> = {}
+  const responseStrengths: Record<string, number[]> = {}
+  
+  const questionContributions: QuestionContribution[] = []
+  
+  for (const q of questions) {
+    const r = responses[q.id]
+    if (r === undefined) continue
+    
+    // Get links or create default primary link for backward compatibility
+    const links = q.question_axis_links && q.question_axis_links.length > 0
+      ? q.question_axis_links
+      : [{
+          question_id: q.id,
+          axis_id: q.axis_id,
+          role: 'primary' as const,
+          axis_key: q.key as -1 | 1,
+          weight: q.weight ?? 1,
+          id: 0
+        }]
+    
+    // CRITICAL: Normalize total question weight to prevent overfitting
+    const questionTotalWeight = links.reduce((sum, link) => sum + link.weight, 0)
+    const targetWeight = q.weight ?? 1.25  // Each question should contribute this much total
+    const normalizationFactor = targetWeight / questionTotalWeight
+    
+    const qContrib: QuestionContribution = {
+      question_id: q.id,
+      response_value: r,
+      contributions: []
     }
-  })
-
-  // Calculate flavor affinities
-  const flavorMatches: FlavorMatch[] = FLAVOR_ARCHETYPES.map(flavor => {
-    let weightedSum = 0
-    let totalWeight = 0
-
-    flavor.components.forEach(comp => {
-      const axisScore = axisScores[comp.axis]
-      if (axisScore && comp.direction !== 0) {
-        const alignment = axisScore.score * comp.direction
-        weightedSum += alignment * comp.weight
-        totalWeight += comp.weight
-      }
-    })
-
-    const affinity = totalWeight > 0 ? weightedSum / totalWeight : 0
-    const clampedAffinity = Math.max(-1, Math.min(1, affinity))
-
-    return {
-      flavor_id: flavor.id,
-      name: flavor.name,
-      affinity: clampedAffinity,
-      match_strength: getMatchStrength(clampedAffinity),
-      description: flavor.description,
-      color: flavor.color
+    
+    for (const link of links) {
+      const axisId = link.axis_id
+      
+      // Apply normalization to keep total question influence constant
+      const normalizedWeight = link.weight * normalizationFactor
+      const contrib = r * link.axis_key * normalizedWeight
+      
+      sums[axisId] = (sums[axisId] ?? 0) + contrib
+      weights[axisId] = (weights[axisId] ?? 0) + normalizedWeight
+      
+      // Track response strength for confidence calculation
+      if (!responseStrengths[axisId]) responseStrengths[axisId] = []
+      responseStrengths[axisId].push(Math.abs(r))
+      
+      qContrib.contributions.push({
+        axis_id: axisId,
+        raw_contribution: r * link.axis_key * link.weight,
+        normalized_contribution: contrib
+      })
     }
-  }).sort((a, b) => b.affinity - a.affinity)
-
-  // Split into core axes and facets
-  const coreAxes = Object.values(axisScores).filter(a => !(AXES[a.axis_id as AxisId] as any)?.is_facet)
-  const facets = Object.values(axisScores).filter(a => (AXES[a.axis_id as AxisId] as any)?.is_facet)
-
-  return {
-    coreAxes,
-    facets,
-    topFlavors: flavorMatches.slice(0, 5),
-    allFlavors: flavorMatches
+    
+    questionContributions.push(qContrib)
   }
+  
+  // Calculate final scores with confidence metrics
+  const axisScores: AxisScore[] = []
+  
+  for (const axisId of Object.keys(weights)) {
+    const w = weights[axisId]
+    const raw = sums[axisId] ?? 0
+    const normalized = w > 0 ? raw / (2 * w) : 0
+    
+    // Calculate confidence: average response strength
+    const strengths = responseStrengths[axisId] || []
+    const avgStrength = strengths.length > 0
+      ? strengths.reduce((a, b) => a + b, 0) / strengths.length
+      : 0
+    
+    // Calculate variance: consistency of responses
+    const variance = strengths.length > 1
+      ? calculateVariance(strengths)
+      : 0
+    
+    const meta = axesById[axisId]
+    axisScores.push({
+      axis_id: axisId,
+      name: meta?.name ?? axisId,
+      score: normalized,
+      raw_sum: raw,
+      total_weight: w,
+      confidence: avgStrength,
+      response_variance: variance
+    })
+  }
+  
+  return { axisScores, questionContributions }
 }
 
-// Original function using hardcoded ITEMS (for backwards compatibility)
-export function calculateScores(responses: Responses): CompassResults {
-  // Convert ITEMS to Question format
-  const questions: Question[] = ITEMS.map(item => ({
-    id: item.id,
-    axis_id: item.axis,
-    key: item.key,
-    text: item.text,
-    display_order: item.order,
-    active: true,
-    weight: 1.0,
-    question_type: 'conceptual'
-  }))
+function calculateVariance(values: number[]): number {
+  const mean = values.reduce((a, b) => a + b, 0) / values.length
+  const squareDiffs = values.map(v => Math.pow(v - mean, 2))
+  return squareDiffs.reduce((a, b) => a + b, 0) / values.length
+}
+
+/**
+ * Backward-compatible wrapper that returns just axis scores
+ */
+export function calculateScoresFromQuestions(
+  responses: ResponsesMap,
+  questions: QuestionWithLinks[],
+  axes?: { id: string; name: string }[]
+): AxisScore[] {
+  const axesById = axes 
+    ? Object.fromEntries(axes.map(a => [a.id, a]))
+    : {}
   
-  return calculateScoresFromQuestions(responses, questions)
+  const { axisScores } = calculateAxisScoresFromLinks(responses, questions, axesById)
+  return axisScores
 }
