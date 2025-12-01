@@ -96,8 +96,8 @@ export async function assignRole(
   roleId: string,
   assignedBy?: string
 ): Promise<{ success: boolean; error?: string }> {
-  const { error } = await supabase
-    .from('user_roles')
+  const { error } = await (supabase
+    .from('user_roles') as any)
     .insert({
       user_id: userId,
       role_id: roleId,
@@ -139,8 +139,8 @@ export async function removeRole(
  */
 export async function getAllUsersWithRoles(): Promise<(Profile & { roles: Role[] })[]> {
   // First get all profiles
-  const { data: profiles, error: profilesError } = await supabase
-    .from('profiles')
+  const { data: profiles, error: profilesError } = await (supabase
+    .from('profiles') as any)
     .select('*')
     .order('created_at', { ascending: false })
 
@@ -154,8 +154,8 @@ export async function getAllUsersWithRoles(): Promise<(Profile & { roles: Role[]
   }
 
   // Get all user roles
-  const { data: userRoles, error: rolesError } = await supabase
-    .from('user_roles')
+  const { data: userRoles, error: rolesError } = await (supabase
+    .from('user_roles') as any)
     .select(`
       user_id,
       roles (
@@ -168,7 +168,7 @@ export async function getAllUsersWithRoles(): Promise<(Profile & { roles: Role[]
 
   if (rolesError) {
     console.error('Error fetching user roles:', rolesError)
-    return profiles.map(p => ({ ...p, roles: [] }))
+    return profiles.map((p: any) => ({ ...p, roles: [] }))
   }
 
   // Group roles by user
@@ -183,7 +183,7 @@ export async function getAllUsersWithRoles(): Promise<(Profile & { roles: Role[]
   })
 
   // Combine profiles with their roles
-  return profiles.map(profile => ({
+  return profiles.map((profile: any) => ({
     ...profile,
     roles: rolesByUser[profile.id] || []
   }))
@@ -197,8 +197,8 @@ export async function createRole(
   name: string,
   description?: string
 ): Promise<{ success: boolean; data?: Role; error?: string }> {
-  const { data, error } = await supabase
-    .from('roles')
+  const { data, error } = await (supabase
+    .from('roles') as any)
     .insert({
       id,
       name,
@@ -222,8 +222,8 @@ export async function updateRole(
   id: string,
   updates: { name?: string; description?: string }
 ): Promise<{ success: boolean; data?: Role; error?: string }> {
-  const { data, error } = await supabase
-    .from('roles')
+  const { data, error } = await (supabase
+    .from('roles') as any)
     .update(updates)
     .eq('id', id)
     .select()
