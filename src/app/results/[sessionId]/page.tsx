@@ -154,93 +154,95 @@ export default async function ResultsPage({ params }: Props) {
         </section>
 
         {/* Talk the Talk vs Walk the Walk - Conceptual vs Practical Comparison */}
-        <section className="bg-white rounded-xl shadow-lg p-6 mb-6">
-          <h2 className="text-2xl font-bold text-gray-800 mb-2 pb-2 border-b">
-            Talk the Talk vs. Walk the Walk
-          </h2>
-          <p className="text-gray-500 text-sm mb-6">
-            Comparing your responses to conceptual principles vs. practical scenarios reveals consistency between beliefs and action.
-            Larger differences may indicate areas where abstract values differ from real-world choices.
-          </p>
+        {appliedCount > 0 && (
+          <section className="bg-white rounded-xl shadow-lg p-6 mb-6">
+            <h2 className="text-2xl font-bold text-gray-800 mb-2 pb-2 border-b">
+              Talk the Talk vs. Walk the Walk
+            </h2>
+            <p className="text-gray-500 text-sm mb-6">
+              Comparing your responses to conceptual principles vs. practical scenarios reveals consistency between beliefs and action.
+              Larger differences may indicate areas where abstract values differ from real-world choices.
+            </p>
 
-          <div className="space-y-4">
-            {axisComparisons.slice(0, 5).map((comparison) => {
-              const showWarning = comparison.difference > 0.3
-              return (
-                <div key={comparison.axis_id} className={`p-4 rounded-lg border ${showWarning ? 'bg-amber-50 border-amber-200' : 'bg-gray-50 border-gray-200'}`}>
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <h3 className="font-semibold text-gray-800">{comparison.name}</h3>
-                      <p className="text-xs text-gray-500">{comparison.pole_negative} ↔ {comparison.pole_positive}</p>
-                    </div>
-                    {showWarning && (
-                      <span className="text-xs bg-amber-200 text-amber-800 px-2 py-1 rounded-full font-medium">
-                        Notable Gap
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4 mb-2">
-                    <div>
-                      <p className="text-xs text-gray-600 mb-1">Conceptual Beliefs</p>
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 bg-gray-200 rounded-full h-2">
-                          <div
-                            className="bg-blue-500 h-2 rounded-full transition-all"
-                            style={{
-                              width: `${Math.abs(comparison.conceptual_score) * 100}%`,
-                              marginLeft: comparison.conceptual_score < 0 ? '0' : 'auto',
-                              marginRight: comparison.conceptual_score < 0 ? 'auto' : '0'
-                            }}
-                          />
-                        </div>
-                        <span className="text-sm font-medium text-gray-700 w-12 text-right">
-                          {comparison.conceptual_score.toFixed(2)}
+            <div className="space-y-4">
+              {axisComparisons.slice(0, 5).map((comparison) => {
+                const showWarning = comparison.difference > 0.3
+                return (
+                  <div key={comparison.axis_id} className={`p-4 rounded-lg border ${showWarning ? 'bg-amber-50 border-amber-200' : 'bg-gray-50 border-gray-200'}`}>
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <h3 className="font-semibold text-gray-800">{comparison.name}</h3>
+                        <p className="text-xs text-gray-500">{comparison.pole_negative} ↔ {comparison.pole_positive}</p>
+                      </div>
+                      {showWarning && (
+                        <span className="text-xs bg-amber-200 text-amber-800 px-2 py-1 rounded-full font-medium">
+                          Notable Gap
                         </span>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 mb-2">
+                      <div>
+                        <p className="text-xs text-gray-600 mb-1">Conceptual Beliefs</p>
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 bg-gray-200 rounded-full h-2">
+                            <div
+                              className="bg-blue-500 h-2 rounded-full transition-all"
+                              style={{
+                                width: `${Math.abs(comparison.conceptual_score) * 100}%`,
+                                marginLeft: comparison.conceptual_score < 0 ? '0' : 'auto',
+                                marginRight: comparison.conceptual_score < 0 ? 'auto' : '0'
+                              }}
+                            />
+                          </div>
+                          <span className="text-sm font-medium text-gray-700 w-12 text-right">
+                            {comparison.conceptual_score.toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div>
+                        <p className="text-xs text-gray-600 mb-1">Practical Application</p>
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 bg-gray-200 rounded-full h-2">
+                            <div
+                              className="bg-green-500 h-2 rounded-full transition-all"
+                              style={{
+                                width: `${Math.abs(comparison.applied_score) * 100}%`,
+                                marginLeft: comparison.applied_score < 0 ? '0' : 'auto',
+                                marginRight: comparison.applied_score < 0 ? 'auto' : '0'
+                              }}
+                            />
+                          </div>
+                          <span className="text-sm font-medium text-gray-700 w-12 text-right">
+                            {comparison.applied_score.toFixed(2)}
+                          </span>
+                        </div>
                       </div>
                     </div>
 
-                    <div>
-                      <p className="text-xs text-gray-600 mb-1">Practical Application</p>
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 bg-gray-200 rounded-full h-2">
-                          <div
-                            className="bg-green-500 h-2 rounded-full transition-all"
-                            style={{
-                              width: `${Math.abs(comparison.applied_score) * 100}%`,
-                              marginLeft: comparison.applied_score < 0 ? '0' : 'auto',
-                              marginRight: comparison.applied_score < 0 ? 'auto' : '0'
-                            }}
-                          />
-                        </div>
-                        <span className="text-sm font-medium text-gray-700 w-12 text-right">
-                          {comparison.applied_score.toFixed(2)}
+                    <div className="mt-2 text-xs text-gray-500">
+                      Difference: {(comparison.difference * 100).toFixed(0)}%
+                      {showWarning && (
+                        <span className="ml-2 text-amber-700">
+                          — Your practical choices show a different stance than your stated principles
                         </span>
-                      </div>
+                      )}
                     </div>
                   </div>
-
-                  <div className="mt-2 text-xs text-gray-500">
-                    Difference: {(comparison.difference * 100).toFixed(0)}%
-                    {showWarning && (
-                      <span className="ml-2 text-amber-700">
-                        — Your practical choices show a different stance than your stated principles
-                      </span>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-
-          {axisComparisons.every(c => c.difference < 0.2) && (
-            <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-              <p className="text-sm text-green-800">
-                ✓ Your responses show strong consistency between conceptual beliefs and practical application across all axes.
-              </p>
+                )
+              })}
             </div>
-          )}
-        </section>
+
+            {axisComparisons.every(c => c.difference < 0.2) && (
+              <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                <p className="text-sm text-green-800">
+                  ✓ Your responses show strong consistency between conceptual beliefs and practical application across all axes.
+                </p>
+              </div>
+            )}
+          </section>
+        )}
 
         {/* Flavors Section */}
         <section className="bg-white rounded-xl shadow-lg p-6 mb-6">
