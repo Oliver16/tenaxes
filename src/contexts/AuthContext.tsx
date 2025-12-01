@@ -2,7 +2,8 @@
 
 import { createContext, useContext, useEffect, useState } from 'react'
 import { User, Session, AuthError } from '@supabase/supabase-js'
-import { supabase, Profile } from '@/lib/supabase'
+import { supabase, Profile, Role } from '@/lib/supabase'
+import { getUserRoles } from '@/lib/roles'
 
 interface AuthContextType {
   user: User | null
@@ -13,6 +14,9 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>
   signOut: () => Promise<void>
   isAdmin: boolean
+  roles: Role[]
+  hasRole: (roleId: string) => boolean
+  isModerator: boolean
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -22,6 +26,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
+  const [roles, setRoles] = useState<Role[]>([])
 
   useEffect(() => {
     // Get initial session
@@ -54,6 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchProfile = async (userId: string) => {
     try {
+      // Fetch profile
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -62,9 +68,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error) throw error
       setProfile(data)
+
+      // Fetch roles
+      const userRoles = await getUserRoles(userId)
+      setRoles(userRoles)
     } catch (error) {
       console.error('Error fetching profile:', error)
       setProfile(null)
+      setRoles([])
     } finally {
       setLoading(false)
     }
@@ -93,6 +104,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await supabase.auth.signOut()
   }
 
+  const hasRoleCheck = (roleId: string) => {
+    return roles.some(role => role.id === roleId)
+  }
+
   const value = {
     user,
     profile,
@@ -101,7 +116,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signUp,
     signIn,
     signOut,
-    isAdmin: profile?.is_admin ?? false,
+    isAdmin: profile?.is_admin ?? false || hasRoleCheck('admin'),
+    roles,
+    hasRole: hasRoleCheck,
+    isModerator: hasRoleCheck('admin') || hasRoleCheck('moderator'),
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

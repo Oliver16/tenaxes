@@ -1,6 +1,6 @@
 # TenAxes
 
-A Next.js application with Supabase backend for a 98-item political orientation survey.
+A Next.js application with Supabase backend for a 150-item political orientation survey (98 conceptual + 52 applied questions).
 
 ## Features
 
@@ -21,8 +21,9 @@ A Next.js application with Supabase backend for a 98-item political orientation 
 1. Go to [supabase.com](https://supabase.com) and create a new project
 2. Once created, go to **SQL Editor**
 3. Paste the contents of `supabase/schema.sql` and run it
-4. Paste the contents of `supabase/seed.sql` and run it (loads default questions)
-5. Go to **Settings → API** and copy:
+4. Paste the contents of `supabase/seed.sql` and run it (loads 98 conceptual questions)
+5. Paste the contents of `supabase/seed_applied.sql` and run it (loads 52 applied questions)
+6. Go to **Settings → API** and copy:
    - Project URL
    - `anon` public key
 
@@ -63,7 +64,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
 | Route | Description |
 |-------|-------------|
 | `/` | Landing page with feature overview |
-| `/survey` | 98-question questionnaire |
+| `/survey` | 150-question questionnaire (98 conceptual + 52 applied) |
 | `/results/[sessionId]` | Individual results with visualizations |
 | `/admin` | Analytics dashboard |
 | `/admin/questions` | Question management (add/edit/delete) |
@@ -118,7 +119,8 @@ tenaxes/
 │       └── supabase.ts           # Database client
 └── supabase/
     ├── schema.sql                # Database schema
-    └── seed.sql                  # Default question data
+    ├── seed.sql                  # Conceptual questions (98 items)
+    └── seed_applied.sql          # Applied questions (52 items)
 ```
 
 ---
@@ -155,8 +157,13 @@ After running `schema.sql`, seed the default questions:
 
 ```sql
 -- Run in Supabase SQL Editor
+-- First, load the 98 conceptual questions
 \i seed.sql
 -- Or paste contents of supabase/seed.sql
+
+-- Then, load the 52 applied questions
+\i seed_applied.sql
+-- Or paste contents of supabase/seed_applied.sql
 ```
 
 ### Question Properties
@@ -168,6 +175,8 @@ After running `schema.sql`, seed the default questions:
 | `text` | The question statement |
 | `display_order` | Order in the survey |
 | `active` | Whether to include in survey |
+| `question_type` | `'conceptual'` or `'applied'` |
+| `weight` | Scoring multiplier (default 1.0, applied questions use 1.25) |
 
 ### Best Practices
 

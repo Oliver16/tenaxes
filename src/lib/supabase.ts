@@ -18,6 +18,23 @@ export type Profile = {
   is_admin: boolean
   created_at: string
   updated_at: string
+  roles?: Role[]  // Populated from user_roles join
+}
+
+export type Role = {
+  id: string
+  name: string
+  description: string | null
+  created_at: string
+}
+
+export type UserRole = {
+  id: string
+  user_id: string
+  role_id: string
+  assigned_at: string
+  assigned_by: string | null
+  role?: Role  // Populated from join
 }
 
 export type SurveyResponse = {
