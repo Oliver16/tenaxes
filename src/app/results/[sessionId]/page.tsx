@@ -154,7 +154,8 @@ export default async function ResultsPage({ params }: Props) {
         </section>
 
         {/* Talk the Talk vs Walk the Walk - Conceptual vs Practical Comparison */}
-        {appliedCount > 0 && (
+        {/* Only show if user answered at least 40 applied questions (out of 52 total) */}
+        {appliedCount >= 40 && (
           <section className="bg-white rounded-xl shadow-lg p-6 mb-6">
             <h2 className="text-2xl font-bold text-gray-800 mb-2 pb-2 border-b">
               Talk the Talk vs. Walk the Walk
