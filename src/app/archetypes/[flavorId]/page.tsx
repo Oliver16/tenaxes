@@ -26,7 +26,7 @@ export default async function ArchetypePage({ params, searchParams }: Props) {
   let userAxes: AxisScore[] = []
 
   if (sessionId) {
-    const supabase = createClient()
+    const supabase = await createClient()
     const { data, error } = await supabase
       .from('survey_results')
       .select('*')

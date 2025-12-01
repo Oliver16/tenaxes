@@ -12,15 +12,15 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const { responses } = body
-    
+
     if (!responses || typeof responses !== 'object') {
       return NextResponse.json(
         { error: 'Invalid responses format' },
         { status: 400 }
       )
     }
-    
-    const supabase = createClient()
+
+    const supabase = await createClient()
     
     // Fetch questions with links
     const questions = await fetchQuestionsWithLinks()

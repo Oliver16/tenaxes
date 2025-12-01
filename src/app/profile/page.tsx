@@ -4,13 +4,13 @@ import { createClient } from '@/lib/supabase-server'
 import type { Database } from '@/lib/database.types'
 
 async function getUserSession() {
-  const supabase = createClient()
+  const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   return user
 }
 
 async function getUserResults(userId: string) {
-  const supabase = createClient()
+  const supabase = await createClient()
   const { data, error } = await supabase.rpc('get_user_results', {
     p_user_id: userId
   } as any)

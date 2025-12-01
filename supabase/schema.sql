@@ -52,7 +52,7 @@ CREATE INDEX idx_user_roles_role_id ON user_roles(role_id);
 -- QUESTIONS TABLE
 -- =====================
 CREATE TABLE questions (
-  id SERIAL PRIMARY KEY,
+  id BIGSERIAL PRIMARY KEY,
   axis_id TEXT NOT NULL,
   key INTEGER NOT NULL CHECK (key IN (-1, 1)),
   text TEXT NOT NULL,
