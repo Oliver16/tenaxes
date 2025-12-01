@@ -77,16 +77,15 @@ export default function SurveyPage() {
 
       // Persist via API route to avoid client-side Supabase insert failures
       const payload = {
-        sessionId,
-        userId: user?.id ?? null,
+        session_id: sessionId,
+        user_id: user?.id ?? null,
         responses,
         core_axes: results.coreAxes,
         facets: results.facets,
         top_flavors: results.allFlavors.filter(f => f.affinity > 0.1)
       } satisfies Database['public']['Tables']['survey_results']['Insert'] & {
         responses: Database['public']['Tables']['survey_responses']['Insert']['responses']
-        userId: string | null
-        sessionId: string
+        session_id: string
       }
 
       const response = await fetch('/api/survey/submit', {
