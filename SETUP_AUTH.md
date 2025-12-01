@@ -22,10 +22,11 @@ supabase/migrations/001_add_user_accounts.sql
 ```
 
 This migration adds:
-- `public.users` table for user profiles
 - `user_id` column to `survey_results` table
 - Row Level Security (RLS) policies for data access
 - Helper functions: `link_result_to_user()` and `get_user_results()`
+
+**Note:** User profiles are stored in the `public.profiles` table (see main schema.sql), which includes admin permissions and is auto-created via trigger when users sign up.
 
 ### Step 2: Enable Email Authentication
 
@@ -122,15 +123,18 @@ Helper functions for authentication:
 
 ## Database Schema
 
-### New Tables
+### User Profile Table
 
-#### `public.users`
+#### `public.profiles`
 ```sql
 - id: UUID (references auth.users)
 - email: TEXT
+- is_admin: BOOLEAN
 - created_at: TIMESTAMPTZ
 - updated_at: TIMESTAMPTZ
 ```
+
+**Note:** Profiles are automatically created via database trigger when users sign up through Supabase Auth.
 
 ### Updated Tables
 

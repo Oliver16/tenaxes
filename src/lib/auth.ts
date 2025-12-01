@@ -73,12 +73,12 @@ export async function getCurrentUser() {
 }
 
 /**
- * Get or create user profile in public.users table
+ * Get or create user profile in public.profiles table
  */
 export async function getOrCreateUserProfile(userId: string, email: string) {
   // First try to get existing profile
   const { data: existingProfile, error: fetchError } = await supabase
-    .from('users')
+    .from('profiles')
     .select('*')
     .eq('id', userId)
     .single()
@@ -89,7 +89,7 @@ export async function getOrCreateUserProfile(userId: string, email: string) {
 
   // If doesn't exist, create new profile
   const { data: newProfile, error: createError } = await supabase
-    .from('users')
+    .from('profiles')
     .insert({ id: userId, email })
     .select()
     .single()
@@ -109,7 +109,7 @@ export async function linkResultToUser(sessionId: string, userId: string) {
   const { data, error } = await supabase.rpc('link_result_to_user', {
     p_session_id: sessionId,
     p_user_id: userId
-  })
+  } as any)
 
   if (error) {
     console.error('Error linking result to user:', error)
@@ -123,11 +123,9 @@ export async function linkResultToUser(sessionId: string, userId: string) {
  * Get all results for a user
  */
 export async function getUserResults(userId: string) {
-  const params: Database['public']['Functions']['get_user_results']['Args'] = {
+  const { data, error } = await supabase.rpc('get_user_results', {
     p_user_id: userId
-  }
-
-  const { data, error } = await supabase.rpc('get_user_results', params)
+  } as any)
 
   if (error) {
     console.error('Error fetching user results:', error)
