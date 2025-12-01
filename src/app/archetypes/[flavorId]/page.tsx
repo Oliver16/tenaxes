@@ -315,7 +315,7 @@ export default async function ArchetypePage({ params, searchParams }: Props) {
               See Your Personal Match
             </h3>
             <p className="text-sm text-yellow-800 dark:text-yellow-300 mb-4">
-              Take the political compass survey to see how your positions align with this archetype
+              Take the TenAxes survey to see how your positions align with this archetype
               and get a personalized explanation of your match.
             </p>
             <Link
