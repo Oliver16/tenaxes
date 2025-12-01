@@ -1,6 +1,9 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase-server'
+import type { Database } from '@/lib/database.types'
+
+type SurveyResult = Database['public']['Tables']['survey_results']['Row']
 
 async function getUserSession() {
   const supabase = createClient()
@@ -8,11 +11,13 @@ async function getUserSession() {
   return user
 }
 
-async function getUserResults(userId: string) {
+async function getUserResults(userId: string): Promise<SurveyResult[]> {
   const supabase = createClient()
-  const { data, error } = await supabase.rpc('get_user_results', {
-    p_user_id: userId
-  } as any)
+  const { data, error } = await supabase
+    .from('survey_results')
+    .select('id, session_id, core_axes, facets, top_flavors, created_at')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
 
   if (error) {
     console.error('Error fetching results:', error)
@@ -32,9 +37,7 @@ export default async function PastSurveysPage() {
   const results = await getUserResults(user.id)
 
   // Sort results by date, newest first
-  const sortedResults = [...results].sort((a: any, b: any) =>
-    new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-  )
+  const sortedResults = results
 
   return (
     <main className="min-h-screen bg-gray-50 py-8 px-4">
@@ -95,8 +98,9 @@ export default async function PastSurveysPage() {
 
             {/* Results List */}
             <div className="space-y-4">
-              {sortedResults.map((result: any) => {
-                const topFlavor = result.top_flavors?.[0]
+              {sortedResults.map((result) => {
+                const topFlavor = (result.top_flavors as any)?.[0]
+                const coreAxes = (result.core_axes as any[]) ?? []
                 const date = new Date(result.created_at)
 
                 return (
@@ -128,7 +132,7 @@ export default async function PastSurveysPage() {
 
                         {/* Top Axes */}
                         <div className="flex flex-wrap gap-2">
-                          {result.core_axes?.slice(0, 4).map((axis: any) => (
+                          {coreAxes.slice(0, 4).map((axis: any) => (
                             <span
                               key={axis.axis_id}
                               className="px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-md"
