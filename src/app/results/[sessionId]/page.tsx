@@ -103,7 +103,7 @@ export default async function ResultsPage({ params }: Props) {
 
           {/* Expandable Card List */}
           <h3 className="text-sm font-medium text-gray-600 mb-3">Detailed Profiles</h3>
-          <FlavorList flavors={top_flavors} />
+          <FlavorList flavors={top_flavors} sessionId={params.sessionId} />
         </section>
 
         {/* Quick Summary Card */}
