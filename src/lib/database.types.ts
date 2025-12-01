@@ -253,3 +253,58 @@ export interface Database {
     }
   }
 }
+
+export type Question = Database['public']['Tables']['questions']['Row']
+
+export type QuestionAxisLinkRole = 'primary' | 'collision'
+
+export interface QuestionAxisLink {
+  id: number
+  question_id: number
+  axis_id: string
+  role: QuestionAxisLinkRole
+  axis_key: -1 | 1
+  weight: number
+  created_at?: string
+}
+
+export interface QuestionWithLinks extends Question {
+  question_axis_links: QuestionAxisLink[]
+}
+
+export interface AxisScore {
+  axis_id: string
+  name: string
+  score: number
+  raw_sum: number
+  total_weight: number
+  confidence: number
+  response_variance: number
+}
+
+export interface CollisionScore {
+  axis_primary: string
+  axis_collision: string
+  primary_name: string
+  collision_name: string
+  score_primary: number
+  score_collision: number
+  preference_index: number
+  preference_strength: 'weak' | 'moderate' | 'strong' | 'very strong'
+  preference_direction: 'primary' | 'collision' | 'balanced'
+  question_count: number
+  confidence_level: 'low' | 'medium' | 'high'
+  interestingness_score: number
+}
+
+export interface QuestionContribution {
+  question_id: number
+  response_value: number
+  contributions: {
+    axis_id: string
+    raw_contribution: number
+    normalized_contribution: number
+  }[]
+}
+
+export type ResponsesMap = Record<number, number>
