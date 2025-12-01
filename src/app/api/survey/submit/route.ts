@@ -29,7 +29,8 @@ export async function POST(request: NextRequest) {
     
     if (axesError) throw axesError
     
-    const axesById = Object.fromEntries((axes || []).map(a => [a.id, a]))
+    const axesList: NonNullable<typeof axes> = axes ?? []
+    const axesById = Object.fromEntries(axesList.map(axis => [axis.id, axis]))
     
     // Separate questions by type
     const conceptualQuestions = questions.filter(q => q.question_type === 'conceptual')
