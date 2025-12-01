@@ -59,53 +59,24 @@ async function getResults(sessionId: string): Promise<SurveyResult & {
   const questions = (questionsData || []).map((q: any) => ({
     ...q,
     weight: q.weight ?? 1.0,
-    // Don't default question_type! Keep it as-is to see what DB has
     question_type: q.question_type
   })) as Question[]
 
   // Separate questions by type
-  // Filter based on actual value from DB, not defaulted value
   const conceptualQuestions = questions.filter(q => q.question_type === 'conceptual' || q.question_type === null || q.question_type === undefined)
   const appliedQuestions = questions.filter(q => q.question_type === 'applied')
-
-  // Debug logging
-  console.log('Total questions:', questions.length)
-  console.log('Conceptual questions:', conceptualQuestions.length)
-  console.log('Applied questions:', appliedQuestions.length)
-  console.log('Sample applied question:', appliedQuestions[0])
 
   // Count responses by type
   const conceptualCount = conceptualQuestions.filter(q => responses[q.id] !== undefined).length
   const appliedCount = appliedQuestions.filter(q => responses[q.id] !== undefined).length
 
-  // Debug: Check what response IDs we have
-  const responseIds = Object.keys(responses).map(Number)
-  console.log('Response IDs range:', Math.min(...responseIds), '-', Math.max(...responseIds))
-  console.log('Applied question IDs:', appliedQuestions.map(q => q.id).slice(0, 5))
-  console.log('Conceptual responses count:', conceptualCount)
-  console.log('Applied responses count:', appliedCount)
-
   // Calculate separate scores for conceptual and applied
   const conceptualResults = calculateScoresFromQuestions(responses, conceptualQuestions)
   const appliedResults = calculateScoresFromQuestions(responses, appliedQuestions)
 
-  // Debug: Check applied results
-  console.log('Conceptual core axes scores:', conceptualResults.coreAxes.map(a => `${a.axis_id}: ${a.score.toFixed(2)}`))
-  console.log('Applied core axes scores:', appliedResults.coreAxes.map(a => `${a.axis_id}: ${a.score.toFixed(2)}`))
-
-  // Debug: Check which axes have applied questions
-  const appliedQuestionsByAxis: Record<string, number> = {}
-  appliedQuestions.forEach(q => {
-    appliedQuestionsByAxis[q.axis_id] = (appliedQuestionsByAxis[q.axis_id] || 0) + 1
-  })
-  console.log('Applied questions per axis:', appliedQuestionsByAxis)
-
   // Create comparison data for core axes only
   const axisComparisons: AxisComparison[] = conceptualResults.coreAxes.map(conceptualAxis => {
     const appliedAxis = appliedResults.coreAxes.find(a => a.axis_id === conceptualAxis.axis_id)
-
-    console.log(`Axis ${conceptualAxis.axis_id}: conceptual=${conceptualAxis.score.toFixed(2)}, applied=${appliedAxis?.score?.toFixed(2) || 'NOT FOUND'}`)
-
     return {
       axis_id: conceptualAxis.axis_id,
       name: conceptualAxis.name,
