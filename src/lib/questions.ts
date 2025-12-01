@@ -1,6 +1,12 @@
 import { supabase } from './supabase'
 import { AXES, ITEMS, type AxisId } from './instrument'
 
+const normalizeQuestion = (q: any): Question => ({
+  ...q,
+  weight: q.weight ?? 1.0,
+  question_type: q.question_type ?? 'conceptual'
+})
+
 export type Question = {
   id: number
   axis_id: string
@@ -9,6 +15,8 @@ export type Question = {
   educational_content?: string
   display_order: number
   active: boolean
+  weight: number
+  question_type: 'conceptual' | 'applied'
   created_at?: string
   updated_at?: string
 }
@@ -20,6 +28,8 @@ export type QuestionInput = {
   educational_content?: string
   display_order?: number
   active?: boolean
+  weight?: number
+  question_type?: 'conceptual' | 'applied'
 }
 
 // Fetch all questions grouped by axis
@@ -42,7 +52,7 @@ export async function fetchAllQuestions(): Promise<Record<string, Question[]>> {
 
   data?.forEach(q => {
     if (grouped[q.axis_id]) {
-      grouped[q.axis_id].push(q)
+      grouped[q.axis_id].push(normalizeQuestion(q))
     }
   })
 
@@ -67,7 +77,9 @@ export async function fetchActiveQuestions(): Promise<Question[]> {
       text: item.text,
       educational_content: item.educational_content,
       display_order: item.order,
-      active: true
+      active: true,
+      weight: 1.0,
+      question_type: 'conceptual'
     }))
   }
 
@@ -80,11 +92,13 @@ export async function fetchActiveQuestions(): Promise<Question[]> {
       text: item.text,
       educational_content: item.educational_content,
       display_order: item.order,
-      active: true
+      active: true,
+      weight: 1.0,
+      question_type: 'conceptual'
     }))
   }
 
-  return data
+  return data.map(normalizeQuestion)
 }
 
 // Fetch questions for a specific axis
@@ -100,7 +114,7 @@ export async function fetchQuestionsByAxis(axisId: string): Promise<Question[]> 
     return []
   }
 
-  return data || []
+  return (data || []).map(normalizeQuestion)
 }
 
 // Create a new question
@@ -126,7 +140,9 @@ export async function createQuestion(input: QuestionInput): Promise<Question | n
       text: input.text,
       educational_content: input.educational_content,
       display_order: displayOrder,
-      active: input.active ?? true
+      active: input.active ?? true,
+      weight: input.weight ?? 1.0,
+      question_type: input.question_type ?? 'conceptual'
     })
     .select()
     .single()
@@ -136,7 +152,7 @@ export async function createQuestion(input: QuestionInput): Promise<Question | n
     return null
   }
 
-  return data
+  return data ? normalizeQuestion(data) : null
 }
 
 // Update an existing question
@@ -153,7 +169,7 @@ export async function updateQuestion(id: number, updates: Partial<QuestionInput>
     return null
   }
 
-  return data
+  return data ? normalizeQuestion(data) : null
 }
 
 // Delete a question
@@ -238,7 +254,9 @@ export async function seedQuestions(): Promise<boolean> {
     text: item.text,
     educational_content: item.educational_content,
     display_order: item.order,
-    active: true
+    active: true,
+    weight: 1.0,
+    question_type: 'conceptual'
   }))
 
   const { error } = await supabase

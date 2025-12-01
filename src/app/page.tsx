@@ -38,7 +38,7 @@ export default async function Home() {
           </h1>
           <p className="text-xl text-slate-300 max-w-2xl mx-auto mb-8">
             Go beyond left vs. right. Discover your political profile across 10 core
-            dimensions, 3 behavioral facets, and 27 political archetypes with our 98-question assessment.
+            dimensions, 3 behavioral facets, and 27 political archetypes with our 150-question assessment.
           </p>
           <Link
             href="/survey"
@@ -164,7 +164,7 @@ export default async function Home() {
       {/* Footer */}
       <footer className="border-t border-slate-800 py-8">
         <div className="max-w-6xl mx-auto px-4 text-center text-slate-500 text-sm">
-          <p>98 questions • 10 core axes • 3 behavioral facets • 27 political archetypes</p>
+          <p>150 questions • 10 core axes • 3 behavioral facets • 27 political archetypes</p>
           <div className="mt-4">
             <a href="/admin" className="text-slate-400 hover:text-slate-300">
               View Analytics →

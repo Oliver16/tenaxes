@@ -42,17 +42,18 @@ export function calculateScoresFromQuestions(responses: Responses, questions: Qu
   Object.entries(AXES).forEach(([axisId, axisDef]) => {
     const axisQuestions = questionsByAxis[axisId] || []
     let rawSum = 0
-    let count = 0
+    let totalWeight = 0
 
     axisQuestions.forEach(q => {
       if (responses[q.id] !== undefined) {
-        const adjusted = responses[q.id] * q.key
+        const weight = q.weight ?? 1
+        const adjusted = responses[q.id] * q.key * weight
         rawSum += adjusted
-        count++
+        totalWeight += weight
       }
     })
 
-    const normalized = count > 0 ? rawSum / (2 * count) : 0
+    const normalized = totalWeight > 0 ? rawSum / (2 * totalWeight) : 0
     const clamped = Math.max(-1, Math.min(1, normalized))
 
     axisScores[axisId] = {
@@ -113,7 +114,9 @@ export function calculateScores(responses: Responses): CompassResults {
     key: item.key,
     text: item.text,
     display_order: item.order,
-    active: true
+    active: true,
+    weight: 1.0,
+    question_type: 'conceptual'
   }))
   
   return calculateScoresFromQuestions(responses, questions)
