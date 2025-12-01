@@ -59,11 +59,13 @@ async function getResults(sessionId: string): Promise<SurveyResult & {
   const questions = (questionsData || []).map((q: any) => ({
     ...q,
     weight: q.weight ?? 1.0,
-    question_type: q.question_type ?? 'conceptual'
+    // Don't default question_type! Keep it as-is to see what DB has
+    question_type: q.question_type
   })) as Question[]
 
   // Separate questions by type
-  const conceptualQuestions = questions.filter(q => q.question_type === 'conceptual')
+  // Filter based on actual value from DB, not defaulted value
+  const conceptualQuestions = questions.filter(q => q.question_type === 'conceptual' || q.question_type === null || q.question_type === undefined)
   const appliedQuestions = questions.filter(q => q.question_type === 'applied')
 
   // Debug logging
