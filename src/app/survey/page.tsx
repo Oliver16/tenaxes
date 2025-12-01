@@ -6,7 +6,6 @@ import { useAuth } from '@/contexts/AuthContext'
 import { AXES } from '@/lib/instrument'
 import { fetchActiveQuestions, type Question } from '@/lib/questions'
 import { calculateScoresFromQuestions } from '@/lib/scorer'
-import { supabase } from '@/lib/supabase'
 import type { Database } from '@/lib/database.types'
 import { nanoid } from 'nanoid'
 
@@ -76,42 +75,30 @@ export default function SurveyPage() {
       const sessionId = nanoid(12)
       const results = calculateScoresFromQuestions(responses, questions)
 
-      // Save to Supabase (include user_id if logged in)
-      const responseData: Database['public']['Tables']['survey_responses']['Insert'] = {
-        session_id: sessionId,
-        user_id: user?.id || null,
-        responses: responses as any
+      // Persist via API route to avoid client-side Supabase insert failures
+      const payload = {
+        sessionId,
+        userId: user?.id ?? null,
+        responses,
+        core_axes: results.coreAxes,
+        facets: results.facets,
+        top_flavors: results.allFlavors.filter(f => f.affinity > 0.1)
+      } satisfies Database['public']['Tables']['survey_results']['Insert'] & {
+        responses: Database['public']['Tables']['survey_responses']['Insert']['responses']
+        userId: string | null
+        sessionId: string
       }
 
-      const { error: responseError } = await supabase
-        .from('survey_responses')
-        .insert({
-          session_id: sessionId,
-          user_id: user?.id || null,
-          responses: responses
-        } as any)
+      const response = await fetch('/api/survey/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
 
-      if (responseError) throw responseError
-
-      const resultData: Database['public']['Tables']['survey_results']['Insert'] = {
-        session_id: sessionId,
-        user_id: user?.id || null,
-        core_axes: results.coreAxes as any,
-        facets: results.facets as any,
-        top_flavors: results.allFlavors.filter(f => f.affinity > 0.1) as any
+      if (!response.ok) {
+        const errorPayload = await response.json().catch(() => ({}))
+        throw new Error(errorPayload.error || 'Failed to save results')
       }
-
-      const { error: resultError } = await supabase
-        .from('survey_results')
-        .insert({
-          session_id: sessionId,
-          user_id: user?.id || null,
-          core_axes: results.coreAxes,
-          facets: results.facets,
-          top_flavors: results.allFlavors.filter(f => f.affinity > 0.1) // All positive matches
-        } as any)
-
-      if (resultError) throw resultError
 
       // Navigate to results
       router.push(`/results/${sessionId}`)
