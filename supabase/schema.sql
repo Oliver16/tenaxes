@@ -72,6 +72,26 @@ CREATE INDEX idx_questions_order ON questions(display_order);
 CREATE INDEX idx_questions_type ON questions(question_type);
 
 -- =====================
+-- QUESTION AXIS LINKS TABLE
+-- =====================
+-- Multi-axis links allowing questions to contribute to multiple axes
+CREATE TABLE question_axis_links (
+  id BIGSERIAL PRIMARY KEY,
+  question_id BIGINT NOT NULL REFERENCES questions(id) ON DELETE CASCADE,
+  axis_id TEXT NOT NULL REFERENCES axes(id),
+  role TEXT NOT NULL CHECK (role IN ('primary', 'collision')),
+  axis_key INTEGER NOT NULL CHECK (axis_key IN (-1, 1)),
+  weight NUMERIC NOT NULL DEFAULT 1.0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (question_id, axis_id, role)
+);
+
+-- Indexes for question_axis_links
+CREATE INDEX idx_question_axis_links_question_id ON question_axis_links(question_id);
+CREATE INDEX idx_question_axis_links_axis_id ON question_axis_links(axis_id);
+CREATE INDEX idx_question_axis_links_role ON question_axis_links(role);
+
+-- =====================
 -- SURVEY RESPONSES TABLE
 -- =====================
 CREATE TABLE survey_responses (
@@ -108,12 +128,21 @@ ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE roles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_roles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE questions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE question_axis_links ENABLE ROW LEVEL SECURITY;
 ALTER TABLE survey_responses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE survey_results ENABLE ROW LEVEL SECURITY;
 
 -- Profiles: Users can read their own profile, admins can read all
 CREATE POLICY "Users can view own profile" ON profiles
   FOR SELECT USING (auth.uid() = id);
+
+CREATE POLICY "Admins can view all profiles" ON profiles
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM profiles p
+      WHERE p.id = auth.uid() AND p.is_admin = true
+    )
+  );
 
 CREATE POLICY "Users can update own profile" ON profiles
   FOR UPDATE USING (auth.uid() = id);
@@ -192,6 +221,15 @@ CREATE POLICY "Admins can update questions" ON questions
 
 CREATE POLICY "Admins can delete questions" ON questions
   FOR DELETE USING (
+    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin = true)
+  );
+
+-- Question axis links: anyone can read, admins can manage
+CREATE POLICY "Anyone can read question-axis links" ON question_axis_links
+  FOR SELECT USING (true);
+
+CREATE POLICY "Admins can manage question-axis links" ON question_axis_links
+  FOR ALL USING (
     EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin = true)
   );
 

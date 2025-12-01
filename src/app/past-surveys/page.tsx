@@ -5,39 +5,30 @@ import type { Database } from '@/lib/database.types'
 
 type SurveyResult = Database['public']['Tables']['survey_results']['Row']
 
-async function getUserSession() {
-  const supabase = createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  return user
-}
-
-async function getUserResults(userId: string): Promise<SurveyResult[]> {
-  const supabase = createClient()
-  const { data, error } = await supabase
-    .from('survey_results')
-    .select('id, session_id, core_axes, facets, top_flavors, created_at')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false })
-
-  if (error) {
-    console.error('Error fetching results:', error)
-    return []
-  }
-
-  return data || []
-}
-
 export default async function PastSurveysPage() {
-  const user = await getUserSession()
+  const supabase = createClient()
 
-  if (!user) {
+  // Get user session
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+
+  // If no user or error, redirect to home
+  if (!user || userError) {
+    console.error('Past surveys - auth error:', userError)
     redirect('/')
   }
 
-  const results = await getUserResults(user.id)
+  // Fetch user's survey results
+  const { data: results, error: resultsError } = await supabase
+    .from('survey_results')
+    .select('id, session_id, core_axes, facets, top_flavors, created_at')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
 
-  // Sort results by date, newest first
-  const sortedResults = results
+  if (resultsError) {
+    console.error('Error fetching results:', resultsError)
+  }
+
+  const sortedResults = results || []
 
   return (
     <main className="min-h-screen bg-gray-50 py-8 px-4">
