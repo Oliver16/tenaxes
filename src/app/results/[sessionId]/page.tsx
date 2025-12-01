@@ -7,6 +7,7 @@ import { SaveResultsPrompt } from '@/components/SaveResultsPrompt'
 import { CoreAxesRadar } from '@/components/charts/CoreAxesRadar'
 import { AxisScale } from '@/components/charts/AxisScale'
 import { FlavorList, FlavorBarChart } from '@/components/charts/FlavorCharts'
+import { AxisDrillDown } from '@/components/AxisDrillDown'
 import { calculateScoresFromQuestions } from '@/lib/scorer'
 import type { Question } from '@/lib/questions'
 
@@ -29,6 +30,8 @@ async function getResults(sessionId: string): Promise<SurveyResult & {
   conceptualCount: number
   appliedCount: number
   axisComparisons: AxisComparison[]
+  questions: Question[]
+  responses: Record<number, number>
 } | null> {
   const { data, error } = await supabase
     .from('survey_results')
@@ -105,7 +108,9 @@ async function getResults(sessionId: string): Promise<SurveyResult & {
     responseCount,
     conceptualCount,
     appliedCount,
-    axisComparisons
+    axisComparisons,
+    questions,
+    responses
   }
 }
 
@@ -116,7 +121,7 @@ export default async function ResultsPage({ params }: Props) {
     notFound()
   }
 
-  const { core_axes, facets, top_flavors, responseCount, conceptualCount, appliedCount, axisComparisons } = results
+  const { core_axes, facets, top_flavors, responseCount, conceptualCount, appliedCount, axisComparisons, questions, responses } = results
 
   return (
     <main className="min-h-screen bg-gray-100 py-8 px-4">
@@ -235,6 +240,15 @@ export default async function ResultsPage({ params }: Props) {
                       </span>
                     )}
                   </div>
+
+                  <AxisDrillDown
+                    axisId={comparison.axis_id}
+                    axisName={comparison.name}
+                    conceptualScore={comparison.conceptual_score}
+                    appliedScore={comparison.applied_score}
+                    questions={questions}
+                    responses={responses}
+                  />
                 </div>
               )
             })}
