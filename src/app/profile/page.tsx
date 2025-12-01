@@ -9,9 +9,11 @@ async function getUserSession() {
 }
 
 async function getUserResults(userId: string) {
-  const { data, error } = await supabase.rpc('get_user_results', {
+  const params: Database['public']['Functions']['get_user_results']['Args'] = {
     p_user_id: userId
-  } as Database['public']['Functions']['get_user_results']['Args'])
+  }
+
+  const { data, error } = await supabase.rpc('get_user_results', params)
 
   if (error) {
     console.error('Error fetching results:', error)
