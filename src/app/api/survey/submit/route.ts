@@ -3,6 +3,10 @@ import { createClient } from '@/lib/supabase/server'
 import { calculateAxisScoresFromLinks } from '@/lib/scorer'
 import { analyzeCollisions } from '@/lib/collision-analyzer'
 import { fetchQuestionsWithLinks } from '@/lib/api/questions'
+import type { Database } from '@/lib/database.types'
+
+type Axis = Database['public']['Tables']['axes']['Row']
+type SurveyResultInsert = Database['public']['Tables']['survey_results']['Insert']
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,14 +26,15 @@ export async function POST(request: NextRequest) {
     const questions = await fetchQuestionsWithLinks()
     
     // Fetch axes metadata
-    const { data: axes, error: axesError } = await supabase
+    const { data, error: axesError } = await supabase
       .from('axes')
       .select('*')
       .order('id')
-    
+
     if (axesError) throw axesError
-    
-    const axesById = Object.fromEntries((axes || []).map(a => [a.id, a]))
+
+    const axes = (data || []) as Axis[]
+    const axesById = Object.fromEntries(axes.map(a => [a.id, a]))
     
     // Separate questions by type
     const conceptualQuestions = questions.filter(q => q.question_type === 'conceptual')
@@ -63,19 +68,21 @@ export async function POST(request: NextRequest) {
     
     // Create session ID
     const sessionId = crypto.randomUUID()
-    
+
     // Store results
-    const { data: result, error: insertError } = await supabase
-      .from('survey_results')
-      .insert({
-        session_id: sessionId,
-        scores: allScores,
-        conceptual_scores: conceptualScores,
-        applied_scores: appliedScores,
-        collision_pairs: collisionScores,  // NEW: store collision analysis
-        responses: responses,
-        completed_at: new Date().toISOString()
-      })
+    const insertData: SurveyResultInsert = {
+      session_id: sessionId,
+      scores: allScores as any,
+      conceptual_scores: conceptualScores as any,
+      applied_scores: appliedScores as any,
+      collision_pairs: collisionScores as any,  // NEW: store collision analysis
+      responses: responses as any,
+      completed_at: new Date().toISOString()
+    }
+
+    const { data: result, error: insertError } = await (supabase
+      .from('survey_results') as any)
+      .insert(insertData)
       .select()
       .single()
     

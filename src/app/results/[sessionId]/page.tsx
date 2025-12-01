@@ -2,14 +2,17 @@ import { createClient } from '@/lib/supabase/server'
 import { fetchQuestionsWithLinks } from '@/lib/api/questions'
 import { ValueTensionsSection } from '@/components/results/ValueTensionsSection'
 import { AxisCollisionDetails } from '@/components/results/AxisCollisionDetails'
-import { CollisionScore, AxisScore as AxisScoreType } from '@/lib/database.types'
+import { CollisionScore, AxisScore as AxisScoreType, Database } from '@/lib/database.types'
+
+type SurveyResult = Database['public']['Tables']['survey_results']['Row']
+type Axis = Database['public']['Tables']['axes']['Row']
 
 function AxisCard({
   axis,
   conceptualScore,
   appliedScore
 }: {
-  axis: { id: string; name: string; pole_negative?: string; pole_positive?: string }
+  axis: { id: string; name: string; pole_negative: string | null; pole_positive: string | null }
   conceptualScore?: number
   appliedScore?: number
 }) {
@@ -49,29 +52,33 @@ export default async function ResultsPage({
   params: { sessionId: string } 
 }) {
   const supabase = createClient()
-  
+
   // Fetch survey results
-  const { data: surveyResult, error } = await supabase
+  const { data, error } = await (supabase
     .from('survey_results')
     .select('*')
     .eq('session_id', params.sessionId)
-    .single()
-  
+    .single() as any)
+
+  const surveyResult = data as SurveyResult | null
+
   if (error || !surveyResult) {
     return <div>Results not found</div>
   }
-  
+
   // Fetch questions with links
   const questions = await fetchQuestionsWithLinks()
-  
+
   // Fetch axes
-  const { data: axes } = await supabase
+  const { data: axesData } = await (supabase
     .from('axes')
     .select('*')
-    .order('id')
+    .order('id') as any)
+
+  const axes = (axesData || []) as Axis[]
   
   // Get collision scores from stored results
-  const collisionScores = (surveyResult.collision_pairs || []) as CollisionScore[]
+  const collisionScores = (surveyResult.collision_pairs || []) as unknown as CollisionScore[]
   
   return (
     <div className="container mx-auto py-12 space-y-16">
@@ -92,10 +99,10 @@ export default async function ResultsPage({
         <h2 className="text-3xl font-bold">Your Position on Each Axis</h2>
         
         {(axes || []).map(axis => {
-          const conceptualScore = (surveyResult.conceptual_scores as AxisScoreType[] | undefined)?.find(
+          const conceptualScore = (surveyResult.conceptual_scores as unknown as AxisScoreType[] | undefined)?.find(
             (s: any) => s.axis_id === axis.id
           )
-          const appliedScore = (surveyResult.applied_scores as AxisScoreType[] | undefined)?.find(
+          const appliedScore = (surveyResult.applied_scores as unknown as AxisScoreType[] | undefined)?.find(
             (s: any) => s.axis_id === axis.id
           )
           
