@@ -20,14 +20,12 @@ async function getResults(sessionId: string): Promise<SurveyResult | null> {
 
   if (error || !data) return null
 
-  // Cast JSONB fields from Supabase into strongly typed arrays
-  const typedData = data as unknown as SurveyResult
-
+  // Cast JSONB fields to proper types
   return {
-    ...typedData,
-    core_axes: typedData.core_axes ?? [],
-    facets: typedData.facets ?? [],
-    top_flavors: typedData.top_flavors ?? []
+    ...data,
+    core_axes: data.core_axes as unknown as AxisScore[],
+    facets: data.facets as unknown as AxisScore[],
+    top_flavors: data.top_flavors as unknown as FlavorMatch[]
   }
 }
 

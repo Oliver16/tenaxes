@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { useAuth } from '@/contexts/AuthContext'
 import { AXES } from '@/lib/instrument'
 import { fetchActiveQuestions, type Question } from '@/lib/questions'
 import { calculateScoresFromQuestions } from '@/lib/scorer'
@@ -18,6 +19,7 @@ const RESPONSE_OPTIONS = [
 
 export default function SurveyPage() {
   const router = useRouter()
+  const { user } = useAuth()
   const [questions, setQuestions] = useState<Question[]>([])
   const [loading, setLoading] = useState(true)
   const [responses, setResponses] = useState<Record<number, number>>({})
@@ -65,7 +67,7 @@ export default function SurveyPage() {
 
   const handleSubmit = useCallback(async () => {
     if (!isComplete) return
-    
+
     setIsSubmitting(true)
     setError(null)
 
@@ -73,11 +75,12 @@ export default function SurveyPage() {
       const sessionId = nanoid(12)
       const results = calculateScoresFromQuestions(responses, questions)
 
-      // Save to Supabase
+      // Save to Supabase (include user_id if logged in)
       const { error: responseError } = await supabase
         .from('survey_responses')
         .insert({
           session_id: sessionId,
+          user_id: user?.id || null,
           responses: responses
         })
 
@@ -87,6 +90,7 @@ export default function SurveyPage() {
         .from('survey_results')
         .insert({
           session_id: sessionId,
+          user_id: user?.id || null,
           core_axes: results.coreAxes,
           facets: results.facets,
           top_flavors: results.allFlavors.filter(f => f.affinity > 0.1) // All positive matches
@@ -101,7 +105,7 @@ export default function SurveyPage() {
       setError('Failed to save results. Please try again.')
       setIsSubmitting(false)
     }
-  }, [isComplete, responses, questions, router])
+  }, [isComplete, responses, questions, router, user])
 
   // Loading state
   if (loading) {

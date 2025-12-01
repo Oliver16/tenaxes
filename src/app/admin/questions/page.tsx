@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { useAuth } from '@/contexts/AuthContext'
 import {
   fetchAllQuestions,
   createQuestion,
@@ -25,6 +27,8 @@ type AxisInfo = {
 }
 
 export default function QuestionsAdminPage() {
+  const { user, isAdmin, loading: authLoading } = useAuth()
+  const router = useRouter()
   const [questions, setQuestions] = useState<Record<string, Question[]>>({})
   const [loading, setLoading] = useState(true)
   const [selectedAxis, setSelectedAxis] = useState<string | null>(null)
@@ -37,12 +41,20 @@ export default function QuestionsAdminPage() {
   const coreAxes = axes.filter(a => a.isCore)
   const facetAxes = axes.filter(a => a.isFacet)
 
+  // Redirect non-admin users
+  useEffect(() => {
+    if (!authLoading && (!user || !isAdmin)) {
+      router.push('/')
+    }
+  }, [user, isAdmin, authLoading, router])
+
   const loadQuestions = useCallback(async () => {
+    if (!user || !isAdmin) return
     setLoading(true)
     const data = await fetchAllQuestions()
     setQuestions(data)
     setLoading(false)
-  }, [])
+  }, [user, isAdmin])
 
   useEffect(() => {
     loadQuestions()
@@ -129,6 +141,11 @@ export default function QuestionsAdminPage() {
     await updateQuestion(current.id, { display_order: next.display_order })
     await updateQuestion(next.id, { display_order: current.display_order })
     await loadQuestions()
+  }
+
+  // Prevent rendering for non-admin users
+  if (authLoading || !user || !isAdmin) {
+    return null
   }
 
   const selectedAxisInfo = axes.find(a => a.id === selectedAxis)

@@ -2,6 +2,21 @@
 -- Run this in your Supabase SQL Editor
 
 -- =====================
+-- USER PROFILES TABLE
+-- =====================
+-- Extends auth.users with application-specific data
+CREATE TABLE profiles (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  email TEXT,
+  is_admin BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Index for admin lookups
+CREATE INDEX idx_profiles_admin ON profiles(is_admin);
+
+-- =====================
 -- QUESTIONS TABLE
 -- =====================
 CREATE TABLE questions (
@@ -27,6 +42,7 @@ CREATE INDEX idx_questions_order ON questions(display_order);
 CREATE TABLE survey_responses (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   session_id TEXT NOT NULL UNIQUE,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
   responses JSONB NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -35,6 +51,7 @@ CREATE TABLE survey_responses (
 CREATE TABLE survey_results (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   session_id TEXT NOT NULL UNIQUE REFERENCES survey_responses(session_id),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
   core_axes JSONB NOT NULL,
   facets JSONB NOT NULL,
   top_flavors JSONB NOT NULL,
@@ -43,36 +60,72 @@ CREATE TABLE survey_results (
 
 -- Indexes for faster lookups
 CREATE INDEX idx_responses_session ON survey_responses(session_id);
+CREATE INDEX idx_responses_user ON survey_responses(user_id);
 CREATE INDEX idx_results_session ON survey_results(session_id);
+CREATE INDEX idx_results_user ON survey_results(user_id);
 CREATE INDEX idx_responses_created ON survey_responses(created_at);
 CREATE INDEX idx_results_created ON survey_results(created_at);
 
 -- =====================
 -- ROW LEVEL SECURITY
 -- =====================
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE questions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE survey_responses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE survey_results ENABLE ROW LEVEL SECURITY;
 
--- Questions: anyone can read, only authenticated can modify
--- For simplicity, we'll use anon for everything (add auth later if needed)
-CREATE POLICY "Allow read questions" ON questions FOR SELECT TO anon USING (true);
-CREATE POLICY "Allow insert questions" ON questions FOR INSERT TO anon WITH CHECK (true);
-CREATE POLICY "Allow update questions" ON questions FOR UPDATE TO anon USING (true);
-CREATE POLICY "Allow delete questions" ON questions FOR DELETE TO anon USING (true);
+-- Profiles: Users can read their own profile, admins can read all
+CREATE POLICY "Users can view own profile" ON profiles
+  FOR SELECT USING (auth.uid() = id);
 
--- Survey data policies
-CREATE POLICY "Allow anonymous insert responses" ON survey_responses
-  FOR INSERT TO anon WITH CHECK (true);
+CREATE POLICY "Users can update own profile" ON profiles
+  FOR UPDATE USING (auth.uid() = id);
 
-CREATE POLICY "Allow anonymous insert results" ON survey_results
-  FOR INSERT TO anon WITH CHECK (true);
+-- Questions: anyone can read active questions, only admins can modify
+CREATE POLICY "Anyone can read active questions" ON questions
+  FOR SELECT USING (active = true);
 
-CREATE POLICY "Allow read own results" ON survey_results
-  FOR SELECT TO anon USING (true);
+CREATE POLICY "Authenticated users can read all questions" ON questions
+  FOR SELECT USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Admins can insert questions" ON questions
+  FOR INSERT WITH CHECK (
+    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin = true)
+  );
+
+CREATE POLICY "Admins can update questions" ON questions
+  FOR UPDATE USING (
+    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin = true)
+  );
+
+CREATE POLICY "Admins can delete questions" ON questions
+  FOR DELETE USING (
+    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin = true)
+  );
+
+-- Survey responses: anyone can submit (anonymous or authenticated)
+CREATE POLICY "Anyone can insert responses" ON survey_responses
+  FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Users can read own responses" ON survey_responses
+  FOR SELECT USING (
+    auth.uid() = user_id
+  );
+
+CREATE POLICY "Admins can read all responses" ON survey_responses
+  FOR SELECT USING (
+    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin = true)
+  );
+
+-- Survey results: anyone can view by session_id, users can view their own
+CREATE POLICY "Anyone can read results by session" ON survey_results
+  FOR SELECT USING (true);
+
+CREATE POLICY "Anyone can insert results" ON survey_results
+  FOR INSERT WITH CHECK (true);
 
 -- =====================
--- HELPER FUNCTION
+-- HELPER FUNCTIONS
 -- =====================
 -- Auto-update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at()
@@ -87,6 +140,26 @@ CREATE TRIGGER questions_updated_at
   BEFORE UPDATE ON questions
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER profiles_updated_at
+  BEFORE UPDATE ON profiles
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at();
+
+-- Auto-create profile on user signup
+CREATE OR REPLACE FUNCTION handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.profiles (id, email)
+  VALUES (NEW.id, NEW.email);
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW
+  EXECUTE FUNCTION handle_new_user();
 
 -- =====================
 -- ANALYTICS VIEWS
@@ -135,8 +208,8 @@ FROM questions
 GROUP BY axis_id
 ORDER BY axis_id;
 
--- Grant access to views
-GRANT SELECT ON daily_responses TO anon;
-GRANT SELECT ON aggregate_scores TO anon;
-GRANT SELECT ON popular_flavors TO anon;
-GRANT SELECT ON questions_by_axis TO anon;
+-- Grant access to views (authenticated users only for analytics)
+GRANT SELECT ON daily_responses TO authenticated;
+GRANT SELECT ON aggregate_scores TO authenticated;
+GRANT SELECT ON popular_flavors TO authenticated;
+GRANT SELECT ON questions_by_axis TO authenticated;
