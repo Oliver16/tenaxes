@@ -6,7 +6,6 @@ import { useAuth } from '@/contexts/AuthContext'
 import { AXES } from '@/lib/instrument'
 import { fetchActiveQuestions, type Question } from '@/lib/questions'
 import { calculateScoresFromQuestions } from '@/lib/scorer'
-import { supabase } from '@/lib/supabase'
 import type { Database } from '@/lib/database.types'
 import { nanoid } from 'nanoid'
 
@@ -76,42 +75,28 @@ export default function SurveyPage() {
       const sessionId = nanoid(12)
       const results = calculateScoresFromQuestions(responses, questions)
 
-      // Convert responses object to JSON-compatible format
-      const responsesJson = JSON.parse(JSON.stringify(responses))
-
-      // Prepare data for database insertion
-      const responseData: Database['public']['Tables']['survey_responses']['Insert'] = {
+      // Persist via API route to avoid client-side Supabase insert failures
+      const payload = {
         session_id: sessionId,
-        user_id: user?.id || null,
-        responses: responsesJson
+        user_id: user?.id ?? null,
+        responses,
+        core_axes: results.coreAxes,
+        facets: results.facets,
+        top_flavors: results.allFlavors.filter(f => f.affinity > 0.1)
+      } satisfies Database['public']['Tables']['survey_results']['Insert'] & {
+        responses: Database['public']['Tables']['survey_responses']['Insert']['responses']
+        session_id: string
       }
 
-      const resultData: Database['public']['Tables']['survey_results']['Insert'] = {
-        session_id: sessionId,
-        user_id: user?.id || null,
-        core_axes: JSON.parse(JSON.stringify(results.coreAxes)),
-        facets: JSON.parse(JSON.stringify(results.facets)),
-        top_flavors: JSON.parse(JSON.stringify(results.allFlavors.filter(f => f.affinity > 0.1)))
-      }
+      const response = await fetch('/api/survey/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
 
-      // Save to Supabase - responses first
-      const { error: responseError } = await supabase
-        .from('survey_responses')
-        .insert(responseData)
-
-      if (responseError) {
-        console.error('Response insert error:', responseError)
-        throw new Error(`Failed to save survey responses: ${responseError.message}`)
-      }
-
-      // Then save results
-      const { error: resultError } = await supabase
-        .from('survey_results')
-        .insert(resultData)
-
-      if (resultError) {
-        console.error('Result insert error:', resultError)
-        throw new Error(`Failed to save survey results: ${resultError.message}`)
+      if (!response.ok) {
+        const errorPayload = await response.json().catch(() => ({}))
+        throw new Error(errorPayload.error || 'Failed to save results')
       }
 
       // Navigate to results
