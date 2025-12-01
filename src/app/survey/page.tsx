@@ -6,7 +6,6 @@ import { useAuth } from '@/contexts/AuthContext'
 import { AXES } from '@/lib/instrument'
 import { fetchActiveQuestions, type Question } from '@/lib/questions'
 import { calculateScoresFromQuestions } from '@/lib/scorer'
-import { supabase } from '@/lib/supabase'
 import type { Database } from '@/lib/database.types'
 import { nanoid } from 'nanoid'
 
@@ -76,25 +75,26 @@ export default function SurveyPage() {
       const sessionId = nanoid(12)
       const results = calculateScoresFromQuestions(responses, questions)
 
-      // Save to Supabase (include user_id if logged in)
-      const responseData: Database['public']['Tables']['survey_responses']['Insert'] = {
+      // Persist via API route to avoid client-side Supabase insert failures
+      const payload = {
         session_id: sessionId,
-        user_id: user?.id || null,
-        responses: responses as any
+        user_id: user?.id ?? null,
+        responses,
+        core_axes: results.coreAxes,
+        facets: results.facets,
+        top_flavors: results.allFlavors.filter(f => f.affinity > 0.1)
+      } satisfies Database['public']['Tables']['survey_results']['Insert'] & {
+        responses: Database['public']['Tables']['survey_responses']['Insert']['responses']
+        session_id: string
       }
 
       const { error: responseError } = await supabase
         .from('survey_responses')
         .insert(responseData as any)
 
-      if (responseError) throw responseError
-
-      const resultData: Database['public']['Tables']['survey_results']['Insert'] = {
-        session_id: sessionId,
-        user_id: user?.id || null,
-        core_axes: results.coreAxes as any,
-        facets: results.facets as any,
-        top_flavors: results.allFlavors.filter(f => f.affinity > 0.1) as any
+      if (!response.ok) {
+        const errorPayload = await response.json().catch(() => ({}))
+        throw new Error(errorPayload.error || 'Failed to save results')
       }
 
       const { error: resultError } = await supabase
@@ -107,7 +107,8 @@ export default function SurveyPage() {
       router.push(`/results/${sessionId}`)
     } catch (err) {
       console.error('Error saving results:', err)
-      setError('Failed to save results. Please try again.')
+      const errorMessage = err instanceof Error ? err.message : 'Failed to save results. Please try again.'
+      setError(errorMessage)
       setIsSubmitting(false)
     }
   }, [isComplete, responses, questions, router, user])
