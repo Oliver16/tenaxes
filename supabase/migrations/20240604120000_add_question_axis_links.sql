@@ -2,6 +2,40 @@
 -- MIGRATION: Add multi-axis question links system
 -- =====================================================
 
+-- Step 0: Create axes table
+CREATE TABLE IF NOT EXISTS axes (
+    id          text PRIMARY KEY,
+    name        text NOT NULL,
+    description text,
+    pole_negative text,
+    pole_positive text,
+    created_at  timestamptz DEFAULT now()
+);
+
+-- Populate axes table with all 13 axes
+INSERT INTO axes (id, name, pole_negative, pole_positive) VALUES
+  ('C1', 'Economic Control', 'State-Directed', 'Market-Directed'),
+  ('C2', 'Economic Equality', 'Redistributionist', 'Property Rights'),
+  ('C3', 'Coercive Power', 'Security/Order', 'Civil Liberties'),
+  ('C4', 'Where Power Sits', 'Centralized', 'Localized'),
+  ('C5', 'Cultural Orientation', 'Traditionalist', 'Progressivist'),
+  ('C6', 'Group Boundaries', 'Particularist', 'Universalist'),
+  ('C7', 'Sovereignty Scope', 'Sovereigntist', 'Integrationist'),
+  ('C8', 'Technology Stance', 'Tech-Skeptical', 'Tech-Solutionist'),
+  ('C9', 'Nature''s Moral Weight', 'Anthropocentric', 'Ecocentric'),
+  ('C10', 'Moral Foundation', 'Moral Universalist', 'Moral Pluralist'),
+  ('F1', 'Change Strategy', 'Gradualist', 'Radical'),
+  ('F2', 'Institutional Trust', 'Trusting', 'Skeptical'),
+  ('F3', 'Justice Style', 'Retributive', 'Restorative')
+ON CONFLICT (id) DO NOTHING;
+
+-- Enable RLS on axes table
+ALTER TABLE axes ENABLE ROW LEVEL SECURITY;
+
+-- Create RLS policy for axes (public read access)
+CREATE POLICY "Anyone can read axes" ON axes
+    FOR SELECT USING (true);
+
 -- Step 1: Create question_axis_links table
 CREATE TABLE question_axis_links (
     id          bigserial PRIMARY KEY,
