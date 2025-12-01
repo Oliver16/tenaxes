@@ -73,12 +73,12 @@ export async function getCurrentUser() {
 }
 
 /**
- * Get or create user profile in public.users table
+ * Get or create user profile in public.profiles table
  */
 export async function getOrCreateUserProfile(userId: string, email: string) {
   // First try to get existing profile
   const { data: existingProfile, error: fetchError } = await supabase
-    .from('users')
+    .from('profiles')
     .select('*')
     .eq('id', userId)
     .single()
@@ -89,7 +89,7 @@ export async function getOrCreateUserProfile(userId: string, email: string) {
 
   // If doesn't exist, create new profile
   const { data: newProfile, error: createError } = await supabase
-    .from('users')
+    .from('profiles')
     .insert({ id: userId, email })
     .select()
     .single()
