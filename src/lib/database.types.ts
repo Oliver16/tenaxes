@@ -38,6 +38,7 @@ export interface Database {
           axis_id: string
           key: number
           text: string
+          educational_content: string | null
           display_order: number
           active: boolean
           created_at: string
@@ -48,6 +49,7 @@ export interface Database {
           axis_id: string
           key: number
           text: string
+          educational_content?: string | null
           display_order: number
           active?: boolean
           created_at?: string
@@ -58,6 +60,7 @@ export interface Database {
           axis_id?: string
           key?: number
           text?: string
+          educational_content?: string | null
           display_order?: number
           active?: boolean
           created_at?: string

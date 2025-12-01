@@ -88,16 +88,20 @@ export default function SurveyPage() {
         session_id: string
       }
 
-      const response = await fetch('/api/survey/submit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      })
+      const { error: responseError } = await supabase
+        .from('survey_responses')
+        .insert(responseData as any)
 
       if (!response.ok) {
         const errorPayload = await response.json().catch(() => ({}))
         throw new Error(errorPayload.error || 'Failed to save results')
       }
+
+      const { error: resultError } = await supabase
+        .from('survey_results')
+        .insert(resultData as any)
+
+      if (resultError) throw resultError
 
       // Navigate to results
       router.push(`/results/${sessionId}`)
