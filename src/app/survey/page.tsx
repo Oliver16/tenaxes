@@ -76,48 +76,50 @@ export default function SurveyPage() {
       const sessionId = nanoid(12)
       const results = calculateScoresFromQuestions(responses, questions)
 
-      // Save to Supabase (include user_id if logged in)
+      // Convert responses object to JSON-compatible format
+      const responsesJson = JSON.parse(JSON.stringify(responses))
+
+      // Prepare data for database insertion
       const responseData: Database['public']['Tables']['survey_responses']['Insert'] = {
         session_id: sessionId,
         user_id: user?.id || null,
-        responses: responses as any
+        responses: responsesJson
       }
-
-      const { error: responseError } = await supabase
-        .from('survey_responses')
-        .insert({
-          session_id: sessionId,
-          user_id: user?.id || null,
-          responses: responses
-        } as any)
-
-      if (responseError) throw responseError
 
       const resultData: Database['public']['Tables']['survey_results']['Insert'] = {
         session_id: sessionId,
         user_id: user?.id || null,
-        core_axes: results.coreAxes as any,
-        facets: results.facets as any,
-        top_flavors: results.allFlavors.filter(f => f.affinity > 0.1) as any
+        core_axes: JSON.parse(JSON.stringify(results.coreAxes)),
+        facets: JSON.parse(JSON.stringify(results.facets)),
+        top_flavors: JSON.parse(JSON.stringify(results.allFlavors.filter(f => f.affinity > 0.1)))
       }
 
+      // Save to Supabase - responses first
+      const { error: responseError } = await supabase
+        .from('survey_responses')
+        .insert(responseData)
+
+      if (responseError) {
+        console.error('Response insert error:', responseError)
+        throw new Error(`Failed to save survey responses: ${responseError.message}`)
+      }
+
+      // Then save results
       const { error: resultError } = await supabase
         .from('survey_results')
-        .insert({
-          session_id: sessionId,
-          user_id: user?.id || null,
-          core_axes: results.coreAxes,
-          facets: results.facets,
-          top_flavors: results.allFlavors.filter(f => f.affinity > 0.1) // All positive matches
-        } as any)
+        .insert(resultData)
 
-      if (resultError) throw resultError
+      if (resultError) {
+        console.error('Result insert error:', resultError)
+        throw new Error(`Failed to save survey results: ${resultError.message}`)
+      }
 
       // Navigate to results
       router.push(`/results/${sessionId}`)
     } catch (err) {
       console.error('Error saving results:', err)
-      setError('Failed to save results. Please try again.')
+      const errorMessage = err instanceof Error ? err.message : 'Failed to save results. Please try again.'
+      setError(errorMessage)
       setIsSubmitting(false)
     }
   }, [isComplete, responses, questions, router, user])
