@@ -109,7 +109,7 @@ export async function linkResultToUser(sessionId: string, userId: string) {
   const { data, error } = await supabase.rpc('link_result_to_user', {
     p_session_id: sessionId,
     p_user_id: userId
-  })
+  } as any)
 
   if (error) {
     console.error('Error linking result to user:', error)
@@ -123,11 +123,9 @@ export async function linkResultToUser(sessionId: string, userId: string) {
  * Get all results for a user
  */
 export async function getUserResults(userId: string) {
-  const params: Database['public']['Functions']['get_user_results']['Args'] = {
+  const { data, error } = await supabase.rpc('get_user_results', {
     p_user_id: userId
-  }
-
-  const { data, error } = await supabase.rpc('get_user_results', params)
+  } as any)
 
   if (error) {
     console.error('Error fetching user results:', error)
