@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import {
   BarChart,
   Bar,
@@ -16,9 +17,10 @@ import { buildFlavorChartData, getDisplayFlavors } from '@/lib/flavorDisplay'
 type Props = {
   flavors: FlavorMatch[]
   showAll?: boolean
+  sessionId?: string
 }
 
-export function FlavorBarChart({ flavors, showAll = false }: Props) {
+export function FlavorBarChart({ flavors, showAll = false, sessionId }: Props) {
   const data = buildFlavorChartData(flavors, showAll)
 
   return (
@@ -77,16 +79,16 @@ function FlavorTooltip({ active, payload }: any) {
 }
 
 // Expandable flavor list
-export function FlavorList({ flavors }: { flavors: FlavorMatch[] }) {
+export function FlavorList({ flavors, sessionId }: { flavors: FlavorMatch[]; sessionId?: string }) {
   const [showAll, setShowAll] = useState(false)
   const positiveFlavors = flavors.filter(f => f.affinity > 0)
   const displayFlavors = getDisplayFlavors(flavors, showAll)
-  
+
   return (
     <div>
       <div className="space-y-3">
         {displayFlavors.map((flavor, i) => (
-          <FlavorCard key={flavor.flavor_id} flavor={flavor} rank={i + 1} />
+          <FlavorCard key={flavor.flavor_id} flavor={flavor} rank={i + 1} sessionId={sessionId} />
         ))}
       </div>
       
@@ -104,17 +106,17 @@ export function FlavorList({ flavors }: { flavors: FlavorMatch[] }) {
   )
 }
 
-function FlavorCard({ flavor, rank }: { flavor: FlavorMatch; rank: number }) {
+function FlavorCard({ flavor, rank, sessionId }: { flavor: FlavorMatch; rank: number; sessionId?: string }) {
   const percent = ((flavor.affinity + 1) / 2) * 100
+  const href = sessionId
+    ? `/archetypes/${flavor.flavor_id}?sessionId=${sessionId}`
+    : `/archetypes/${flavor.flavor_id}`
 
-  return (
-    <div 
-      className="bg-white rounded-lg shadow p-4 border-l-4 transition-all hover:shadow-md"
-      style={{ borderLeftColor: flavor.color }}
-    >
+  const cardContent = (
+    <>
       <div className="flex justify-between items-start mb-2">
         <div className="flex items-center gap-2">
-          <span 
+          <span
             className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold"
             style={{ backgroundColor: flavor.color }}
           >
@@ -123,7 +125,7 @@ function FlavorCard({ flavor, rank }: { flavor: FlavorMatch; rank: number }) {
           <span className="text-lg font-bold text-gray-800">{flavor.name}</span>
         </div>
         <div className="text-right">
-          <span 
+          <span
             className="text-xl font-mono font-bold"
             style={{ color: flavor.color }}
           >
@@ -134,11 +136,27 @@ function FlavorCard({ flavor, rank }: { flavor: FlavorMatch; rank: number }) {
       </div>
       <p className="text-sm text-gray-600 mb-3">{flavor.description}</p>
       <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-        <div 
+        <div
           className="h-full rounded-full transition-all duration-500"
           style={{ width: `${percent}%`, backgroundColor: flavor.color }}
         />
       </div>
-    </div>
+      {sessionId && (
+        <div className="mt-3 text-sm text-blue-600 font-medium">
+          Learn why you matched →
+        </div>
+      )}
+    </>
+  )
+
+  return (
+    <Link href={href}>
+      <div
+        className="bg-white rounded-lg shadow p-4 border-l-4 transition-all hover:shadow-md cursor-pointer"
+        style={{ borderLeftColor: flavor.color }}
+      >
+        {cardContent}
+      </div>
+    </Link>
   )
 }
