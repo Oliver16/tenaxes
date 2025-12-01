@@ -9,6 +9,33 @@ export type Json =
 export interface Database {
   public: {
     Tables: {
+      axes: {
+        Row: {
+          id: string
+          name: string
+          pole_negative: string | null
+          pole_positive: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id: string
+          name: string
+          pole_negative?: string | null
+          pole_positive?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          name?: string
+          pole_negative?: string | null
+          pole_positive?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           id: string
@@ -169,27 +196,45 @@ export interface Database {
           id: string
           session_id: string
           user_id: string | null
-          core_axes: Json
-          facets: Json
-          top_flavors: Json
+          scores: Json | null
+          conceptual_scores: Json | null
+          applied_scores: Json | null
+          collision_pairs: Json | null
+          responses: Json | null
+          core_axes: Json | null
+          facets: Json | null
+          top_flavors: Json | null
+          completed_at: string | null
           created_at: string
         }
         Insert: {
           id?: string
           session_id: string
           user_id?: string | null
-          core_axes: Json
-          facets: Json
-          top_flavors: Json
+          scores?: Json | null
+          conceptual_scores?: Json | null
+          applied_scores?: Json | null
+          collision_pairs?: Json | null
+          responses?: Json | null
+          core_axes?: Json | null
+          facets?: Json | null
+          top_flavors?: Json | null
+          completed_at?: string | null
           created_at?: string
         }
         Update: {
           id?: string
           session_id?: string
           user_id?: string | null
-          core_axes?: Json
-          facets?: Json
-          top_flavors?: Json
+          scores?: Json | null
+          conceptual_scores?: Json | null
+          applied_scores?: Json | null
+          collision_pairs?: Json | null
+          responses?: Json | null
+          core_axes?: Json | null
+          facets?: Json | null
+          top_flavors?: Json | null
+          completed_at?: string | null
           created_at?: string
         }
       }
