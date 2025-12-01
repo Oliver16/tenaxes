@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import type { Database } from '@/lib/database.types'
 
 async function getUserSession() {
   const { data: { user } } = await supabase.auth.getUser()
@@ -8,9 +9,11 @@ async function getUserSession() {
 }
 
 async function getUserResults(userId: string) {
-  const { data, error } = await supabase.rpc('get_user_results', {
+  const params: Database['public']['Functions']['get_user_results']['Args'] = {
     p_user_id: userId
-  })
+  }
+
+  const { data, error } = await supabase.rpc('get_user_results', params)
 
   if (error) {
     console.error('Error fetching results:', error)

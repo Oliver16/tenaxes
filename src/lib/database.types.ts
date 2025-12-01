@@ -150,7 +150,26 @@ export interface Database {
       }
     }
     Functions: {
-      [_ in never]: never
+      get_user_results: {
+        Args: {
+          p_user_id: string
+        }
+        Returns: {
+          id: string
+          session_id: string
+          core_axes: Json
+          facets: Json
+          top_flavors: Json
+          created_at: string
+        }[]
+      }
+      link_result_to_user: {
+        Args: {
+          p_session_id: string
+          p_user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
