@@ -7,6 +7,7 @@ import { AXES } from '@/lib/instrument'
 import { fetchActiveQuestions, type Question } from '@/lib/questions'
 import { calculateScoresFromQuestions } from '@/lib/scorer'
 import { supabase } from '@/lib/supabase'
+import type { Database } from '@/lib/database.types'
 import { nanoid } from 'nanoid'
 
 const RESPONSE_OPTIONS = [
@@ -76,25 +77,29 @@ export default function SurveyPage() {
       const results = calculateScoresFromQuestions(responses, questions)
 
       // Save to Supabase (include user_id if logged in)
+      const responseData: Database['public']['Tables']['survey_responses']['Insert'] = {
+        session_id: sessionId,
+        user_id: user?.id || null,
+        responses: responses as any
+      }
+
       const { error: responseError } = await supabase
         .from('survey_responses')
-        .insert({
-          session_id: sessionId,
-          user_id: user?.id || null,
-          responses: responses
-        })
+        .insert(responseData as any)
 
       if (responseError) throw responseError
 
+      const resultData: Database['public']['Tables']['survey_results']['Insert'] = {
+        session_id: sessionId,
+        user_id: user?.id || null,
+        core_axes: results.coreAxes as any,
+        facets: results.facets as any,
+        top_flavors: results.allFlavors.filter(f => f.affinity > 0.1) as any
+      }
+
       const { error: resultError } = await supabase
         .from('survey_results')
-        .insert({
-          session_id: sessionId,
-          user_id: user?.id || null,
-          core_axes: results.coreAxes,
-          facets: results.facets,
-          top_flavors: results.allFlavors.filter(f => f.affinity > 0.1) // All positive matches
-        })
+        .insert(resultData as any)
 
       if (resultError) throw resultError
 
