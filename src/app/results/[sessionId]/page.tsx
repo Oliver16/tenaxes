@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase'
 import { notFound } from 'next/navigation'
 import type { AxisScore, FlavorMatch, SurveyResult } from '@/lib/supabase'
+import type { Database } from '@/lib/database.types'
 import { ResultsActions } from '@/components/ResultsActions'
 import { SaveResultsPrompt } from '@/components/SaveResultsPrompt'
 import { CoreAxesRadar } from '@/components/charts/CoreAxesRadar'
@@ -20,12 +21,17 @@ async function getResults(sessionId: string): Promise<SurveyResult | null> {
 
   if (error || !data) return null
 
-  // Cast JSONB fields to proper types
+  // Type the data explicitly and cast JSONB fields to proper types
+  const row = data as Database['public']['Tables']['survey_results']['Row']
+
   return {
-    ...data,
-    core_axes: data.core_axes as unknown as AxisScore[],
-    facets: data.facets as unknown as AxisScore[],
-    top_flavors: data.top_flavors as unknown as FlavorMatch[]
+    id: row.id,
+    session_id: row.session_id,
+    user_id: row.user_id,
+    core_axes: row.core_axes as unknown as AxisScore[],
+    facets: row.facets as unknown as AxisScore[],
+    top_flavors: row.top_flavors as unknown as FlavorMatch[],
+    created_at: row.created_at
   }
 }
 
