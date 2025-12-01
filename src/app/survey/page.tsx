@@ -85,7 +85,11 @@ export default function SurveyPage() {
 
       const { error: responseError } = await supabase
         .from('survey_responses')
-        .insert(responseData as any)
+        .insert({
+          session_id: sessionId,
+          user_id: user?.id || null,
+          responses: responses
+        } as any)
 
       if (responseError) throw responseError
 
@@ -99,7 +103,13 @@ export default function SurveyPage() {
 
       const { error: resultError } = await supabase
         .from('survey_results')
-        .insert(resultData as any)
+        .insert({
+          session_id: sessionId,
+          user_id: user?.id || null,
+          core_axes: results.coreAxes,
+          facets: results.facets,
+          top_flavors: results.allFlavors.filter(f => f.affinity > 0.1) // All positive matches
+        } as any)
 
       if (resultError) throw resultError
 

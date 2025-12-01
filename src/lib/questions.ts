@@ -36,11 +36,11 @@ export async function fetchAllQuestions(): Promise<Record<string, Question[]>> {
 
   // Group by axis
   const grouped: Record<string, Question[]> = {}
-  Object.keys(AXES).forEach(axisId => {
+  for (const axisId of Object.keys(AXES)) {
     grouped[axisId] = []
-  })
+  }
 
-  data?.forEach(q => {
+  (data as any)?.forEach((q: any) => {
     if (grouped[q.axis_id]) {
       grouped[q.axis_id].push(q)
     }
@@ -115,7 +115,7 @@ export async function createQuestion(input: QuestionInput): Promise<Question | n
       .order('display_order', { ascending: false })
       .limit(1)
 
-    displayOrder = existing && existing.length > 0 ? existing[0].display_order + 1 : 1
+    displayOrder = existing && existing.length > 0 ? (existing as any)[0].display_order + 1 : 1
   }
 
   const { data, error } = await supabase
@@ -127,7 +127,7 @@ export async function createQuestion(input: QuestionInput): Promise<Question | n
       educational_content: input.educational_content,
       display_order: displayOrder,
       active: input.active ?? true
-    })
+    } as any)
     .select()
     .single()
 
@@ -141,8 +141,8 @@ export async function createQuestion(input: QuestionInput): Promise<Question | n
 
 // Update an existing question
 export async function updateQuestion(id: number, updates: Partial<QuestionInput>): Promise<Question | null> {
-  const { data, error } = await supabase
-    .from('questions')
+  const { data, error } = await (supabase
+    .from('questions') as any)
     .update(updates)
     .eq('id', id)
     .select()
@@ -173,8 +173,8 @@ export async function deleteQuestion(id: number): Promise<boolean> {
 
 // Toggle question active status
 export async function toggleQuestionActive(id: number, active: boolean): Promise<boolean> {
-  const { error } = await supabase
-    .from('questions')
+  const { error } = await (supabase
+    .from('questions') as any)
     .update({ active })
     .eq('id', id)
 
@@ -189,9 +189,9 @@ export async function toggleQuestionActive(id: number, active: boolean): Promise
 // Reorder questions within an axis
 export async function reorderQuestions(axisId: string, questionIds: number[]): Promise<boolean> {
   // Update each question's display_order
-  const updates = questionIds.map((id, index) => 
-    supabase
-      .from('questions')
+  const updates = questionIds.map((id, index) =>
+    (supabase
+      .from('questions') as any)
       .update({ display_order: index + 1 })
       .eq('id', id)
   )
@@ -243,7 +243,7 @@ export async function seedQuestions(): Promise<boolean> {
 
   const { error } = await supabase
     .from('questions')
-    .insert(questions)
+    .insert(questions as any)
 
   if (error) {
     console.error('Error seeding questions:', error)
