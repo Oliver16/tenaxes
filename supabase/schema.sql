@@ -199,6 +199,11 @@ CREATE POLICY "Admins can delete questions" ON questions
 CREATE POLICY "Anyone can insert responses" ON survey_responses
   FOR INSERT WITH CHECK (true);
 
+-- Allow public read access to enable conceptual vs applied comparison
+-- on results page for both logged-in and anonymous users
+CREATE POLICY "Anyone can read responses by session" ON survey_responses
+  FOR SELECT USING (true);
+
 CREATE POLICY "Users can read own responses" ON survey_responses
   FOR SELECT USING (
     auth.uid() = user_id
