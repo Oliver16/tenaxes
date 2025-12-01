@@ -167,7 +167,60 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "questions_axis_id_fkey"
+            columns: ["axis_id"]
+            isOneToOne: false
+            referencedRelation: "axes"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      question_axis_links: {
+        Row: {
+          id: number
+          question_id: number
+          axis_id: string
+          role: string
+          axis_key: number
+          weight: number
+          created_at: string | null
+        }
+        Insert: {
+          id?: number
+          question_id: number
+          axis_id: string
+          role: string
+          axis_key: number
+          weight?: number
+          created_at?: string | null
+        }
+        Update: {
+          id?: number
+          question_id?: number
+          axis_id?: string
+          role?: string
+          axis_key?: number
+          weight?: number
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "question_axis_links_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "questions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "question_axis_links_axis_id_fkey"
+            columns: ["axis_id"]
+            isOneToOne: false
+            referencedRelation: "axes"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       survey_responses: {
         Row: {
