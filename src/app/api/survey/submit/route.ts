@@ -4,7 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { session_id, user_id, responses, core_axes, facets, top_flavors } = body
+    const { session_id, user_id, responses, core_axes, facets, top_flavors, question_order } = body
 
     if (!session_id || !responses || !core_axes || !facets || !top_flavors) {
       return NextResponse.json({ error: 'Missing required survey data' }, { status: 400 })
@@ -15,7 +15,8 @@ export async function POST(request: Request) {
       .insert({
         session_id,
         user_id: user_id ?? null,
-        responses
+        responses,
+        question_order: question_order ?? null
       })
 
     if (responseError) throw responseError
