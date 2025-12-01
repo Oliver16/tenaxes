@@ -73,12 +73,19 @@ async function getResults(sessionId: string): Promise<SurveyResult & {
   // Create comparison data for core axes only
   const axisComparisons: AxisComparison[] = conceptualResults.coreAxes.map(conceptualAxis => {
     const appliedAxis = appliedResults.coreAxes.find(a => a.axis_id === conceptualAxis.axis_id)
+    const appliedScore = appliedAxis?.score ?? 0
+
+    // Scores are in [-1, 1], so raw difference is in [0, 2]
+    // Normalize to [0, 1] so percentages and thresholds make sense
+    const rawDiff = Math.abs(conceptualAxis.score - appliedScore)
+    const normalizedDiff = rawDiff / 2
+
     return {
       axis_id: conceptualAxis.axis_id,
       name: conceptualAxis.name,
       conceptual_score: conceptualAxis.score,
-      applied_score: appliedAxis?.score || 0,
-      difference: Math.abs(conceptualAxis.score - (appliedAxis?.score || 0)),
+      applied_score: appliedScore,
+      difference: normalizedDiff,
       pole_negative: conceptualAxis.pole_negative,
       pole_positive: conceptualAxis.pole_positive
     }
