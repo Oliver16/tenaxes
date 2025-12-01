@@ -87,9 +87,23 @@ async function getResults(sessionId: string): Promise<SurveyResult & {
   const conceptualResults = calculateScoresFromQuestions(responses, conceptualQuestions)
   const appliedResults = calculateScoresFromQuestions(responses, appliedQuestions)
 
+  // Debug: Check applied results
+  console.log('Conceptual core axes scores:', conceptualResults.coreAxes.map(a => `${a.axis_id}: ${a.score.toFixed(2)}`))
+  console.log('Applied core axes scores:', appliedResults.coreAxes.map(a => `${a.axis_id}: ${a.score.toFixed(2)}`))
+
+  // Debug: Check which axes have applied questions
+  const appliedQuestionsByAxis: Record<string, number> = {}
+  appliedQuestions.forEach(q => {
+    appliedQuestionsByAxis[q.axis_id] = (appliedQuestionsByAxis[q.axis_id] || 0) + 1
+  })
+  console.log('Applied questions per axis:', appliedQuestionsByAxis)
+
   // Create comparison data for core axes only
   const axisComparisons: AxisComparison[] = conceptualResults.coreAxes.map(conceptualAxis => {
     const appliedAxis = appliedResults.coreAxes.find(a => a.axis_id === conceptualAxis.axis_id)
+
+    console.log(`Axis ${conceptualAxis.axis_id}: conceptual=${conceptualAxis.score.toFixed(2)}, applied=${appliedAxis?.score?.toFixed(2) || 'NOT FOUND'}`)
+
     return {
       axis_id: conceptualAxis.axis_id,
       name: conceptualAxis.name,
