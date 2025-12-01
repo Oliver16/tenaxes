@@ -17,6 +17,38 @@ CREATE TABLE profiles (
 CREATE INDEX idx_profiles_admin ON profiles(is_admin);
 
 -- =====================
+-- ROLES SYSTEM
+-- =====================
+-- Roles table defines available roles
+CREATE TABLE roles (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE,
+  description TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Insert default roles
+INSERT INTO roles (id, name, description) VALUES
+  ('admin', 'Administrator', 'Full system access including user management and analytics'),
+  ('moderator', 'Moderator', 'Can manage questions and view analytics'),
+  ('user', 'User', 'Standard user - can take surveys and view own results')
+ON CONFLICT (id) DO NOTHING;
+
+-- User roles junction table
+CREATE TABLE user_roles (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  role_id TEXT NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
+  assigned_at TIMESTAMPTZ DEFAULT NOW(),
+  assigned_by UUID REFERENCES profiles(id),
+  UNIQUE(user_id, role_id)
+);
+
+-- Indexes for role lookups
+CREATE INDEX idx_user_roles_user_id ON user_roles(user_id);
+CREATE INDEX idx_user_roles_role_id ON user_roles(role_id);
+
+-- =====================
 -- QUESTIONS TABLE
 -- =====================
 CREATE TABLE questions (
@@ -73,6 +105,8 @@ CREATE INDEX idx_results_created ON survey_results(created_at);
 -- ROW LEVEL SECURITY
 -- =====================
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE roles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_roles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE questions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE survey_responses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE survey_results ENABLE ROW LEVEL SECURITY;
@@ -83,6 +117,62 @@ CREATE POLICY "Users can view own profile" ON profiles
 
 CREATE POLICY "Users can update own profile" ON profiles
   FOR UPDATE USING (auth.uid() = id);
+
+-- Roles: Anyone can view roles, only admins can modify
+CREATE POLICY "Anyone can view roles" ON roles
+  FOR SELECT USING (true);
+
+CREATE POLICY "Only admins can insert roles" ON roles
+  FOR INSERT WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM user_roles ur
+      WHERE ur.user_id = auth.uid() AND ur.role_id = 'admin'
+    )
+  );
+
+CREATE POLICY "Only admins can update roles" ON roles
+  FOR UPDATE USING (
+    EXISTS (
+      SELECT 1 FROM user_roles ur
+      WHERE ur.user_id = auth.uid() AND ur.role_id = 'admin'
+    )
+  );
+
+CREATE POLICY "Only admins can delete roles" ON roles
+  FOR DELETE USING (
+    EXISTS (
+      SELECT 1 FROM user_roles ur
+      WHERE ur.user_id = auth.uid() AND ur.role_id = 'admin'
+    )
+  );
+
+-- User Roles: Users can view their own roles, admins can view and manage all
+CREATE POLICY "Users can view their own roles" ON user_roles
+  FOR SELECT USING (user_id = auth.uid());
+
+CREATE POLICY "Admins can view all user roles" ON user_roles
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM user_roles ur
+      WHERE ur.user_id = auth.uid() AND ur.role_id = 'admin'
+    )
+  );
+
+CREATE POLICY "Only admins can assign roles" ON user_roles
+  FOR INSERT WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM user_roles ur
+      WHERE ur.user_id = auth.uid() AND ur.role_id = 'admin'
+    )
+  );
+
+CREATE POLICY "Only admins can remove roles" ON user_roles
+  FOR DELETE USING (
+    EXISTS (
+      SELECT 1 FROM user_roles ur
+      WHERE ur.user_id = auth.uid() AND ur.role_id = 'admin'
+    )
+  );
 
 -- Questions: anyone can read active questions, only admins can modify
 CREATE POLICY "Anyone can read active questions" ON questions
@@ -153,8 +243,14 @@ CREATE TRIGGER profiles_updated_at
 CREATE OR REPLACE FUNCTION handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
+  -- Insert profile
   INSERT INTO public.profiles (id, email)
   VALUES (NEW.id, NEW.email);
+
+  -- Assign default 'user' role
+  INSERT INTO public.user_roles (user_id, role_id)
+  VALUES (NEW.id, 'user');
+
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -163,6 +259,30 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW
   EXECUTE FUNCTION handle_new_user();
+
+-- Helper function to check if user has a specific role
+CREATE OR REPLACE FUNCTION has_role(user_id UUID, role_name TEXT)
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM user_roles ur
+    JOIN roles r ON ur.role_id = r.id
+    WHERE ur.user_id = user_id AND r.id = role_name
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Helper function to get all user roles
+CREATE OR REPLACE FUNCTION get_user_roles(user_id UUID)
+RETURNS TABLE(role_id TEXT, role_name TEXT, role_description TEXT) AS $$
+BEGIN
+  RETURN QUERY
+  SELECT r.id, r.name, r.description
+  FROM user_roles ur
+  JOIN roles r ON ur.role_id = r.id
+  WHERE ur.user_id = user_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- =====================
 -- ANALYTICS VIEWS
