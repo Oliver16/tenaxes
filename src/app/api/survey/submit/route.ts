@@ -29,8 +29,7 @@ export async function POST(request: NextRequest) {
     
     if (axesError) throw axesError
     
-    const axesList = (axes ?? []) satisfies
-      NonNullable<typeof axes>
+    const axesList: NonNullable<typeof axes> = axes ?? []
     const axesById = Object.fromEntries(axesList.map(axis => [axis.id, axis]))
     
     // Separate questions by type
