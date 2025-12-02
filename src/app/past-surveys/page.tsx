@@ -20,9 +20,19 @@ export default async function PastSurveysPage() {
   // Get user session
   const { data: { user }, error: userError } = await supabase.auth.getUser()
 
-  // If no user or error, redirect to home
-  if (!user || userError) {
+  // Handle missing session - redirect to home instead of throwing
+  if (userError) {
+    if (userError.name === 'AuthSessionMissingError') {
+      // No session is fine - just redirect to home/login
+      redirect('/')
+    }
+    // Any other auth error is real
     console.error('Past surveys - auth error:', userError)
+    throw userError
+  }
+
+  // If no user after checking for errors, redirect
+  if (!user) {
     redirect('/')
   }
 
