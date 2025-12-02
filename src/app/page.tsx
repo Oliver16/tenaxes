@@ -2,8 +2,13 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 
 async function getUser() {
-  const { data: { user } } = await supabase.auth.getUser()
-  return user
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    return user
+  } catch (error) {
+    // Handle auth errors gracefully (e.g., AuthSessionMissingError)
+    return null
+  }
 }
 
 export default async function Home() {
