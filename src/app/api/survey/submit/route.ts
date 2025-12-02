@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { calculateAxisScoresFromLinks } from '@/lib/scorer'
 import { analyzeCollisions } from '@/lib/collision-analyzer'
+import { calculateFlavorMatches, separateCoreAndFacets } from '@/lib/archetype-calculator'
 import { fetchQuestionsWithLinks } from '@/lib/api/questions'
 import type { Database } from '@/lib/database.types'
 
@@ -65,7 +66,13 @@ export async function POST(request: NextRequest) {
       appliedQuestions,
       axes || []
     )
-    
+
+    // Calculate archetype/flavor matches
+    const flavorMatches = calculateFlavorMatches(allScores)
+
+    // Separate core axes from facets
+    const { coreAxes, facets } = separateCoreAndFacets(allScores)
+
     // Create session ID
     const sessionId = crypto.randomUUID()
 
@@ -85,7 +92,10 @@ export async function POST(request: NextRequest) {
       scores: allScores as any,
       conceptual_scores: conceptualScores as any,
       applied_scores: appliedScores as any,
-      collision_pairs: collisionScores as any,  // NEW: store collision analysis
+      collision_pairs: collisionScores as any,
+      core_axes: coreAxes as any,
+      facets: facets as any,
+      top_flavors: flavorMatches as any,
       responses: responses as any,
       completed_at: new Date().toISOString()
     }
