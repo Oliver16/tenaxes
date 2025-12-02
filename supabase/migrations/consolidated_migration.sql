@@ -210,19 +210,52 @@ CREATE TABLE IF NOT EXISTS survey_results (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   session_id TEXT NOT NULL UNIQUE REFERENCES survey_responses(session_id),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-  core_axes JSONB NOT NULL,
-  facets JSONB NOT NULL,
-  top_flavors JSONB NOT NULL,
+  core_axes JSONB,
+  facets JSONB,
+  top_flavors JSONB,
+  scores JSONB,
+  conceptual_scores JSONB,
+  applied_scores JSONB,
   collision_pairs JSONB,
+  responses JSONB,
+  completed_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Add columns that might be missing from older versions
 ALTER TABLE survey_results ADD COLUMN IF NOT EXISTS collision_pairs JSONB;
+ALTER TABLE survey_results ADD COLUMN IF NOT EXISTS scores JSONB;
+ALTER TABLE survey_results ADD COLUMN IF NOT EXISTS conceptual_scores JSONB;
+ALTER TABLE survey_results ADD COLUMN IF NOT EXISTS applied_scores JSONB;
+ALTER TABLE survey_results ADD COLUMN IF NOT EXISTS responses JSONB;
+ALTER TABLE survey_results ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ;
+
+-- Make old columns nullable for backwards compatibility
+DO $$
+BEGIN
+  ALTER TABLE survey_results ALTER COLUMN core_axes DROP NOT NULL;
+EXCEPTION
+  WHEN others THEN NULL;
+END $$;
+
+DO $$
+BEGIN
+  ALTER TABLE survey_results ALTER COLUMN facets DROP NOT NULL;
+EXCEPTION
+  WHEN others THEN NULL;
+END $$;
+
+DO $$
+BEGIN
+  ALTER TABLE survey_results ALTER COLUMN top_flavors DROP NOT NULL;
+EXCEPTION
+  WHEN others THEN NULL;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_results_session ON survey_results(session_id);
 CREATE INDEX IF NOT EXISTS idx_results_user ON survey_results(user_id);
 CREATE INDEX IF NOT EXISTS idx_results_created ON survey_results(created_at);
+CREATE INDEX IF NOT EXISTS idx_results_completed_at ON survey_results(completed_at);
 
 -- =====================
 -- ROW LEVEL SECURITY SETUP
