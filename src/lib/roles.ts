@@ -136,57 +136,23 @@ export async function removeRole(
 
 /**
  * Get all users with their roles (for admin management)
+ * Uses API route with service role to bypass RLS restrictions
  */
 export async function getAllUsersWithRoles(): Promise<(Profile & { roles: Role[] })[]> {
-  // First get all profiles
-  const { data: profiles, error: profilesError } = await (supabase
-    .from('profiles') as any)
-    .select('*')
-    .order('created_at', { ascending: false })
+  try {
+    const response = await fetch('/api/admin/users')
 
-  if (profilesError) {
-    console.error('Error fetching profiles:', profilesError)
+    if (!response.ok) {
+      console.error('Error fetching users:', await response.text())
+      return []
+    }
+
+    const users = await response.json()
+    return users || []
+  } catch (error) {
+    console.error('Error fetching users with roles:', error)
     return []
   }
-
-  if (!profiles || profiles.length === 0) {
-    return []
-  }
-
-  // Get all user roles
-  const { data: userRoles, error: rolesError } = await (supabase
-    .from('user_roles') as any)
-    .select(`
-      user_id,
-      roles (
-        id,
-        name,
-        description,
-        created_at
-      )
-    `)
-
-  if (rolesError) {
-    console.error('Error fetching user roles:', rolesError)
-    return profiles.map((p: any) => ({ ...p, roles: [] }))
-  }
-
-  // Group roles by user
-  const rolesByUser: Record<string, Role[]> = {}
-  ;(userRoles || []).forEach((ur: any) => {
-    if (!rolesByUser[ur.user_id]) {
-      rolesByUser[ur.user_id] = []
-    }
-    if (ur.roles) {
-      rolesByUser[ur.user_id].push(ur.roles)
-    }
-  })
-
-  // Combine profiles with their roles
-  return profiles.map((profile: any) => ({
-    ...profile,
-    roles: rolesByUser[profile.id] || []
-  }))
 }
 
 /**
