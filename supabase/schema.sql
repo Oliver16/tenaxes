@@ -132,20 +132,17 @@ ALTER TABLE question_axis_links ENABLE ROW LEVEL SECURITY;
 ALTER TABLE survey_responses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE survey_results ENABLE ROW LEVEL SECURITY;
 
--- Profiles: Users can read their own profile, admins can read all
+-- Profiles: Users can read and update their own profile
+-- Note: No admin policy to avoid infinite recursion. Admin access should use
+-- service role key on backend or JWT claims (see migration 011).
 CREATE POLICY "Users can view own profile" ON profiles
   FOR SELECT USING (auth.uid() = id);
 
-CREATE POLICY "Admins can view all profiles" ON profiles
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM profiles p
-      WHERE p.id = auth.uid() AND p.is_admin = true
-    )
-  );
-
 CREATE POLICY "Users can update own profile" ON profiles
   FOR UPDATE USING (auth.uid() = id);
+
+CREATE POLICY "Users can insert own profile" ON profiles
+  FOR INSERT WITH CHECK (auth.uid() = id);
 
 -- Roles: Anyone can view roles, only admins can modify
 CREATE POLICY "Anyone can view roles" ON roles
