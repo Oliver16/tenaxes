@@ -69,7 +69,17 @@ export async function POST(request: NextRequest) {
     // Create session ID
     const sessionId = crypto.randomUUID()
 
-    // Store results
+    // First, insert into survey_responses (required for foreign key constraint)
+    const { error: responseError } = await supabase
+      .from('survey_responses')
+      .insert({
+        session_id: sessionId,
+        responses: responses as any
+      })
+
+    if (responseError) throw responseError
+
+    // Then, store results in survey_results
     const insertData: SurveyResultInsert = {
       session_id: sessionId,
       scores: allScores as any,
@@ -85,7 +95,7 @@ export async function POST(request: NextRequest) {
       .insert(insertData)
       .select()
       .single()
-    
+
     if (insertError) throw insertError
     
     return NextResponse.json({
