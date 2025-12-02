@@ -588,7 +588,7 @@ ORDER BY axis_id;
 DROP VIEW IF EXISTS axis_weight_audit;
 CREATE VIEW axis_weight_audit AS
 SELECT
-  axis_id,
+  question_axis_links.axis_id,
   COUNT(*) FILTER (WHERE role = 'primary') as primary_count,
   SUM(weight) FILTER (WHERE role = 'primary') as primary_weight_sum,
   COUNT(*) FILTER (WHERE role = 'collision') as collision_count,
@@ -598,8 +598,8 @@ FROM question_axis_links
 JOIN questions ON questions.id = question_axis_links.question_id
 WHERE questions.question_type = 'applied'
   AND questions.active = true
-GROUP BY axis_id
-ORDER BY axis_id;
+GROUP BY question_axis_links.axis_id
+ORDER BY question_axis_links.axis_id;
 
 DROP VIEW IF EXISTS axis_collision_matrix;
 CREATE VIEW axis_collision_matrix AS
