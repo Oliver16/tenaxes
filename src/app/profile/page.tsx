@@ -5,8 +5,13 @@ import type { Database } from '@/lib/database.types'
 
 async function getUserSession() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  return user
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    return user
+  } catch (error) {
+    // Handle auth errors gracefully (e.g., AuthSessionMissingError)
+    return null
+  }
 }
 
 async function getUserResults(userId: string) {
