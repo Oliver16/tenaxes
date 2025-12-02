@@ -117,6 +117,37 @@ CREATE TABLE IF NOT EXISTS questions (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Add columns that might be missing from older versions
+ALTER TABLE questions ADD COLUMN IF NOT EXISTS educational_content TEXT;
+ALTER TABLE questions ADD COLUMN IF NOT EXISTS weight DECIMAL(4,2) DEFAULT 1.0;
+
+-- Add question_type column with CHECK constraint if it doesn't exist
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'questions' AND column_name = 'question_type'
+  ) THEN
+    ALTER TABLE questions ADD COLUMN question_type TEXT DEFAULT 'conceptual' CHECK (question_type IN ('conceptual', 'applied'));
+  END IF;
+END $$;
+
+-- Ensure questions.id is BIGINT (migration from SERIAL to BIGSERIAL)
+DO $$
+BEGIN
+  -- Check if id column is not already BIGINT
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'questions'
+      AND column_name = 'id'
+      AND data_type = 'integer'
+  ) THEN
+    -- Change to BIGINT and ensure sequence is still linked
+    ALTER TABLE questions ALTER COLUMN id TYPE BIGINT;
+    ALTER TABLE questions ALTER COLUMN id SET DEFAULT nextval('questions_id_seq'::regclass);
+  END IF;
+END $$;
+
 CREATE INDEX IF NOT EXISTS idx_questions_axis ON questions(axis_id);
 CREATE INDEX IF NOT EXISTS idx_questions_active ON questions(active);
 CREATE INDEX IF NOT EXISTS idx_questions_order ON questions(display_order);
@@ -161,6 +192,9 @@ CREATE TABLE IF NOT EXISTS survey_responses (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Add columns that might be missing from older versions
+ALTER TABLE survey_responses ADD COLUMN IF NOT EXISTS question_order INTEGER[];
+
 CREATE INDEX IF NOT EXISTS idx_responses_session ON survey_responses(session_id);
 CREATE INDEX IF NOT EXISTS idx_responses_user ON survey_responses(user_id);
 CREATE INDEX IF NOT EXISTS idx_responses_created ON survey_responses(created_at);
@@ -182,6 +216,9 @@ CREATE TABLE IF NOT EXISTS survey_results (
   collision_pairs JSONB,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Add columns that might be missing from older versions
+ALTER TABLE survey_results ADD COLUMN IF NOT EXISTS collision_pairs JSONB;
 
 CREATE INDEX IF NOT EXISTS idx_results_session ON survey_results(session_id);
 CREATE INDEX IF NOT EXISTS idx_results_user ON survey_results(user_id);
