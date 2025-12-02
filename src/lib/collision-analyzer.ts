@@ -1,6 +1,17 @@
 import { CollisionScore, QuestionWithLinks, ResponsesMap } from './database.types'
 
 /**
+ * Detailed information about how a specific question contributed to a collision
+ */
+export interface QuestionCollisionDetail {
+  question: QuestionWithLinks
+  response: number
+  primary_contribution: number
+  collision_contribution: number
+  favored_axis: 'primary' | 'collision' | 'balanced'
+}
+
+/**
  * Analyze collision tensions between axes
  * Uses RAW granular weights (not normalized) to show true preference strength
  */
@@ -142,14 +153,72 @@ export function findCollisionQuestions(
 ): QuestionWithLinks[] {
   return questions.filter(q => {
     if (!q.question_axis_links || q.question_axis_links.length < 2) return false
-    
+
     const hasPrimary = q.question_axis_links.some(
       l => l.role === 'primary' && l.axis_id === primaryAxis
     )
     const hasCollision = q.question_axis_links.some(
       l => l.role === 'collision' && l.axis_id === collisionAxis
     )
-    
+
     return hasPrimary && hasCollision
   })
+}
+
+/**
+ * Get detailed information about how each question contributed to a collision pair
+ * Shows which axis was favored in each question and by how much
+ */
+export function getCollisionQuestionDetails(
+  primaryAxis: string,
+  collisionAxis: string,
+  responses: ResponsesMap,
+  questions: QuestionWithLinks[]
+): QuestionCollisionDetail[] {
+  const collisionQuestions = findCollisionQuestions(primaryAxis, collisionAxis, questions)
+
+  return collisionQuestions
+    .map(q => {
+      const response = responses[q.id]
+      if (response === undefined) return null
+
+      const primaryLink = q.question_axis_links.find(
+        l => l.role === 'primary' && l.axis_id === primaryAxis
+      )
+      const collisionLink = q.question_axis_links.find(
+        l => l.role === 'collision' && l.axis_id === collisionAxis
+      )
+
+      if (!primaryLink || !collisionLink) return null
+
+      const primaryContrib = response * primaryLink.axis_key * primaryLink.weight
+      const collisionContrib = response * collisionLink.axis_key * collisionLink.weight
+
+      // Determine which axis this question favored
+      const diff = Math.abs(primaryContrib - collisionContrib)
+      let favoredAxis: 'primary' | 'collision' | 'balanced'
+
+      if (diff < 0.3) {
+        favoredAxis = 'balanced'
+      } else if (primaryContrib > collisionContrib) {
+        favoredAxis = 'primary'
+      } else {
+        favoredAxis = 'collision'
+      }
+
+      return {
+        question: q,
+        response,
+        primary_contribution: primaryContrib,
+        collision_contribution: collisionContrib,
+        favored_axis: favoredAxis
+      }
+    })
+    .filter((detail): detail is QuestionCollisionDetail => detail !== null)
+    .sort((a, b) => {
+      // Sort by strength of preference (most decisive questions first)
+      const diffA = Math.abs(a.primary_contribution - a.collision_contribution)
+      const diffB = Math.abs(b.primary_contribution - b.collision_contribution)
+      return diffB - diffA
+    })
 }
