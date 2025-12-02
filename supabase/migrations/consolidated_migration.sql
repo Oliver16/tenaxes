@@ -588,18 +588,19 @@ ORDER BY axis_id;
 DROP VIEW IF EXISTS axis_weight_audit;
 CREATE VIEW axis_weight_audit AS
 SELECT
-  question_axis_links.axis_id,
-  COUNT(*) FILTER (WHERE role = 'primary') as primary_count,
-  SUM(weight) FILTER (WHERE role = 'primary') as primary_weight_sum,
-  COUNT(*) FILTER (WHERE role = 'collision') as collision_count,
-  SUM(weight) FILTER (WHERE role = 'collision') as collision_weight_sum,
-  SUM(weight) as total_weight
-FROM question_axis_links
-JOIN questions ON questions.id = question_axis_links.question_id
-WHERE questions.question_type = 'applied'
-  AND questions.active = true
-GROUP BY question_axis_links.axis_id
-ORDER BY question_axis_links.axis_id;
+  qal.axis_id,
+  COUNT(*) FILTER (WHERE qal.role = 'primary')       AS primary_count,
+  SUM(qal.weight) FILTER (WHERE qal.role = 'primary') AS primary_weight_sum,
+  COUNT(*) FILTER (WHERE qal.role = 'collision')     AS collision_count,
+  SUM(qal.weight) FILTER (WHERE qal.role = 'collision') AS collision_weight_sum,
+  SUM(qal.weight)                                    AS total_weight
+FROM question_axis_links AS qal
+JOIN questions AS q
+  ON q.id = qal.question_id
+WHERE q.question_type = 'applied'
+  AND q.active = true
+GROUP BY qal.axis_id
+ORDER BY qal.axis_id;
 
 DROP VIEW IF EXISTS axis_collision_matrix;
 CREATE VIEW axis_collision_matrix AS
