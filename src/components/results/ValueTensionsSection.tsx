@@ -55,25 +55,25 @@ export function ValueTensionsSection({
   }
   
   return (
-    <section className="mt-12 space-y-6">
-      <div className="space-y-2">
-        <h2 className="text-3xl font-bold tracking-tight">
+    <section className="bg-white rounded-lg shadow-md p-8">
+      <div className="mb-6">
+        <h2 className="text-3xl font-bold mb-2">
           How You Navigate Value Conflicts
         </h2>
-        <p className="text-muted-foreground text-lg">
-          Real-world decisions often pit two good things against each other. 
+        <p className="text-gray-600">
+          Real-world decisions often pit two good things against each other.
           Here's what your responses reveal about which values you prioritize when they collide.
         </p>
       </div>
-      
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {topCollisions.map((collision, index) => {
           const icon = getIcon(
             collision.axis_primary,
             collision.axis_collision,
             collision.preference_direction
           )
-          
+
           const examples = findCollisionQuestions(
             collision.axis_primary,
             collision.axis_collision,
@@ -81,7 +81,7 @@ export function ValueTensionsSection({
           )
             .slice(0, 2)
             .map(q => q.text)
-          
+
           return (
             <CollisionCard
               key={`${collision.axis_primary}-${collision.axis_collision}`}
@@ -93,15 +93,15 @@ export function ValueTensionsSection({
           )
         })}
       </div>
-      
-      <div className="mt-8 p-4 bg-muted/50 rounded-lg border">
+
+      <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
         <div className="flex items-start gap-3">
           <InfoIcon />
           <div className="space-y-1 text-sm">
-            <p className="font-medium">How we identify these tensions</p>
-            <p className="text-muted-foreground">
-              These insights come from questions that explicitly ask you to choose between 
-              two competing values in realistic scenarios. They reveal your actual priorities, 
+            <p className="font-semibold text-blue-900">How we identify these tensions</p>
+            <p className="text-blue-800">
+              These insights come from questions that explicitly ask you to choose between
+              two competing values in realistic scenarios. They reveal your actual priorities,
               not just your ideals.
             </p>
           </div>
