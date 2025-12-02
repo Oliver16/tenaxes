@@ -107,9 +107,15 @@ CREATE TABLE survey_results (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   session_id TEXT NOT NULL UNIQUE REFERENCES survey_responses(session_id),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-  core_axes JSONB NOT NULL,
-  facets JSONB NOT NULL,
-  top_flavors JSONB NOT NULL,
+  core_axes JSONB,
+  facets JSONB,
+  top_flavors JSONB,
+  scores JSONB,
+  conceptual_scores JSONB,
+  applied_scores JSONB,
+  collision_pairs JSONB,
+  responses JSONB,
+  completed_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
