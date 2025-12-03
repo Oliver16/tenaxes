@@ -16,8 +16,27 @@ function AxisCard({
   conceptualScore?: number
   appliedScore?: number
 }) {
+  const getScoreDisplay = (score?: number) => {
+    if (score === undefined || score === null) return { text: '—', direction: '', color: '' }
+
+    const percentage = (score * 100).toFixed(0)
+    const isNegative = score < 0
+    const absPercentage = Math.abs(Number(percentage))
+    const pole = isNegative ? axis.pole_negative : axis.pole_positive
+    const color = isNegative ? 'text-red-600' : 'text-green-600'
+
+    return {
+      text: `${score > 0 ? '+' : ''}${percentage}%`,
+      direction: `→ ${pole}`,
+      color
+    }
+  }
+
+  const conceptualDisplay = getScoreDisplay(conceptualScore)
+  const appliedDisplay = getScoreDisplay(appliedScore)
+
   return (
-    <div className="p-4 rounded-lg border bg-white shadow-sm space-y-2">
+    <div className="p-4 rounded-lg border bg-white shadow-sm space-y-3">
       <div className="flex items-center justify-between">
         <div>
           <h3 className="font-semibold text-lg">{axis.name}</h3>
@@ -27,14 +46,30 @@ function AxisCard({
         </div>
         <div className="text-sm text-muted-foreground">Conceptual vs Applied</div>
       </div>
+
+      {/* Visual scale reference */}
+      <div className="relative h-2 rounded-full bg-gradient-to-r from-red-200 via-gray-100 to-green-200">
+        <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-gray-300 transform -translate-x-1/2" />
+      </div>
+
       <div className="grid grid-cols-2 gap-4 text-sm">
-        <div>
+        <div className="space-y-1">
           <p className="text-muted-foreground">Conceptual</p>
-          <p className="font-mono font-bold">{formatScore(conceptualScore)}</p>
+          <p className={`font-mono font-bold ${conceptualDisplay.color}`}>
+            {conceptualDisplay.text}
+          </p>
+          {conceptualDisplay.direction && (
+            <p className="text-xs text-muted-foreground">{conceptualDisplay.direction}</p>
+          )}
         </div>
-        <div>
+        <div className="space-y-1">
           <p className="text-muted-foreground">Applied</p>
-          <p className="font-mono font-bold">{formatScore(appliedScore)}</p>
+          <p className={`font-mono font-bold ${appliedDisplay.color}`}>
+            {appliedDisplay.text}
+          </p>
+          {appliedDisplay.direction && (
+            <p className="text-xs text-muted-foreground">{appliedDisplay.direction}</p>
+          )}
         </div>
       </div>
     </div>
