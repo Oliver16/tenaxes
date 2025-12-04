@@ -114,7 +114,14 @@ export default async function ResultsPage({
   
   // Get collision scores from stored results
   const collisionScores = (surveyResult.collision_pairs || []) as unknown as CollisionScore[]
-  
+
+  // Get responses map
+  const responses = (surveyResult.responses || {}) as Record<number, number>
+
+  // Get conceptual and applied scores
+  const conceptualScores = (surveyResult.conceptual_scores || []) as unknown as AxisScoreType[]
+  const appliedScores = (surveyResult.applied_scores || []) as unknown as AxisScoreType[]
+
   return (
     <div className="container mx-auto py-12 space-y-16">
       {/* Existing: Overall summary */}
@@ -122,11 +129,14 @@ export default async function ResultsPage({
         <h1 className="text-4xl font-bold mb-8">Your Political Compass Results</h1>
         {/* Existing summary content */}
       </section>
-      
+
       {/* NEW: Value Tensions Section - prominent placement */}
-      <ValueTensionsSection 
+      <ValueTensionsSection
         collisions={collisionScores}
         questions={questions}
+        responses={responses}
+        conceptualScores={conceptualScores}
+        appliedScores={appliedScores}
       />
       
       {/* Existing: Per-axis breakdown */}

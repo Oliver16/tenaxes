@@ -1,10 +1,13 @@
-import { CollisionScore, QuestionWithLinks } from '@/lib/database.types'
-import { findCollisionQuestions } from '@/lib/collision-analyzer'
+import { CollisionScore, QuestionWithLinks, ResponsesMap, AxisScore } from '@/lib/database.types'
+import { getCollisionQuestionDetails } from '@/lib/collision-analyzer'
 import { CollisionCard } from './CollisionCard'
 
 interface ValueTensionsSectionProps {
   collisions: CollisionScore[]
   questions: QuestionWithLinks[]
+  responses: ResponsesMap
+  conceptualScores?: AxisScore[]
+  appliedScores?: AxisScore[]
 }
 
 const InfoIcon = () => (
@@ -24,85 +27,75 @@ const InfoIcon = () => (
   </svg>
 )
 
-export function ValueTensionsSection({ 
+export function ValueTensionsSection({
   collisions,
-  questions 
+  questions,
+  responses,
+  conceptualScores,
+  appliedScores
 }: ValueTensionsSectionProps) {
-  
+
   if (collisions.length === 0) return null
-  
-  // Get top 5 most interesting collisions
+
+  // Get top 6 most interesting collisions (cleaner grid with 2 columns)
   const topCollisions = collisions
     .filter(c => c.confidence_level !== 'low')
-    .slice(0, 5)
-  
-  // Icon mapping for common collision pairs
-  const getIcon = (primary: string, collision: string, direction: string): string => {
-    const iconMap: Record<string, string> = {
-      'C1|C9': direction === 'primary' ? '💼' : '🌱',
-      'C1|C2': direction === 'primary' ? '📈' : '⚖️',
-      'C3|F1': direction === 'primary' ? '🛡️' : '✊',
-      'C5|C10': direction === 'primary' ? '📜' : '🌍',
-      'C8|C3': direction === 'primary' ? '🤖' : '🔒',
-      'C9|C1': direction === 'collision' ? '💼' : '🌱',
-      'C2|C1': direction === 'collision' ? '📈' : '⚖️',
-      'F1|C3': direction === 'collision' ? '🛡️' : '✊',
-      'C10|C5': direction === 'collision' ? '📜' : '🌍',
-    }
-    
-    const key = `${primary}|${collision}`
-    return iconMap[key] || '🤔'
-  }
-  
+    .slice(0, 6)
+
   return (
-    <section className="mt-12 space-y-6">
+    <section className="mt-12 space-y-8">
       <div className="space-y-2">
         <h2 className="text-3xl font-bold tracking-tight">
           How You Navigate Value Conflicts
         </h2>
         <p className="text-muted-foreground text-lg">
-          Real-world decisions often pit two good things against each other. 
+          Real-world decisions often pit two good things against each other.
           Here's what your responses reveal about which values you prioritize when they collide.
         </p>
       </div>
-      
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+
+      {/* Collision cards in a clean 2-column grid */}
+      <div className="space-y-8">
         {topCollisions.map((collision, index) => {
-          const icon = getIcon(
+          // Get detailed question information
+          const questionDetails = getCollisionQuestionDetails(
             collision.axis_primary,
             collision.axis_collision,
-            collision.preference_direction
-          )
-          
-          const examples = findCollisionQuestions(
-            collision.axis_primary,
-            collision.axis_collision,
+            responses,
             questions
           )
-            .slice(0, 2)
-            .map(q => q.text)
-          
+
+          // Get conceptual vs applied scores for both axes
+          const primaryConceptual = conceptualScores?.find(s => s.axis_id === collision.axis_primary)
+          const primaryApplied = appliedScores?.find(s => s.axis_id === collision.axis_primary)
+          const collisionConceptual = conceptualScores?.find(s => s.axis_id === collision.axis_collision)
+          const collisionApplied = appliedScores?.find(s => s.axis_id === collision.axis_collision)
+
           return (
             <CollisionCard
               key={`${collision.axis_primary}-${collision.axis_collision}`}
               collision={collision}
               rank={index + 1}
-              icon={icon}
-              exampleScenarios={examples}
+              questionDetails={questionDetails}
+              primaryConceptualScore={primaryConceptual?.score}
+              primaryAppliedScore={primaryApplied?.score}
+              collisionConceptualScore={collisionConceptual?.score}
+              collisionAppliedScore={collisionApplied?.score}
             />
           )
         })}
       </div>
-      
+
       <div className="mt-8 p-4 bg-muted/50 rounded-lg border">
         <div className="flex items-start gap-3">
           <InfoIcon />
           <div className="space-y-1 text-sm">
             <p className="font-medium">How we identify these tensions</p>
             <p className="text-muted-foreground">
-              These insights come from questions that explicitly ask you to choose between 
-              two competing values in realistic scenarios. They reveal your actual priorities, 
-              not just your ideals.
+              These insights come from questions that explicitly ask you to choose between
+              two competing values in realistic scenarios. The specific questions that revealed
+              each tension are shown below, along with how your ideals (conceptual) compared
+              to your real-world choices (applied).
             </p>
           </div>
         </div>
