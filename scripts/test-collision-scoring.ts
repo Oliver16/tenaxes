@@ -1,15 +1,15 @@
 import { createClient } from '@supabase/supabase-js'
 import { calculateAxisScoresFromLinks } from '../src/lib/scorer'
-import { analyzeCollisions } from '../src/lib/collision-analyzer'
+import { analyzeTensions, getTensionQuestionDetails } from '../src/lib/tension-analyzer'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
-async function testCollisionScoring() {
-  console.log('Testing collision scoring system...\n')
-  
+async function testTensionScoring() {
+  console.log('Testing tension scoring system...\n')
+
   // Fetch questions with links
   const { data: questions } = await supabase
     .from('questions')
@@ -18,105 +18,111 @@ async function testCollisionScoring() {
       question_axis_links (*)
     `)
     .eq('active', true)
-  
+
   // Fetch axes
   const { data: axes } = await supabase
     .from('axes')
     .select('*')
-  
+
   if (!questions || !axes) {
     console.error('Failed to fetch data')
     return
   }
-  
+
   const axesById = Object.fromEntries(axes.map(a => [a.id, a]))
-  
-  // Create test responses (all strongly agree = 1)
+
+  // Create test responses (all agree = 1)
   const responses: Record<number, number> = {}
   questions.forEach(q => {
     responses[q.id] = 1
   })
-  
+
   console.log(`Loaded ${questions.length} questions`)
   console.log(`Loaded ${axes.length} axes\n`)
-  
-  // Test 1: Verify normalization
-  console.log('TEST 1: Normalization Check')
+
+  // Test 1: Primary weight invariance
+  console.log('TEST 1: Primary Weight Invariance')
   console.log('='.repeat(50))
-  
+
   const { axisScores, questionContributions } = calculateAxisScoresFromLinks(
     responses,
     questions as any,
     axesById
   )
-  
-  // Check that multi-axis questions don't over-contribute
-  const multiAxisQuestions = questions.filter(q => 
-    q.question_axis_links && q.question_axis_links.length > 1
-  )
-  
-  console.log(`Found ${multiAxisQuestions.length} multi-axis questions`)
-  
-  for (const q of multiAxisQuestions.slice(0, 3)) {
+
+  let pass = true
+  for (const q of questions) {
     const contrib = questionContributions.find(c => c.question_id === q.id)
     if (!contrib) continue
-    
-    const totalNormalized = contrib.contributions.reduce(
-      (sum, c) => sum + Math.abs(c.normalized_contribution), 
-      0
-    )
-    
-    console.log(`\nQuestion ${q.id}:`)
-    console.log(`  Links: ${q.question_axis_links.length}`)
-    console.log(`  Total normalized contribution: ${totalNormalized.toFixed(3)}`)
-    console.log(`  Expected: ~${q.weight?.toFixed(3) || '1.000'}`)
-    console.log(`  ✓ ${Math.abs(totalNormalized - (q.weight || 1)) < 0.01 ? 'PASS' : 'FAIL'}`)
+
+    const links = (q.question_axis_links || []) as any[]
+    const primary = links.find(l => l.role === 'primary')
+    if (!primary) continue
+
+    const primaryContrib = contrib.contributions.find(c => c.axis_id === primary.axis_id)
+    const expected = Math.abs((responses[q.id] ?? 0) * (q.weight ?? 1))
+    if (primaryContrib && Math.abs(Math.abs(primaryContrib.normalized_contribution) - expected) > 0.001) {
+      console.log(`  FAIL Q${q.id}: primary contribution ${primaryContrib.normalized_contribution} != +/-${expected}`)
+      pass = false
+    }
   }
-  
-  // Test 2: Collision analysis
-  console.log('\n\nTEST 2: Collision Analysis')
+  console.log(pass
+    ? '  PASS: every question contributes exactly its weight to its primary axis'
+    : '  Some questions have inconsistent primary contributions')
+
+  console.log('\nAxis scores (all-agree responder):')
+  axisScores
+    .sort((a, b) => a.axis_id.localeCompare(b.axis_id))
+    .forEach(s => console.log(`  ${s.axis_id.padEnd(4)} score=${s.score.toFixed(3)} weight=${s.total_weight.toFixed(2)}`))
+
+  // Test 2: Tension analysis
+  console.log('\n\nTEST 2: Tension Analysis')
   console.log('='.repeat(50))
-  
+
   const appliedQuestions = questions.filter(q => q.question_type === 'applied')
-  const collisions = analyzeCollisions(responses, appliedQuestions as any, axes)
-  
-  console.log(`\nFound ${collisions.length} collision pairs`)
-  console.log('\nTop 5 collision pairs by interestingness:')
-  
-  collisions.slice(0, 5).forEach((c, i) => {
-    console.log(`\n${i + 1}. ${c.primary_name} vs ${c.collision_name}`)
-    console.log(`   Questions: ${c.question_count}`)
-    console.log(`   Confidence: ${c.confidence_level}`)
-    console.log(`   Preference: ${c.preference_direction} (${c.preference_strength})`)
-    console.log(`   Interestingness: ${c.interestingness_score.toFixed(1)}`)
+  const tensions = analyzeTensions(responses, appliedQuestions as any, axes)
+
+  console.log(`\nFound ${tensions.length} tension pairs (>=2 answered scenarios each)`)
+  console.log('\nTensions by interestingness:')
+
+  tensions.forEach((t, i) => {
+    console.log(`\n${i + 1}. ${t.side_a.label} vs ${t.side_b.label}  [${t.pair_key}]`)
+    console.log(`   Scenarios: ${t.answered_count} (${t.wins_a}-${t.wins_b}-${t.neutral_count})`)
+    console.log(`   Lean: ${t.lean.toFixed(3)} (${t.preference_strength}, ${t.classification})`)
+    console.log(`   Confidence: ${t.confidence_level} | Interestingness: ${t.interestingness_score.toFixed(1)}`)
+
+    const details = getTensionQuestionDetails(t, responses, appliedQuestions as any)
+    details.slice(0, 2).forEach(d => {
+      console.log(`     - [${d.winner}] ${d.question.text.slice(0, 70)}...`)
+    })
   })
-  
+
   // Test 3: Weight audit
   console.log('\n\nTEST 3: Weight Balance Audit')
   console.log('='.repeat(50))
-  
+
   const { data: weightAudit } = await supabase
     .from('axis_weight_audit')
     .select('*')
-  
+
   if (weightAudit) {
     console.log('\nPer-axis weight distribution:')
-    console.log('Axis | Primary Qs | Primary Wt | Collision Qs | Collision Wt | Total')
+    console.log('Axis | Primary Qs | Primary Wt | Secondary Qs | Secondary Wt | Tradeoff Qs')
     console.log('-'.repeat(80))
-    
+
     weightAudit.forEach((row: any) => {
       console.log(
         `${row.axis_id.padEnd(4)} | ` +
         `${String(row.primary_count).padStart(10)} | ` +
         `${String(row.primary_weight_sum?.toFixed(1) || '0').padStart(10)} | ` +
-        `${String(row.collision_count || 0).padStart(12)} | ` +
-        `${String(row.collision_weight_sum?.toFixed(1) || '0').padStart(12)} | ` +
-        `${row.total_weight?.toFixed(1) || '0'}`
+        `${String(row.secondary_count || 0).padStart(12)} | ` +
+        `${String(row.secondary_weight_sum?.toFixed(1) || '0').padStart(12)} | ` +
+        `${String(row.tradeoff_count || 0).padStart(11)}`
       )
     })
   }
-  
-  console.log('\n\n✓ All tests complete')
+
+  console.log('\n\nAll tests complete')
 }
 
-testCollisionScoring().catch(console.error)
+testTensionScoring().catch(console.error)

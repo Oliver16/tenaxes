@@ -1,13 +1,11 @@
-import { CollisionScore, QuestionWithLinks, ResponsesMap, AxisScore } from '@/lib/database.types'
-import { getCollisionQuestionDetails } from '@/lib/collision-analyzer'
-import { CollisionCard } from './CollisionCard'
+import { TensionScore, QuestionWithLinks, ResponsesMap } from '@/lib/database.types'
+import { getTensionQuestionDetails } from '@/lib/tension-analyzer'
+import { TensionCard } from './TensionCard'
 
 interface ValueTensionsSectionProps {
-  collisions: CollisionScore[]
+  tensions: TensionScore[]
   questions: QuestionWithLinks[]
   responses: ResponsesMap
-  conceptualScores?: AxisScore[]
-  appliedScores?: AxisScore[]
 }
 
 const InfoIcon = () => (
@@ -28,19 +26,16 @@ const InfoIcon = () => (
 )
 
 export function ValueTensionsSection({
-  collisions,
+  tensions,
   questions,
-  responses,
-  conceptualScores,
-  appliedScores
+  responses
 }: ValueTensionsSectionProps) {
 
-  if (collisions.length === 0) return null
+  if (tensions.length === 0) return null
 
-  // Get top 6 most interesting collisions (cleaner grid with 2 columns)
-  const topCollisions = collisions
-    .filter(c => c.confidence_level !== 'low')
-    .slice(0, 6)
+  // Top 6 most interesting tensions (analyzer already requires >=2
+  // answered scenarios and ranks contradictions and dilemmas highest)
+  const topTensions = tensions.slice(0, 6)
 
   return (
     <section className="mt-12 space-y-8">
@@ -50,40 +45,21 @@ export function ValueTensionsSection({
         </h2>
         <p className="text-muted-foreground text-lg">
           Real-world decisions often pit two good things against each other.
-          Here's what your responses reveal about which values you prioritize when they collide.
+          Here&apos;s what your responses reveal: where you hold clear priorities,
+          where you weigh things case-by-case, and where your choices diverge
+          from your stated ideals.
         </p>
       </div>
 
-      {/* Collision cards in a clean 2-column grid */}
       <div className="space-y-8">
-        {topCollisions.map((collision, index) => {
-          // Get detailed question information
-          const questionDetails = getCollisionQuestionDetails(
-            collision.axis_primary,
-            collision.axis_collision,
-            responses,
-            questions
-          )
-
-          // Get conceptual vs applied scores for both axes
-          const primaryConceptual = conceptualScores?.find(s => s.axis_id === collision.axis_primary)
-          const primaryApplied = appliedScores?.find(s => s.axis_id === collision.axis_primary)
-          const collisionConceptual = conceptualScores?.find(s => s.axis_id === collision.axis_collision)
-          const collisionApplied = appliedScores?.find(s => s.axis_id === collision.axis_collision)
-
-          return (
-            <CollisionCard
-              key={`${collision.axis_primary}-${collision.axis_collision}`}
-              collision={collision}
-              rank={index + 1}
-              questionDetails={questionDetails}
-              primaryConceptualScore={primaryConceptual?.score}
-              primaryAppliedScore={primaryApplied?.score}
-              collisionConceptualScore={collisionConceptual?.score}
-              collisionAppliedScore={collisionApplied?.score}
-            />
-          )
-        })}
+        {topTensions.map((tension, index) => (
+          <TensionCard
+            key={tension.pair_key}
+            tension={tension}
+            rank={index + 1}
+            questionDetails={getTensionQuestionDetails(tension, responses, questions)}
+          />
+        ))}
       </div>
 
       <div className="mt-8 p-4 bg-muted/50 rounded-lg border">
@@ -92,10 +68,12 @@ export function ValueTensionsSection({
           <div className="space-y-1 text-sm">
             <p className="font-medium">How we identify these tensions</p>
             <p className="text-muted-foreground">
-              These insights come from questions that explicitly ask you to choose between
-              two competing values in realistic scenarios. The specific questions that revealed
-              each tension are shown below, along with how your ideals (conceptual) compared
-              to your real-world choices (applied).
+              These insights come only from scenario questions that explicitly
+              price one value against another (&quot;even if&hellip;&quot;, &quot;rather
+              than&hellip;&quot;). Each answer reveals which value won that
+              collision; we count those wins and compare them with the ideals
+              you expressed in the conceptual questions. A gap between the two
+              can be telling &mdash; or a place to revisit for consistency.
             </p>
           </div>
         </div>

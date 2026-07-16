@@ -357,7 +357,9 @@ export interface Database {
 
 export type Question = Database['public']['Tables']['questions']['Row']
 
-export type QuestionAxisLinkRole = 'primary' | 'collision'
+// 'collision' is the legacy role name; pre-migration rows are treated as
+// 'tradeoff' by the tension analyzer and excluded from axis scoring.
+export type QuestionAxisLinkRole = 'primary' | 'secondary' | 'tradeoff' | 'collision'
 
 export interface QuestionAxisLink {
   id: number
@@ -383,18 +385,51 @@ export interface AxisScore {
   response_variance: number
 }
 
-export interface CollisionScore {
-  axis_primary: string
-  axis_collision: string
-  primary_name: string
-  collision_name: string
-  score_primary: number
-  score_collision: number
-  preference_index: number
-  preference_strength: 'weak' | 'moderate' | 'strong' | 'very strong'
-  preference_direction: 'primary' | 'collision' | 'balanced'
+export interface AxisMeta {
+  id: string
+  name: string
+  pole_negative?: string | null
+  pole_positive?: string | null
+}
+
+/** One side of a value tension: a specific pole of a specific axis. */
+export interface TensionSide {
+  axis_id: string
+  axis_name: string
+  pole: -1 | 1
+  label: string
+}
+
+/**
+ * A value tension between two poles of different axes, measured from
+ * tradeoff questions that force the respondent to rank one against the
+ * other. `lean` is in [-1, 1]; positive means side_a's value prevailed.
+ */
+export interface TensionScore {
+  pair_key: string
+  axis_a: string
+  axis_b: string
+  signature: -1 | 1
+  side_a: TensionSide
+  side_b: TensionSide
+  lean: number
+  wins_a: number
+  wins_b: number
+  neutral_count: number
+  answered_count: number
   question_count: number
+  preference_strength: 'weak' | 'moderate' | 'strong' | 'very strong'
+  classification: 'consistent_priority' | 'context_dependent' | 'balanced'
   confidence_level: 'low' | 'medium' | 'high'
+  ideals: {
+    /** Conceptual-score support for each side's pole (-1..1), if available. */
+    side_a_support: number | null
+    side_b_support: number | null
+    /** Both values are conceptually endorsed - the scenarios forced a real ranking. */
+    genuine_dilemma: boolean
+    /** The side that LOST in scenarios despite stronger stated support, if any. */
+    contradicts_ideals: 'side_a' | 'side_b' | null
+  }
   interestingness_score: number
 }
 

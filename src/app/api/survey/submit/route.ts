@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { calculateAxisScoresFromLinks } from '@/lib/scorer'
-import { analyzeCollisions } from '@/lib/collision-analyzer'
+import { analyzeTensions } from '@/lib/tension-analyzer'
 import { fetchQuestionsWithLinks } from '@/lib/api/questions'
 import type { Database } from '@/lib/database.types'
 
@@ -59,11 +59,13 @@ export async function POST(request: NextRequest) {
       axesById
     )
     
-    // Calculate collision scores (only from applied questions)
-    const collisionScores = analyzeCollisions(
+    // Analyze value tensions (from applied tradeoff questions), using
+    // conceptual scores to detect dilemmas and ideals-vs-choices gaps
+    const tensionScores = analyzeTensions(
       responses,
       appliedQuestions,
-      axes || []
+      axes || [],
+      conceptualScores
     )
     
     // Create session ID
@@ -85,7 +87,7 @@ export async function POST(request: NextRequest) {
       scores: allScores as any,
       conceptual_scores: conceptualScores as any,
       applied_scores: appliedScores as any,
-      collision_pairs: collisionScores as any,  // NEW: store collision analysis
+      collision_pairs: tensionScores as any,  // tension analysis (kept column name)
       responses: responses as any,
       completed_at: new Date().toISOString()
     }
@@ -102,7 +104,7 @@ export async function POST(request: NextRequest) {
       success: true,
       sessionId: sessionId,
       scores: allScores,
-      collisionScores: collisionScores
+      tensionScores: tensionScores
     })
     
   } catch (error) {

@@ -1,5 +1,16 @@
 # Question Bank & Tension Methodology Audit
 
+> **Implementation status:** the P0/P1 fixes (and the P2 link
+> corrections) are implemented on this branch — see
+> `supabase/migrations/20260716120000_fix_tension_links.sql`,
+> `src/lib/tension-analyzer.ts`, and `src/lib/scorer.ts`. The analyzer
+> ended up strictly more general than §7's proposal: tradeoff questions
+> are grouped by unordered axis pair *and* pole signature, and wins are
+> counted from push directions, so both same-key and opposite-key
+> tradeoffs carry signal. Still open: authoring new tradeoff items for
+> thin pairs (P2 #10), conceptual de-overlap rewording (P2 #11), and the
+> empirical validation dashboard (P3).
+
 **Scope:** All 202 questions (98 conceptual + 104 applied), the multi-axis
 collision-link system, the scoring pipeline (`src/lib/scorer.ts`), and the
 tension/contradiction analysis (`src/lib/collision-analyzer.ts`).

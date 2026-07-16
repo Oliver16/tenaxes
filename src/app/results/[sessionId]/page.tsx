@@ -1,8 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
 import { fetchQuestionsWithLinks } from '@/lib/api/questions'
+import { analyzeTensions } from '@/lib/tension-analyzer'
 import { ValueTensionsSection } from '@/components/results/ValueTensionsSection'
 import { AxisCollisionDetails } from '@/components/results/AxisCollisionDetails'
-import { CollisionScore, AxisScore as AxisScoreType, Database } from '@/lib/database.types'
+import { AxisScore as AxisScoreType, Database } from '@/lib/database.types'
 
 type SurveyResult = Database['public']['Tables']['survey_results']['Row']
 type Axis = Database['public']['Tables']['axes']['Row']
@@ -112,15 +113,18 @@ export default async function ResultsPage({
 
   const axes = (axesData || []) as Axis[]
   
-  // Get collision scores from stored results
-  const collisionScores = (surveyResult.collision_pairs || []) as unknown as CollisionScore[]
-
   // Get responses map
   const responses = (surveyResult.responses || {}) as Record<number, number>
 
   // Get conceptual and applied scores
   const conceptualScores = (surveyResult.conceptual_scores || []) as unknown as AxisScoreType[]
   const appliedScores = (surveyResult.applied_scores || []) as unknown as AxisScoreType[]
+
+  // Recompute tensions from the stored responses rather than reading the
+  // stored snapshot, so past sessions benefit from link fixes and
+  // analyzer improvements automatically
+  const appliedQuestions = questions.filter(q => q.question_type === 'applied')
+  const tensionScores = analyzeTensions(responses, appliedQuestions, axes, conceptualScores)
 
   return (
     <div className="container mx-auto py-12 space-y-16">
@@ -132,11 +136,9 @@ export default async function ResultsPage({
 
       {/* NEW: Value Tensions Section - prominent placement */}
       <ValueTensionsSection
-        collisions={collisionScores}
-        questions={questions}
+        tensions={tensionScores}
+        questions={appliedQuestions}
         responses={responses}
-        conceptualScores={conceptualScores}
-        appliedScores={appliedScores}
       />
       
       {/* Existing: Per-axis breakdown */}
@@ -159,11 +161,11 @@ export default async function ResultsPage({
                 appliedScore={appliedScore?.score}
               />
               
-              {/* NEW: Add collision details to each axis */}
-              <AxisCollisionDetails 
+              {/* Tension details for this axis */}
+              <AxisCollisionDetails
                 axisId={axis.id}
                 axisName={axis.name}
-                collisions={collisionScores}
+                tensions={tensionScores}
               />
             </div>
           )
