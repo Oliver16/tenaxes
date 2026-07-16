@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { calculateAxisScoresFromLinks } from '@/lib/scorer'
 import { analyzeTensions } from '@/lib/tension-analyzer'
+import { buildAxisSummaries, computeFlavorMatches, scoresById } from '@/lib/flavor-matcher'
 import { fetchQuestionsWithLinks } from '@/lib/api/questions'
 import type { Database } from '@/lib/database.types'
 
@@ -68,6 +69,10 @@ export async function POST(request: NextRequest) {
       conceptualScores
     )
     
+    // Archetype matching and axis summaries (character sheets)
+    const { core_axes, facets } = buildAxisSummaries(allScores)
+    const topFlavors = computeFlavorMatches(scoresById(allScores))
+
     // Create session ID
     const sessionId = crypto.randomUUID()
 
@@ -89,6 +94,9 @@ export async function POST(request: NextRequest) {
       applied_scores: appliedScores as any,
       collision_pairs: tensionScores as any,  // tension analysis (kept column name)
       responses: responses as any,
+      core_axes: core_axes as any,
+      facets: facets as any,
+      top_flavors: topFlavors as any,
       completed_at: new Date().toISOString()
     }
 

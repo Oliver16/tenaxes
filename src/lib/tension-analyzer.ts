@@ -36,6 +36,21 @@ const DECISIVE_LEAN = 0.30
 const IDEALS_SUPPORT_THRESHOLD = 0.20
 const CONTRADICTION_LEAN = 0.20
 
+/**
+ * Which mirror of a tension to display (both are mathematically
+ * equivalent; which one names the values the scenarios actually engage
+ * is content knowledge). Keyed by pair_key; the anchor becomes side_a.
+ * Pairs not listed fall back to the majority-primary-pole heuristic.
+ */
+const DISPLAY_ANCHORS: Record<string, { axis: string; pole: -1 | 1 }> = {
+  // green space (eco) vs affordable housing (redistribution)
+  'C2|C9|1': { axis: 'C9', pole: 1 },
+  // tech benefits vs distrust of the companies handling the data
+  'C8|F2|-1': { axis: 'C8', pole: 1 },
+  // protection of tradition vs personal liberty
+  'C3|C5|1': { axis: 'C5', pole: -1 }
+}
+
 interface TensionEntry {
   question: QuestionWithLinks
   /** Push direction of the pair's first (sorted) axis for this question. */
@@ -118,19 +133,30 @@ function buildSides(
   group: TensionGroup,
   axesById: Record<string, AxisMeta>
 ): { side_a: TensionSide; side_b: TensionSide; anchorIsAxisA: boolean; anchorPole: -1 | 1 } {
-  const primaryACount = group.entries.filter(e => e.primary_axis === group.axis_a).length
-  const anchorIsAxisA = primaryACount * 2 >= group.entries.length
+  const pairKey = `${group.axis_a}|${group.axis_b}|${group.signature}`
+  const override = DISPLAY_ANCHORS[pairKey]
+
+  let anchorIsAxisA: boolean
+  let anchorPole: -1 | 1
+
+  if (override && (override.axis === group.axis_a || override.axis === group.axis_b)) {
+    anchorIsAxisA = override.axis === group.axis_a
+    anchorPole = override.pole
+  } else {
+    const primaryACount = group.entries.filter(e => e.primary_axis === group.axis_a).length
+    anchorIsAxisA = primaryACount * 2 >= group.entries.length
+
+    // Push direction of the anchor axis per question: key_a for the sorted
+    // first axis, key_a x signature for the second (since k_b = s x k_a).
+    const anchorKeySum = group.entries.reduce(
+      (sum, e) => sum + (anchorIsAxisA ? e.key_a : e.key_a * group.signature),
+      0
+    )
+    anchorPole = anchorKeySum >= 0 ? 1 : -1
+  }
 
   const anchorAxis = anchorIsAxisA ? group.axis_a : group.axis_b
   const otherAxis = anchorIsAxisA ? group.axis_b : group.axis_a
-
-  // Push direction of the anchor axis per question: key_a for the sorted
-  // first axis, key_a x signature for the second (since k_b = s x k_a).
-  const anchorKeySum = group.entries.reduce(
-    (sum, e) => sum + (anchorIsAxisA ? e.key_a : e.key_a * group.signature),
-    0
-  )
-  const anchorPole: -1 | 1 = anchorKeySum >= 0 ? 1 : -1
 
   // The opposing pole on the other axis is the one NOT allied with the
   // anchor pole. Allied pole = anchorPole x signature, so opposed is its

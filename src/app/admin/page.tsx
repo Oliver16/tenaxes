@@ -105,6 +105,12 @@ export default function AdminPage() {
               Manage Questions →
             </Link>
             <Link
+              href="/admin/validation"
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm"
+            >
+              Validation →
+            </Link>
+            <Link
               href="/"
               className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-sm"
             >

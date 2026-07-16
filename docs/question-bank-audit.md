@@ -7,9 +7,16 @@
 > ended up strictly more general than §7's proposal: tradeoff questions
 > are grouped by unordered axis pair *and* pole signature, and wins are
 > counted from push directions, so both same-key and opposite-key
-> tradeoffs carry signal. Still open: authoring new tradeoff items for
-> thin pairs (P2 #10), conceptual de-overlap rewording (P2 #11), and the
-> empirical validation dashboard (P3).
+> tradeoffs carry signal.
+>
+> **Round 2:** 18 new tradeoff questions
+> (`20260716140000_add_tradeoff_questions.sql`) bring every tension pair
+> to ≥3 scenarios (12 reportable pairs, incl. the new
+> Traditionalist-vs-Civil-Liberties pair and the left-vs-left
+> green-space-vs-housing pair); the psychometric validation dashboard
+> ships at `/admin/validation`; and the archetype pipeline is restored
+> (see Part 2 below). Still open: conceptual de-overlap rewording
+> (P2 #11) and the archetype editorial recommendations in Part 2 §5.
 
 **Scope:** All 202 questions (98 conceptual + 104 applied), the multi-axis
 collision-link system, the scoring pipeline (`src/lib/scorer.ts`), and the
@@ -377,6 +384,103 @@ to report needs ≥3 true trade-off scenarios.
 
 15. Update README counts; fix the migration comment; remove or
     regenerate `ITEMS` from the DB.
+
+---
+
+---
+
+# Part 2: Archetype ("Character Sheet") Audit
+
+**Scope:** the 30 `FLAVOR_ARCHETYPES` definitions in
+`src/lib/instrument.ts`, the matching math, and every surface that
+displays matches (archetype pages, results, past surveys, profile,
+admin popularity).
+
+## 1. The pipeline was orphaned — FIXED
+
+Nothing in the codebase computed archetype affinities. The submit route
+never wrote `top_flavors`, `core_axes`, or `facets`, so for every
+session since the scoring refactor those columns are null. Consequences:
+the archetype detail page crashed on `top_flavors.find` when visited
+with a session, admin "flavor popularity" aggregated nothing, and the
+past-surveys/profile pages had no archetype data to show.
+
+**Fix on this branch:** `src/lib/flavor-matcher.ts` computes affinity as
+the weighted mean alignment `Σ(score × direction × weight) / Σweight`
+per archetype; the submit route now stores `core_axes`, `facets`, and
+ranked `top_flavors`; and the archetype page rebuilds all three
+on-the-fly from raw `scores` for older sessions, so history isn't
+broken.
+
+## 2. Facet components were invisible — FIXED
+
+The archetype page looked up user positions only in `core_axes`, so
+components on F1–F3 — present in 17 of 30 archetypes, including the
+*defining* components of Social Democrat, Technocratic Centrist, and
+both Anti-Establishment types — never appeared in "Why You Matched."
+The page now searches core axes and facets.
+
+## 3. Single-component archetypes dominate rankings — recommendation
+
+Moral Absolutist and Moral Pluralist are one axis each, so their
+affinity equals the raw C10 score while every other archetype averages
+several axes. Verified numerically: a profile with C10 = 0.75 and
+moderate-but-coherent libertarian scores everywhere else ranks Moral
+Pluralist (0.75) above Libertarian Capitalist (0.40) even though the
+libertarian identity describes the person far better. A single strong
+axis will *routinely* out-rank any blended identity.
+
+**Recommendation (editorial, needs your sign-off):** give each 1–2
+supporting components so they become real character sheets, e.g.
+Moral Absolutist `+ C6 (Universalist, 0.4)` — objective morality tends
+to be universal in scope — and Moral Pluralist `+ C5 (Progressivist,
+0.3)` or `+ C10-adjacent F3`. Alternatively add a small breadth prior
+(shrink single-component affinities toward 0 by ~15%).
+
+## 4. Eco cluster redundancy — recommendation
+
+Four archetypes share `C9 +1, weight 1` as their core (Deep Ecologist,
+Green Reformist, Eco-Sovereigntist, Communitarian Conservationist). A
+strong ecocentrist's top-5 list can be four flavors of green with one
+slot left for everything else. Recommend either a display diversity cap
+(max 2 archetypes sharing a core axis in the top 5) or raising the
+secondary-component weights (0.4–0.9 → 0.7–1.0) so the types separate.
+
+## 5. Definition-level review (all 30)
+
+Component directions were checked against pole semantics — **no sign
+errors found** (unlike the question links). Structural notes:
+
+| Archetype | Issue | Suggestion |
+|---|---|---|
+| Civic Nationalist | Only 2 components, 1.5 total weight, and no C6 despite "civic vs ethnic" being a C6 distinction | add `C6 +0.4` |
+| Moral Absolutist / Pluralist | single-component (see §3) | add supporting components |
+| Anarchist | no C1 component (intentional left/right agnosticism?) — matches both an-caps and an-coms equally | fine if intentional; document it |
+| Techno-Skeptic | `C5 −0.5` (traditionalist) makes a left-wing tech skeptic (degrowth type) match worse | consider dropping to 0.3 or 0 |
+
+**Coverage gaps** (profiles with no good match today): eco-capitalist
+(C9+ *and* C1+ — currently forced into Anthropocentric Developer or
+Green Reformist, both wrong), religious traditionalist (C5− C10− F3−),
+libertarian socialist (C1− C3+ C4+). Worth authoring if the
+validation dashboard shows clusters of respondents there.
+
+## 6. Display accuracy — recommendation
+
+The archetype page renders match % as `(affinity + 1) / 2`, so a
+*zero*-alignment archetype displays as a "50% match" and a mildly
+opposed one as "40%". Recommend `max(affinity, 0) × 100` with "opposed"
+shown for negatives, or keep the scale but label the midpoint.
+
+## 7. Tie-in with the tension system — future feature
+
+Archetypes and tensions can now cross-reference: each archetype implies
+expected winners in specific tensions (a Deep Ecologist is expected to
+choose Ecocentric over Property Rights). Comparing a user's *measured*
+tension outcomes against their top archetype's expected ones would give
+exactly the "telling vs. room for improvement" insight the tension
+system was rebuilt for — e.g. "You match Deep Ecologist, but in
+ecology-vs-prosperity scenarios you split 4–3." Straightforward to add
+on top of `TensionScore` + `FlavorMatch`.
 
 ---
 

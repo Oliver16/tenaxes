@@ -1,6 +1,6 @@
 # TenAxes
 
-A Next.js application with Supabase backend for a 202-item political orientation survey (98 conceptual + 104 applied questions).
+A Next.js application with Supabase backend for a 220-item political orientation survey (98 conceptual + 122 applied questions).
 
 ## Features
 
@@ -64,7 +64,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
 | Route | Description |
 |-------|-------------|
 | `/` | Landing page with feature overview |
-| `/survey` | 202-question questionnaire (98 conceptual + 104 applied) |
+| `/survey` | 220-question questionnaire (98 conceptual + 122 applied) |
 | `/results/[sessionId]` | Individual results with visualizations |
 | `/admin` | Analytics dashboard |
 | `/admin/questions` | Question management (add/edit/delete) |
