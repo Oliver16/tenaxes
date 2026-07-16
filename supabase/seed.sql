@@ -14,7 +14,7 @@ INSERT INTO questions (id, axis_id, key, text, display_order, active) VALUES
 
 -- C2: Economic Equality (Redistributionist ↔ Property Rights)
 (9, 'C2', -1, 'Narrowing the gap between rich and poor should be a central goal of economic policy.', 12, true),
-(10, 'C2', -1, 'A universal basic income, funded by taxing wealth, would create a more just society.', 13, true),
+(10, 'C2', -1, 'Guaranteeing every citizen a basic income would create a more just society.', 13, true),
 (11, 'C2', -1, 'Large concentrations of private wealth are corrosive to democracy and social cohesion.', 14, true),
 (12, 'C2', -1, 'Society has an obligation to ensure that no one falls below a decent standard of living.', 15, true),
 (13, 'C2', 1, 'People have a fundamental right to keep what they earn, regardless of how much others have.', 17, true),
@@ -26,11 +26,11 @@ INSERT INTO questions (id, axis_id, key, text, display_order, active) VALUES
 (17, 'C3', 1, 'Protecting individual privacy is more important than making law enforcement''s job easier.', 22, true),
 (18, 'C3', 1, 'People should be free to express offensive views without legal penalty.', 23, true),
 (19, 'C3', 1, 'Citizens should have access to strong encryption without government back-doors.', 24, true),
-(20, 'C3', 1, 'The right to protest, even disruptively, is essential to a free society.', 25, true),
+(20, 'C3', 1, 'Governments should not have the power to shut down protests just because they are disruptive.', 25, true),
 (21, 'C3', -1, 'Strict law enforcement and visible policing are necessary to maintain public safety.', 26, true),
 (22, 'C3', -1, 'Governments should be able to detain terrorism suspects without trial when security demands it.', 27, true),
 (23, 'C3', -1, 'Some speech is so harmful that it should be legally prohibited.', 28, true),
-(24, 'C3', -1, 'Schools and employers should enforce conduct codes even when they limit personal expression.', 90, true),
+(24, 'C3', -1, 'Authorities should be able to ban public gatherings that risk disorder, even before any law has been broken.', 90, true),
 
 -- C4: Where Power Sits (Centralized ↔ Localized)
 (25, 'C4', 1, 'Local communities should have the final word on matters like zoning, schooling, and policing.', 29, true),
@@ -60,7 +60,7 @@ INSERT INTO questions (id, axis_id, key, text, display_order, active) VALUES
 (45, 'C6', 1, 'Our obligations to strangers across the world are just as strong as those to our neighbors.', 63, true),
 (46, 'C6', 1, 'Moral rules should apply equally to all people regardless of nationality, ethnicity, or religion.', 64, true),
 (47, 'C6', 1, 'Aid and assistance should be allocated based on need, not on shared identity or proximity.', 67, true),
-(48, 'C6', 1, 'National borders are morally arbitrary lines that shouldn''t determine who deserves our concern.', 59, true),
+(48, 'C6', 1, 'How much someone''s wellbeing matters shouldn''t depend on where they happen to have been born.', 59, true),
 
 -- C7: Sovereignty Scope (Sovereigntist ↔ Integrationist)
 (49, 'C7', -1, 'A nation must control its own borders and immigration without outside interference.', 47, true),
@@ -69,7 +69,7 @@ INSERT INTO questions (id, axis_id, key, text, display_order, active) VALUES
 (52, 'C7', -1, 'Citizens of a country, not international bodies, should decide the laws that govern them.', 50, true),
 (53, 'C7', 1, 'International courts should be able to override national laws that violate human rights.', 52, true),
 (54, 'C7', 1, 'Nations should transfer some sovereignty to global institutions to address climate change.', 53, true),
-(55, 'C7', 1, 'Free movement of people across borders ultimately benefits both migrants and host countries.', 54, true),
+(55, 'C7', 1, 'Countries benefit from joining agreements that let people live and work freely across each other''s borders.', 54, true),
 (56, 'C7', 1, 'Global problems require global governance that nations cannot opt out of.', 55, true),
 
 -- C8: Technology Stance (Tech-Skeptical ↔ Tech-Solutionist)

@@ -15,8 +15,21 @@
 > Traditionalist-vs-Civil-Liberties pair and the left-vs-left
 > green-space-vs-housing pair); the psychometric validation dashboard
 > ships at `/admin/validation`; and the archetype pipeline is restored
-> (see Part 2 below). Still open: conceptual de-overlap rewording
-> (P2 #11) and the archetype editorial recommendations in Part 2 §5.
+> (see Part 2 below).
+>
+> **Round 3:** the Part 2 editorial recommendations are implemented
+> (supporting components, eco differentiation, three new archetypes —
+> 33 total — and the match-% display fix), and the conceptual
+> de-overlap rewording (P2 #11) shipped as
+> `20260716150000_reword_overlap_items.sql` (§5.1/§5.3 items 10, 20,
+> 24, 48, 55, 143 — texts and educational content synced across DB,
+> seeds, and `instrument.ts`). Archetype-coverage was also checked
+> quantitatively: all 26 axis poles anchor at least one archetype, and
+> in a 20,000-profile Monte Carlo only 1.1% of coherent profiles lack a
+> ≥0.30 best match — nearly all low-conviction near-centrists — so no
+> further archetypes are needed. **The audit's recommendations are now
+> fully implemented** except ongoing empirical pruning, which waits on
+> real response volume via `/admin/validation`.
 
 **Scope:** All 202 questions (98 conceptual + 104 applied), the multi-axis
 collision-link system, the scoring pipeline (`src/lib/scorer.ts`), and the
