@@ -147,16 +147,16 @@ export default async function ArchetypePage({ params, searchParams }: Props) {
                     <div
                       className="h-full flex items-center justify-end pr-3 text-white text-sm font-semibold"
                       style={{
-                        width: `${((userMatch.affinity + 1) / 2) * 100}%`,
+                        width: `${Math.max(userMatch.affinity, 0) * 100}%`,
                         backgroundColor: archetype.color,
                       }}
                     >
-                      {Math.round(((userMatch.affinity + 1) / 2) * 100)}%
+                      {userMatch.affinity > 0 ? `${Math.round(userMatch.affinity * 100)}%` : ''}
                     </div>
                   </div>
                 </div>
                 <span className="text-lg font-semibold text-gray-700 dark:text-gray-300">
-                  {userMatch.match_strength} Match
+                  {userMatch.affinity < -0.1 ? 'Opposed' : `${userMatch.match_strength} Match`}
                 </span>
               </div>
             </div>
@@ -308,10 +308,11 @@ export default async function ArchetypePage({ params, searchParams }: Props) {
                 Overall Match Calculation
               </h3>
               <p className="text-sm text-blue-800 dark:text-blue-300">
-                Your {Math.round(((userMatch.affinity + 1) / 2) * 100)}% match with {archetype.name} was
+                Your {Math.round(Math.max(userMatch.affinity, 0) * 100)}% match with {archetype.name} was
                 calculated by measuring how closely your positions on each axis align with this archetype's
                 ideal positions, weighted by the importance of each dimension. The closer your positions
-                align with the archetype's core dimensions, the stronger your match.
+                align with the archetype's core dimensions, the stronger your match
+                {userMatch.affinity < 0 ? ' — your positions currently lean against this archetype' : ''}.
               </p>
             </div>
           </section>

@@ -6,7 +6,7 @@ A Next.js application with Supabase backend for a 220-item political orientation
 
 - **10 Core Axes**: Economic control, equality, liberty, federalism, culture, group identity, sovereignty, technology, environment, moral foundations
 - **3 Style Facets**: Change strategy, institutional trust, justice style
-- **25+ Political Archetypes**: Automatically matched based on your profile
+- **33 Political Archetypes**: Automatically matched based on your profile
 - **Rich Visualizations**: Radar charts, axis scales, flavor bar charts
 - **Admin Analytics Dashboard**: Response trends, population averages, popular types
 - **Anonymous**: No login, no PII collection

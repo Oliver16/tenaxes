@@ -430,46 +430,51 @@ Pluralist (0.75) above Libertarian Capitalist (0.40) even though the
 libertarian identity describes the person far better. A single strong
 axis will *routinely* out-rank any blended identity.
 
-**Recommendation (editorial, needs your sign-off):** give each 1–2
-supporting components so they become real character sheets, e.g.
-Moral Absolutist `+ C6 (Universalist, 0.4)` — objective morality tends
-to be universal in scope — and Moral Pluralist `+ C5 (Progressivist,
-0.3)` or `+ C10-adjacent F3`. Alternatively add a small breadth prior
-(shrink single-component affinities toward 0 by ~15%).
+**IMPLEMENTED:** Moral Absolutist gained `C6 +0.4` (objective morality
+is universal in scope) and Moral Pluralist the mirror `C6 −0.4`
+(pluralism accepts community-specific frameworks) — both grounded in
+the C6/C10 axis definitions. This dilutes single-axis dominance
+(0.75 → ~0.48 in the demo profile) without a special-case penalty.
 
 ## 4. Eco cluster redundancy — recommendation
 
 Four archetypes share `C9 +1, weight 1` as their core (Deep Ecologist,
 Green Reformist, Eco-Sovereigntist, Communitarian Conservationist). A
 strong ecocentrist's top-5 list can be four flavors of green with one
-slot left for everything else. Recommend either a display diversity cap
-(max 2 archetypes sharing a core axis in the top 5) or raising the
-secondary-component weights (0.4–0.9 → 0.7–1.0) so the types separate.
+slot left for everything else.
+
+**IMPLEMENTED:** the differentiating secondary weights were raised
+(+0.2 each), so a pure ecocentrist with neutral secondaries now scores
+~0.5 on all of them (dilution) while committed subtypes rise above —
+and a new Eco-Capitalist (`C9+ / C1+ / C8+`) covers the market-green
+profile that previously had no home. A display diversity cap in the
+top-5 UI remains available as a further step if real data still shows
+all-green lists.
 
 ## 5. Definition-level review (all 30)
 
 Component directions were checked against pole semantics — **no sign
 errors found** (unlike the question links). Structural notes:
 
-| Archetype | Issue | Suggestion |
+| Archetype | Issue | Resolution |
 |---|---|---|
-| Civic Nationalist | Only 2 components, 1.5 total weight, and no C6 despite "civic vs ethnic" being a C6 distinction | add `C6 +0.4` |
-| Moral Absolutist / Pluralist | single-component (see §3) | add supporting components |
-| Anarchist | no C1 component (intentional left/right agnosticism?) — matches both an-caps and an-coms equally | fine if intentional; document it |
-| Techno-Skeptic | `C5 −0.5` (traditionalist) makes a left-wing tech skeptic (degrowth type) match worse | consider dropping to 0.3 or 0 |
+| Civic Nationalist | Only 2 components, 1.5 total weight, and no C6 despite "civic vs ethnic" being a C6 distinction | **IMPLEMENTED:** added `C6 +0.4` |
+| Moral Absolutist / Pluralist | single-component (see §3) | **IMPLEMENTED:** supporting C6 components |
+| Anarchist | no C1 component (intentional left/right agnosticism) — matches both an-caps and an-coms equally | kept as-is; Libertarian Socialist now covers the left variant explicitly |
+| Techno-Skeptic | `C5 −0.5` (traditionalist) makes a left-wing tech skeptic (degrowth type) match worse | **IMPLEMENTED:** reduced to `C5 −0.3` |
 
-**Coverage gaps** (profiles with no good match today): eco-capitalist
-(C9+ *and* C1+ — currently forced into Anthropocentric Developer or
-Green Reformist, both wrong), religious traditionalist (C5− C10− F3−),
-libertarian socialist (C1− C3+ C4+). Worth authoring if the
-validation dashboard shows clusters of respondents there.
+**Coverage gaps — IMPLEMENTED:** three new archetypes fill the holes:
+**Eco-Capitalist** (`C9+ 1, C1+ 0.8, C8+ 0.4`), **Moral
+Traditionalist** (`C5− 1, C10− 0.8, F3− 0.4`), and **Libertarian
+Socialist** (`C2− 1, C4+ 0.8, C3+ 0.8`) — 33 archetypes total.
 
 ## 6. Display accuracy — recommendation
 
-The archetype page renders match % as `(affinity + 1) / 2`, so a
-*zero*-alignment archetype displays as a "50% match" and a mildly
-opposed one as "40%". Recommend `max(affinity, 0) × 100` with "opposed"
-shown for negatives, or keep the scale but label the midpoint.
+The archetype page rendered match % as `(affinity + 1) / 2`, so a
+*zero*-alignment archetype displayed as a "50% match" and a mildly
+opposed one as "40%". **IMPLEMENTED:** now `max(affinity, 0) × 100`,
+with clearly opposed profiles labeled "Opposed" instead of a
+misleading percentage.
 
 ## 7. Tie-in with the tension system — future feature
 
