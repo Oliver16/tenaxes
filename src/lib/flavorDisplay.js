@@ -6,7 +6,7 @@
  */
 export function getDisplayFlavors(flavors, showAll) {
   const positiveFlavors = flavors.filter(f => f.affinity > 0)
-  return showAll ? positiveFlavors : flavors.slice(0, 5)
+  return showAll ? positiveFlavors : positiveFlavors.slice(0, 5)
 }
 
 /**

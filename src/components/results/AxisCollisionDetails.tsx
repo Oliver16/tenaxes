@@ -45,15 +45,15 @@ export function AxisCollisionDetails({
           }
           
           return (
-            <div key={i} className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg">
+            <div key={i} className="flex items-start gap-3 p-3 bg-gray-100 rounded-lg">
               <div className="flex-1">
                 <div className="flex items-baseline gap-2">
                   <span className="text-sm font-medium">vs {otherAxis}</span>
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-xs text-gray-500">
                     ({collision.question_count} scenario{collision.question_count > 1 ? 's' : ''})
                   </span>
                 </div>
-                <p className="text-sm text-muted-foreground mt-1">
+                <p className="text-sm text-gray-500 mt-1">
                   {favorsThisAxis 
                     ? `You tend to prioritize ${axisName}`
                     : collision.preference_direction === 'balanced'

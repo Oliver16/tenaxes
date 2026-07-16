@@ -110,7 +110,7 @@ export function CollisionCard({
 
       <CardContent className="space-y-6">
         {/* Explanation */}
-        <p className="text-sm text-muted-foreground leading-relaxed">
+        <p className="text-sm text-gray-500 leading-relaxed">
           {explanation}
         </p>
 
@@ -121,16 +121,16 @@ export function CollisionCard({
           <div className="grid grid-cols-2 gap-4">
             {/* Primary Axis Scores */}
             <div className={`p-3 rounded-lg border-2 ${
-              preference_direction === 'primary' ? strengthColor : 'bg-muted/30'
+              preference_direction === 'primary' ? strengthColor : 'bg-gray-100'
             }`}>
               <div className="font-semibold text-sm mb-2">{primary_name}</div>
               <div className="space-y-1 text-xs">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Ideal:</span>
+                  <span className="text-gray-500">Ideal:</span>
                   <span className="font-mono font-bold">{formatScore(primaryConceptualScore)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Applied:</span>
+                  <span className="text-gray-500">Applied:</span>
                   <span className="font-mono font-bold">{formatScore(primaryAppliedScore)}</span>
                 </div>
                 {primaryDivergence > 0.1 && (
@@ -143,16 +143,16 @@ export function CollisionCard({
 
             {/* Collision Axis Scores */}
             <div className={`p-3 rounded-lg border-2 ${
-              preference_direction === 'collision' ? strengthColor : 'bg-muted/30'
+              preference_direction === 'collision' ? strengthColor : 'bg-gray-100'
             }`}>
               <div className="font-semibold text-sm mb-2">{collision_name}</div>
               <div className="space-y-1 text-xs">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Ideal:</span>
+                  <span className="text-gray-500">Ideal:</span>
                   <span className="font-mono font-bold">{formatScore(collisionConceptualScore)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Applied:</span>
+                  <span className="text-gray-500">Applied:</span>
                   <span className="font-mono font-bold">{formatScore(collisionAppliedScore)}</span>
                 </div>
                 {collisionDivergence > 0.1 && (
@@ -167,10 +167,10 @@ export function CollisionCard({
 
         {/* Visual preference indicator */}
         <div className="space-y-2">
-          <div className="text-xs text-muted-foreground text-center">
+          <div className="text-xs text-gray-500 text-center">
             Preference strength
           </div>
-          <div className="relative h-3 bg-muted rounded-full overflow-hidden">
+          <div className="relative h-3 bg-gray-200 rounded-full overflow-hidden">
             <div
               className={`absolute top-0 h-full transition-all ${
                 preference_strength === 'very strong' ? 'bg-red-500' :
@@ -184,7 +184,7 @@ export function CollisionCard({
             />
             <div className="absolute top-0 left-1/2 h-full w-0.5 bg-border" />
           </div>
-          <div className="flex justify-between items-center text-xs text-muted-foreground">
+          <div className="flex justify-between items-center text-xs text-gray-500">
             <span className="text-left max-w-[45%]">{primary_name}</span>
             <span className="text-right max-w-[45%]">{collision_name}</span>
           </div>
@@ -217,7 +217,7 @@ export function CollisionCard({
                                 contributionDiff > 0.8 ? 'Moderate' : 'Weak'
 
                 return (
-                  <div key={i} className="p-3 bg-muted/50 rounded-lg border space-y-2">
+                  <div key={i} className="p-3 bg-gray-50 rounded-lg border space-y-2">
                     <div className="text-sm leading-relaxed">
                       {detail.question.text}
                     </div>
@@ -226,11 +226,11 @@ export function CollisionCard({
                         <Badge variant="outline" className="text-xs">
                           {favoredName}
                         </Badge>
-                        <span className="text-muted-foreground">
+                        <span className="text-gray-500">
                           {strength} preference
                         </span>
                       </div>
-                      <div className="text-muted-foreground">
+                      <div className="text-gray-500">
                         Response: {detail.response > 0 ? 'Agree' : detail.response < 0 ? 'Disagree' : 'Neutral'}
                       </div>
                     </div>
@@ -238,7 +238,7 @@ export function CollisionCard({
                 )
               })}
               {questionDetails.length > 5 && (
-                <div className="text-xs text-muted-foreground text-center pt-1">
+                <div className="text-xs text-gray-500 text-center pt-1">
                   + {questionDetails.length - 5} more question{questionDetails.length - 5 > 1 ? 's' : ''}
                 </div>
               )}

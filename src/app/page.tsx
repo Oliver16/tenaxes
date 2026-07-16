@@ -1,38 +1,8 @@
 import Link from 'next/link'
-import { supabase } from '@/lib/supabase'
 
-async function getUser() {
-  try {
-    const { data: { user } } = await supabase.auth.getUser()
-    return user
-  } catch (error) {
-    // Handle auth errors gracefully (e.g., AuthSessionMissingError)
-    return null
-  }
-}
-
-export default async function Home() {
-  const user = await getUser()
-
+export default function Home() {
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800">
-      {/* Navigation Header */}
-      <nav className="border-b border-slate-800">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="text-white font-bold text-xl">TenAxes</div>
-          {user ? (
-            <Link
-              href="/profile"
-              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-sm font-medium transition-colors"
-            >
-              My Results
-            </Link>
-          ) : (
-            <div className="text-slate-400 text-sm">No login required</div>
-          )}
-        </div>
-      </nav>
-
       {/* Hero Section */}
       <div className="max-w-6xl mx-auto px-4 py-20">
         <div className="text-center mb-16">
