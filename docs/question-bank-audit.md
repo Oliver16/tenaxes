@@ -30,6 +30,25 @@
 > further archetypes are needed. **The audit's recommendations are now
 > fully implemented** except ongoing empirical pruning, which waits on
 > real response volume via `/admin/validation`.
+>
+> **Round 4 — coverage expansion**
+> (`20260716160000_expand_coverage.sql`): a topical-coverage review
+> found the bank strong on economics, liberty, culture, ecology, and
+> meta-ethics but silent on democratic process, war and peace, religion
+> vs the secular state, labor power, positive-vs-negative liberty,
+> bioethics/moral paternalism, gun rights, race-conscious policy, and
+> intergenerational obligation. Two new facet axes (F4 Decision
+> Authority: Majoritarian↔Constitutionalist; F5 Force & Peace:
+> Dove↔Hawk) and 44 new items (221–264) close all of these — bank now
+> 264 items (110 conceptual + 154 applied), with three new tension
+> pairs (positive-vs-negative liberty C2×C3, secular neutrality vs
+> religious liberty C3×C5, popular will vs expert authority F2×F4).
+> C10 was renamed "Moral Epistemology" to end the false collision with
+> Haidt's Moral Foundations Theory. Keying of the race-conscious items
+> is intentionally split across C6/C2 pending item-rest evidence (see
+> the migration's header note). At 264 items, respondent burden is now
+> the binding constraint — before adding more content, consider a
+> short-form mode or per-session item sampling.
 
 **Scope:** All 202 questions (98 conceptual + 104 applied), the multi-axis
 collision-link system, the scoring pipeline (`src/lib/scorer.ts`), and the

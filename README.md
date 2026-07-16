@@ -1,11 +1,11 @@
 # TenAxes
 
-A Next.js application with Supabase backend for a 220-item political orientation survey (98 conceptual + 122 applied questions).
+A Next.js application with Supabase backend for a 264-item political orientation survey (110 conceptual + 154 applied questions).
 
 ## Features
 
-- **10 Core Axes**: Economic control, equality, liberty, federalism, culture, group identity, sovereignty, technology, environment, moral foundations
-- **3 Style Facets**: Change strategy, institutional trust, justice style
+- **10 Core Axes**: Economic control, equality, liberty, federalism, culture, group identity, sovereignty, technology, environment, moral epistemology
+- **5 Style Facets**: Change strategy, institutional trust, justice style, decision authority, force & peace
 - **33 Political Archetypes**: Automatically matched based on your profile
 - **Rich Visualizations**: Radar charts, axis scales, flavor bar charts
 - **Admin Analytics Dashboard**: Response trends, population averages, popular types
@@ -64,7 +64,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
 | Route | Description |
 |-------|-------------|
 | `/` | Landing page with feature overview |
-| `/survey` | 220-question questionnaire (98 conceptual + 122 applied) |
+| `/survey` | 264-question questionnaire (110 conceptual + 154 applied) |
 | `/results/[sessionId]` | Individual results with visualizations |
 | `/admin` | Analytics dashboard |
 | `/admin/questions` | Question management (add/edit/delete) |
