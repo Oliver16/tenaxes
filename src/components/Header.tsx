@@ -26,7 +26,7 @@ export default function Header() {
           <div className="flex h-16 items-center justify-between">
             <div className="flex items-center gap-8">
               <Link href="/" className="text-xl font-bold text-gray-900">
-                TenAxes
+                Polyaxis
               </Link>
               <nav className="hidden md:flex md:gap-6">
                 <Link href="/survey" className="text-sm font-medium text-gray-700 hover:text-gray-900">

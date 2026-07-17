@@ -1,11 +1,11 @@
-# TenAxes
+# Polyaxis
 
 A Next.js application with Supabase backend for a 264-item political orientation survey (110 conceptual + 154 applied questions).
 
 ## Features
 
-- **10 Core Axes**: Economic control, equality, liberty, federalism, culture, group identity, sovereignty, technology, environment, moral epistemology
-- **5 Style Facets**: Change strategy, institutional trust, justice style, decision authority, force & peace
+- **11 Core Axes**: Economic control, equality, liberty, federalism, culture, group identity, sovereignty, technology, environment, moral epistemology, force & peace
+- **4 Style Facets**: Change strategy, institutional trust, justice style, decision authority
 - **33 Political Archetypes**: Automatically matched based on your profile
 - **Rich Visualizations**: Radar charts, axis scales, flavor bar charts
 - **Admin Analytics Dashboard**: Response trends, population averages, popular types
@@ -92,7 +92,7 @@ npm run dev
 ## Project Structure
 
 ```
-tenaxes/
+polyaxis/
 ├── src/
 │   ├── app/
 │   │   ├── page.tsx              # Landing page
@@ -211,7 +211,7 @@ After running `schema.sql`, seed the default questions:
 
 ## Content provenance
 
-- Archetype descriptions and survey questions were authored specifically for this project by the TenAxes contributors and are original to the repository. No third-party licensed text was incorporated.
+- Archetype descriptions and survey questions were authored specifically for this project by the Polyaxis contributors and are original to the repository. No third-party licensed text was incorporated.
 - If future updates incorporate external wording or data, include clear attribution (source name, URL, and license) in this section and ensure the license permits reuse within this project.
 
 ### Contributor checklist for new archetypes or questions

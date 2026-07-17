@@ -19,7 +19,7 @@ export default async function Home() {
       {/* Navigation Header */}
       <nav className="border-b border-slate-800">
         <div className="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="text-white font-bold text-xl">TenAxes</div>
+          <div className="text-white font-bold text-xl">Polyaxis</div>
           {user ? (
             <Link
               href="/profile"
@@ -38,25 +38,29 @@ export default async function Home() {
         <div className="text-center mb-16">
           <h1 className="text-5xl md:text-6xl font-bold text-white mb-6">
             <span className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">
-              TenAxes
+              Polyaxis
             </span>
           </h1>
-          <p className="text-xl text-slate-300 max-w-2xl mx-auto mb-8">
-            Go beyond left vs. right. Discover your political profile across 10 core
-            dimensions, 3 behavioral facets, and 27 political archetypes with our 150-question assessment.
+          <p className="text-xl text-slate-300 max-w-2xl mx-auto mb-4">
+            The most rigorous ideological evaluation you can take. 264 questions across
+            11 core axes and 4 style facets — measuring not just what you believe, but
+            which values win when they collide, and where your choices contradict your ideals.
+          </p>
+          <p className="text-slate-400 max-w-2xl mx-auto mb-8">
+            No four-quadrant shortcuts. Real scenarios, real tradeoffs, 33 archetypes.
           </p>
           <Link
             href="/survey"
             className="inline-block px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white text-lg font-semibold rounded-lg transition-colors shadow-lg shadow-blue-500/30"
           >
-            Start the Survey →
+            Start the Evaluation →
           </Link>
-          <p className="text-slate-400 text-sm mt-4">~15 minutes • No account required</p>
+          <p className="text-slate-400 text-sm mt-4">~30 minutes • No account required • Worth it</p>
         </div>
 
         {/* Axes Preview */}
         <div className="mb-16">
-          <h2 className="text-2xl font-bold text-white text-center mb-8">10 Core Axes</h2>
+          <h2 className="text-2xl font-bold text-white text-center mb-8">11 Core Axes</h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
             {[
               { name: 'Economic Control', left: 'State-Directed', right: 'Market-Directed', color: 'from-red-500 to-green-500' },
@@ -68,7 +72,8 @@ export default async function Home() {
               { name: 'Sovereignty Scope', left: 'Sovereigntist', right: 'Integrationist', color: 'from-blue-500 to-violet-500' },
               { name: 'Technology Stance', left: 'Tech-Skeptical', right: 'Tech-Solutionist', color: 'from-slate-500 to-lime-500' },
               { name: 'Nature\'s Moral Weight', left: 'Anthropocentric', right: 'Ecocentric', color: 'from-stone-500 to-green-500' },
-              { name: 'Moral Foundation', left: 'Moral Universalist', right: 'Moral Pluralist', color: 'from-fuchsia-500 to-sky-500' },
+              { name: 'Moral Epistemology', left: 'Moral Universalist', right: 'Moral Pluralist', color: 'from-fuchsia-500 to-sky-500' },
+              { name: 'Force & Peace', left: 'Dove', right: 'Hawk', color: 'from-sky-500 to-red-500' },
             ].map((axis) => (
               <div key={axis.name} className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
                 <h3 className="text-white font-medium mb-2">{axis.name}</h3>
@@ -84,7 +89,7 @@ export default async function Home() {
 
         {/* Flavor Archetypes Preview */}
         <div className="mb-16">
-          <h2 className="text-2xl font-bold text-white text-center mb-4">27 Political Archetypes</h2>
+          <h2 className="text-2xl font-bold text-white text-center mb-4">33 Political Archetypes</h2>
           <p className="text-slate-300 text-center mb-8 max-w-2xl mx-auto">
             Discover which political profiles match your beliefs, from Revolutionary Socialist to Libertarian Capitalist,
             Techno-Optimist to Deep Ecologist.
@@ -116,7 +121,7 @@ export default async function Home() {
               </div>
             ))}
           </div>
-          <p className="text-slate-400 text-center mt-4 text-sm">...and 15 more archetypes</p>
+          <p className="text-slate-400 text-center mt-4 text-sm">...and 21 more archetypes</p>
         </div>
 
         {/* Features */}
@@ -127,9 +132,9 @@ export default async function Home() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
               </svg>
             </div>
-            <h3 className="text-white font-semibold text-lg mb-2">10 Core Axes</h3>
+            <h3 className="text-white font-semibold text-lg mb-2">11 Core Axes</h3>
             <p className="text-slate-400">
-              Measure your position on economics, liberty, culture, environment, and more.
+              Measure your position on economics, liberty, culture, environment, war and peace, and more.
             </p>
           </div>
           <div className="text-center">
@@ -138,9 +143,9 @@ export default async function Home() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
             </div>
-            <h3 className="text-white font-semibold text-lg mb-2">3 Behavioral Facets</h3>
+            <h3 className="text-white font-semibold text-lg mb-2">4 Style Facets</h3>
             <p className="text-slate-400">
-              Understand how you pursue your beliefs: Change Strategy, Institutional Trust, and Justice Style.
+              Understand how you pursue your beliefs: Change Strategy, Institutional Trust, Justice Style, and Decision Authority.
             </p>
           </div>
           <div className="text-center">
@@ -149,9 +154,10 @@ export default async function Home() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
             </div>
-            <h3 className="text-white font-semibold text-lg mb-2">27 Political Archetypes</h3>
+            <h3 className="text-white font-semibold text-lg mb-2">33 Political Archetypes</h3>
             <p className="text-slate-400">
-              Match your profile to political types from Revolutionary Socialist to Technocratic Centrist.
+              Match your profile to political types from Revolutionary Socialist to Eco-Capitalist — and see
+              where your real-world choices clash with your stated ideals.
             </p>
           </div>
         </div>
@@ -169,7 +175,7 @@ export default async function Home() {
       {/* Footer */}
       <footer className="border-t border-slate-800 py-8">
         <div className="max-w-6xl mx-auto px-4 text-center text-slate-500 text-sm">
-          <p>150 questions • 10 core axes • 3 behavioral facets • 27 political archetypes</p>
+          <p>264 questions • 11 core axes • 4 style facets • 33 political archetypes</p>
           <div className="mt-4">
             <a href="/admin" className="text-slate-400 hover:text-slate-300">
               View Analytics →

@@ -14,7 +14,7 @@ export function ResultsActions({ sessionId, coreAxes, topFlavor }: Props) {
   const [copySuccess, setCopySuccess] = useState(false)
 
   const handleCopyText = () => {
-    const heading = 'My TenAxes Results:'
+    const heading = 'My Polyaxis Results:'
     const axisLines = coreAxes
       .map(
         a => `${a.name}: ${a.pole_label} (${a.score > 0 ? '+' : ''}${(a.score * 100).toFixed(0)}%)`
@@ -80,7 +80,7 @@ function ShareSection({ sessionId, topFlavor }: { sessionId: string; topFlavor: 
     }
   }
 
-  const shareText = `I just found out I'm a ${topFlavor?.name || 'political type'}! Take the TenAxes test to discover yours:`
+  const shareText = `I just found out I'm a ${topFlavor?.name || 'political type'}! Take the Polyaxis test to discover yours:`
   const encodedText = encodeURIComponent(shareText)
   const encodedUrl = encodeURIComponent(shareUrl)
 
@@ -88,7 +88,7 @@ function ShareSection({ sessionId, topFlavor }: { sessionId: string; topFlavor: 
     twitter: `https://twitter.com/intent/tweet?text=${encodedText}&url=${encodedUrl}`,
     facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`,
     linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`,
-    reddit: `https://reddit.com/submit?url=${encodedUrl}&title=${encodeURIComponent('My TenAxes Results')}`,
+    reddit: `https://reddit.com/submit?url=${encodedUrl}&title=${encodeURIComponent('My Polyaxis Results')}`,
   }
 
   if (!shareUrl) return null

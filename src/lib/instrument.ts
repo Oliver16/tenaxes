@@ -13,7 +13,9 @@ export const AXES = {
   F2: { id: "F2", name: "Institutional Trust", pole_negative: "Trusting", pole_positive: "Skeptical", is_facet: true },
   F3: { id: "F3", name: "Justice Style", pole_negative: "Retributive", pole_positive: "Restorative", is_facet: true },
   F4: { id: "F4", name: "Decision Authority", pole_negative: "Majoritarian", pole_positive: "Constitutionalist", is_facet: true },
-  F5: { id: "F5", name: "Force & Peace", pole_negative: "Dove", pole_positive: "Hawk", is_facet: true }
+  // F5 is a CORE axis (substantive belief, not political style); it keeps
+  // the F-prefixed id for database stability - tier is display-level only.
+  F5: { id: "F5", name: "Force & Peace", pole_negative: "Dove", pole_positive: "Hawk" }
 } as const
 
 export type AxisId = keyof typeof AXES
