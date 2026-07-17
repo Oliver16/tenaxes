@@ -46,12 +46,16 @@ export function AxisCollisionDetails({
           const probes = pair.probe_keys
             .map(k => byKey.get(k))
             .filter((t): t is TensionScore => !!t)
-          const others = probes.map(t => {
+          // Per-probe: the value the shared pole was priced against, and
+          // whether the shared pole won that probe.
+          const outcomes = probes.map(t => {
             const shared = pair.shared_pole
-            const side = t.side_a.axis_id === shared.axis_id && t.side_a.pole === shared.pole
-              ? t.side_b : t.side_a
-            return side.label
+            const sharedIsA = t.side_a.axis_id === shared.axis_id && t.side_a.pole === shared.pole
+            const opposing = sharedIsA ? t.side_b : t.side_a
+            const term = sharedIsA ? t.lean : -t.lean
+            return { opposing: opposing.label, won: term > 0, decisive: term !== 0 && t.answered_count > 0 }
           })
+          const others = outcomes.map(o => o.opposing)
           const anyContradiction = probes.some(t => t.ideals.contradicts_ideals)
 
           const badgeText =
@@ -61,14 +65,17 @@ export function AxisCollisionDetails({
               ? 'cross-pressured'
               : 'inconclusive'
 
+          const wonAgainst = outcomes.filter(o => o.decisive && o.won).map(o => o.opposing)
+          const lostTo = outcomes.filter(o => o.decisive && !o.won).map(o => o.opposing)
+
           const summary =
             pair.classification === 'aligned'
               ? pair.direction > 0
                 ? `${pair.shared_pole.label} survived both framings (vs ${others.join(' and ')}).`
                 : `${pair.shared_pole.label} lost under both framings (vs ${others.join(' and ')}).`
               : pair.classification === 'cross_pressured'
-              ? `${pair.shared_pole.label} won under one framing and lost under the other — the framing decided.`
-              : `Not enough decisive answers to read a pattern.`
+              ? `${pair.shared_pole.label} won against ${wonAgainst.join(' and ')} but lost to ${lostTo.join(' and ')} — the framing decided.`
+              : `Not enough decisive answers to read a pattern (priced against ${others.join(' and ')}).`
 
           return (
             <div key={pair.pair_id} className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg">
