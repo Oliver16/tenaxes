@@ -306,6 +306,8 @@ export function buildSampleResultAnalysis(): ResultAnalysis {
   const topFlavors = computeFlavorMatches(scoresById(scores))
   const axisCoverage = calculateAxisCoverage(responses, questions)
   const coverageByAxis = Object.fromEntries(axisCoverage.map(coverage => [coverage.axis_id, coverage]))
+  const conceptualCoverage = calculateAxisCoverage(responses, conceptualQuestions)
+  const appliedCoverage = calculateAxisCoverage(responses, appliedQuestions)
   const tensionScores = analyzeTensions(responses, appliedQuestions, axes, conceptualScores)
   const collisionPairs = analyzeCollisionPairs(tensionScores)
 
@@ -352,6 +354,8 @@ export function buildSampleResultAnalysis(): ResultAnalysis {
     notSureCount,
     axisCoverage,
     coverageByAxis,
+    conceptualCoverage,
+    appliedCoverage,
     conceptualScores,
     appliedScores,
     axisComparisons: axisComparisons(conceptualScores, appliedScores, summaries),

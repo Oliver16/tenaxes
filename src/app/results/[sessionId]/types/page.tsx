@@ -11,9 +11,18 @@ export default async function TypesPage({
   const analysis = await loadResultAnalysis(params.sessionId)
   if (!analysis) notFound()
 
-  const { topFlavors, conceptualScores, appliedScores } = analysis
+  const {
+    topFlavors,
+    conceptualScores,
+    appliedScores,
+    conceptualCoverage,
+    appliedCoverage
+  } = analysis
   const top = topFlavors[0] ?? null
-  const consistency = computeConsistency(conceptualScores, appliedScores)
+  const consistency = computeConsistency(conceptualScores, appliedScores, {
+    conceptualCoverage,
+    appliedCoverage
+  })
 
   return (
     <>

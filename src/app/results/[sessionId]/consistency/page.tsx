@@ -54,16 +54,27 @@ export default async function ConsistencyPage({
   const analysis = await loadResultAnalysis(params.sessionId)
   if (!analysis) notFound()
 
-  const { conceptualScores, appliedScores, axisComparisons, tensionScores } = analysis
-  const consistency = computeConsistency(conceptualScores, appliedScores)
+  const {
+    conceptualScores,
+    appliedScores,
+    conceptualCoverage,
+    appliedCoverage,
+    axisComparisons,
+    tensionScores
+  } = analysis
+  const consistency = computeConsistency(conceptualScores, appliedScores, {
+    conceptualCoverage,
+    appliedCoverage
+  })
 
   if (!consistency) {
     return (
       <section className="bg-white rounded-xl shadow-lg p-6">
         <h1 className="text-2xl font-bold text-gray-800 mb-2">Ideals vs. practice</h1>
         <p className="text-gray-500 text-sm">
-          This result doesn&apos;t contain enough conceptual and applied answers to compare the two
-          registers.
+          This result doesn&apos;t contain enough directional evidence across both registers for a
+          reliable overall alignment rating. At least 12 dimensions need adequate conceptual and
+          applied coverage; profiles that remain almost entirely neutral are left unrated.
         </p>
       </section>
     )
@@ -106,10 +117,10 @@ export default async function ConsistencyPage({
             : <>Your stated principles match a <span className="font-medium">different archetype</span> than your practical choices do — the comparisons below show where the registers diverge.</>}
         </p>
 
-        {/* Consistency rating */}
+        {/* Principles/practice alignment rating */}
         <div className="p-4 rounded-lg border bg-gray-50">
           <div className="flex items-baseline justify-between flex-wrap gap-2 mb-2">
-            <h2 className="font-semibold text-gray-800">Consistency rating</h2>
+            <h2 className="font-semibold text-gray-800">Principles/practice alignment</h2>
             <div className="text-2xl font-bold" style={{ color: band.color }}>
               {rating}<span className="text-sm font-medium text-gray-500">/100 · {band.label}</span>
             </div>
@@ -126,9 +137,11 @@ export default async function ConsistencyPage({
 
           <ul className="text-xs text-gray-500 space-y-1">
             <li>
-              Computed from the average gap between your conceptual and applied scores across
-              all {gapCount} dimensions (100 = identical profiles, 0 = a full pole flip on every
-              dimension).
+              Computed from the root-mean-square gap between your conceptual and applied scores
+              across all {gapCount} dimensions. This makes a large divergence count more than
+              several small ones. A single 50-point gap rules out &ldquo;Highly aligned,&rdquo; and a
+              75-point gap rules out &ldquo;Broadly aligned&rdquo; (100 = identical profiles, 0 = a full
+              pole flip on every dimension).
             </li>
             <li>
               Independently of the rating, {contradictions === 0

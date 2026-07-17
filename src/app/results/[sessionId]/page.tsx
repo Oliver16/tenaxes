@@ -27,6 +27,8 @@ export default async function ResultsOverviewPage({
     facets,
     topFlavors,
     coverageByAxis,
+    conceptualCoverage,
+    appliedCoverage,
     conceptualScores,
     appliedScores,
     axisComparisons,
@@ -39,7 +41,10 @@ export default async function ResultsOverviewPage({
     bankVersion
   } = analysis
 
-  const consistency = computeConsistency(conceptualScores, appliedScores)
+  const consistency = computeConsistency(conceptualScores, appliedScores, {
+    conceptualCoverage,
+    appliedCoverage
+  })
   const strongestCore = strongestAxis(coreAxes, coverageByAxis)
   const strongestFacet = strongestAxis(facets, coverageByAxis)
 
