@@ -49,9 +49,11 @@ export function computeFlavorMatches(scoresById: Record<string, number>): Flavor
 }
 
 function poleLabelFor(axis: { pole_negative: string; pole_positive: string }, score: number): string {
-  if (score <= -0.15) return axis.pole_negative
-  if (score >= 0.15) return axis.pole_positive
-  return 'Balanced'
+  if (score < -0.6) return `Strong ${axis.pole_negative}`
+  if (score < -0.2) return `Moderate ${axis.pole_negative}`
+  if (score <= 0.2) return 'Centrist / Mixed'
+  if (score <= 0.6) return `Moderate ${axis.pole_positive}`
+  return `Strong ${axis.pole_positive}`
 }
 
 /**
