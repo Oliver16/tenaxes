@@ -6,7 +6,7 @@ import QuestionDistribution, { getBankDistribution } from '@/components/Question
 export const metadata: Metadata = {
   title: 'Methodology — Polyaxis',
   description:
-    'How Polyaxis works: 15 measured dimensions, a balanced question bank, tradeoff-based tension analysis, archetype matching, and ongoing psychometric validation.',
+    'How Polyaxis works: 18 measured dimensions, a balanced question bank, deliberate collision scenarios, archetype matching, and ongoing psychometric validation.',
 }
 
 // Re-check the live question counts at most once an hour
@@ -21,7 +21,7 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 
 export default async function MethodologyPage() {
   const distribution = await getBankDistribution()
-  const totalQuestions = distribution?.totals.total ?? 286
+  const totalQuestions = distribution?.totals.total ?? 300
   return (
     <main className="min-h-screen bg-gray-50">
       <div className="max-w-3xl mx-auto px-4 py-16">
@@ -38,9 +38,9 @@ export default async function MethodologyPage() {
 
         <SectionTitle>1. What we measure</SectionTitle>
         <p className="text-gray-700 leading-relaxed mb-4">
-          Polyaxis scores you on <strong>15 independent dimensions</strong>: 11 core axes
-          (what you believe about how society should work) and 4 style facets (how you
-          pursue those beliefs). Each dimension is bipolar — a score from −100% to +100%
+          Polyaxis scores you on <strong>18 independent dimensions</strong>: 11 core axes
+          (what you believe about how society should work) and 7 style facets (how you
+          pursue those beliefs and who you think should decide). Each dimension is bipolar — a score from −100% to +100%
           between two named poles, where 0 means balanced or conflicted, not apathetic.
         </p>
 
@@ -102,8 +102,8 @@ export default async function MethodologyPage() {
           <li>
             <strong>Applied items</strong> put you in a concrete scenario with a real cost
             attached (&ldquo;&hellip;even if it eliminates jobs&rdquo;). They measure what you
-            actually choose, and they carry 25% more scoring weight because behavior under
-            constraint is more informative than assent to a principle.
+            actually choose, and they carry 15&ndash;25% more scoring weight because
+            behavior under constraint is more informative than assent to a principle.
           </li>
         </ul>
         <p className="text-gray-700 leading-relaxed mb-4">
@@ -128,8 +128,11 @@ export default async function MethodologyPage() {
               (which policy domains the scenarios draw from — economics, liberty, culture,
               ecology, technology, infrastructure, defense, democratic process, and more)
               and <em>conflict coverage</em> (which pairs of values the tradeoff scenarios
-              actually force against each other). Every reported value tension is backed by
-              at least three distinct scenarios.
+              actually force against each other). The bank carries 48 deliberately designed
+              collision scenarios spread across 24 axis pairs, each pair probed once in each
+              pole direction, and every question carries semantic coverage tags (policy
+              domain, latent conflict, actor level, policy instrument) that feed the audit
+              views shipped with the database.
             </p>
           </>
         )}
@@ -176,13 +179,15 @@ export default async function MethodologyPage() {
           </li>
         </ul>
         <p className="text-gray-700 leading-relaxed mb-4">
-          Tensions are only reported when at least two scenarios support them, with
-          confidence labeled from the number of scenarios you answered.
+          Each collision scenario is deliberately designed for its axis pair, and every
+          reported tension is labeled with the number of scenarios behind it and a
+          confidence level, so a single-scenario reading is never dressed up as more than
+          it is.
         </p>
 
         <SectionTitle>5. Archetypes</SectionTitle>
         <p className="text-gray-700 leading-relaxed mb-4">
-          Your profile is matched against <strong>33 political archetypes</strong> — from
+          Your profile is matched against <strong>38 political archetypes</strong> — from
           Revolutionary Socialist to Libertarian Capitalist, Deep Ecologist to
           Eco-Capitalist, Moral Traditionalist to Libertarian Socialist. Each archetype is
           defined as a weighted set of positions across the axes; your affinity is the
@@ -218,7 +223,7 @@ export default async function MethodologyPage() {
             (federal states, private healthcare) that fit some countries better than others.
           </li>
           <li>
-            <strong>A model, not a mirror.</strong> Fifteen dimensions is far richer than
+            <strong>A model, not a mirror.</strong> Eighteen dimensions is far richer than
             four quadrants, but any finite instrument compresses a political mind.
           </li>
         </ul>
@@ -232,7 +237,7 @@ export default async function MethodologyPage() {
 
         <div className="rounded-lg bg-slate-900 p-8 text-center">
           <p className="text-slate-300 mb-4">
-            {totalQuestions} questions. 15 dimensions. Your contradictions included.
+            {totalQuestions} questions. 18 dimensions. Your contradictions included.
           </p>
           <Link
             href="/survey"

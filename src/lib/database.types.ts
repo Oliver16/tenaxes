@@ -13,26 +13,29 @@ export interface Database {
         Row: {
           id: string
           name: string
+          description: string | null
           pole_negative: string | null
           pole_positive: string | null
+          family: string
           created_at: string | null
-          updated_at: string | null
         }
         Insert: {
           id: string
           name: string
+          description?: string | null
           pole_negative?: string | null
           pole_positive?: string | null
+          family: string
           created_at?: string | null
-          updated_at?: string | null
         }
         Update: {
           id?: string
           name?: string
+          description?: string | null
           pole_negative?: string | null
           pole_positive?: string | null
+          family?: string
           created_at?: string | null
-          updated_at?: string | null
         }
         Relationships: []
       }
@@ -138,6 +141,7 @@ export interface Database {
           active: boolean
           weight: number
           question_type: string
+          bank_version: string
           created_at: string
           updated_at: string
         }
@@ -151,6 +155,7 @@ export interface Database {
           active?: boolean
           weight?: number
           question_type?: string
+          bank_version?: string
           created_at?: string
           updated_at?: string
         }
@@ -164,6 +169,7 @@ export interface Database {
           active?: boolean
           weight?: number
           question_type?: string
+          bank_version?: string
           created_at?: string
           updated_at?: string
         }
@@ -227,22 +233,102 @@ export interface Database {
           id: string
           session_id: string
           user_id: string | null
+          bank_version: string
           responses: Json
+          question_order: number[] | null
           created_at: string
         }
         Insert: {
           id?: string
           session_id: string
           user_id?: string | null
+          bank_version?: string
           responses: Json
+          question_order?: number[] | null
           created_at?: string
         }
         Update: {
           id?: string
           session_id?: string
           user_id?: string | null
+          bank_version?: string
           responses?: Json
+          question_order?: number[] | null
           created_at?: string
+        }
+        Relationships: []
+      }
+      question_metadata: {
+        Row: {
+          question_id: number
+          bank_version: string
+          policy_domain: string
+          latent_conflict: string | null
+          actor_level: string | null
+          policy_instrument: string | null
+          scenario_conditions: string | null
+          item_family: string
+          collision_pair: string | null
+          created_at: string | null
+        }
+        Insert: {
+          question_id: number
+          bank_version: string
+          policy_domain: string
+          latent_conflict?: string | null
+          actor_level?: string | null
+          policy_instrument?: string | null
+          scenario_conditions?: string | null
+          item_family: string
+          collision_pair?: string | null
+          created_at?: string | null
+        }
+        Update: {
+          question_id?: number
+          bank_version?: string
+          policy_domain?: string
+          latent_conflict?: string | null
+          actor_level?: string | null
+          policy_instrument?: string | null
+          scenario_conditions?: string | null
+          item_family?: string
+          collision_pair?: string | null
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "question_metadata_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: true
+            referencedRelation: "questions"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      question_bank_versions: {
+        Row: {
+          id: string
+          name: string
+          notes: string | null
+          question_count: number | null
+          collision_count: number | null
+          created_at: string | null
+        }
+        Insert: {
+          id: string
+          name: string
+          notes?: string | null
+          question_count?: number | null
+          collision_count?: number | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          name?: string
+          notes?: string | null
+          question_count?: number | null
+          collision_count?: number | null
+          created_at?: string | null
         }
         Relationships: []
       }
@@ -251,6 +337,7 @@ export interface Database {
           id: string
           session_id: string
           user_id: string | null
+          bank_version: string
           scores: Json | null
           conceptual_scores: Json | null
           applied_scores: Json | null
@@ -266,6 +353,7 @@ export interface Database {
           id?: string
           session_id: string
           user_id?: string | null
+          bank_version?: string
           scores?: Json | null
           conceptual_scores?: Json | null
           applied_scores?: Json | null
@@ -281,6 +369,7 @@ export interface Database {
           id?: string
           session_id?: string
           user_id?: string | null
+          bank_version?: string
           scores?: Json | null
           conceptual_scores?: Json | null
           applied_scores?: Json | null

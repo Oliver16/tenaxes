@@ -56,19 +56,44 @@ function poleLabelFor(axis: { pole_negative: string; pole_positive: string }, sc
   return `Strong ${axis.pole_positive}`
 }
 
+/** Axis metadata as stored in the database's axes table. */
+export interface DbAxisMeta {
+  id: string
+  name: string
+  pole_negative?: string | null
+  pole_positive?: string | null
+  family?: string | null
+}
+
 /**
  * Convert raw axis scores into the display summaries stored on
  * survey_results (core_axes / facets), with pole labels resolved.
+ *
+ * When database axes rows are supplied, their `family` column is
+ * authoritative for the core/facet split (and their names/pole labels
+ * are used), so an axis added to the database never silently vanishes
+ * from results. The static AXES registry is only the fallback.
  */
 export function buildAxisSummaries(
-  axisScores: Pick<AxisScore, 'axis_id' | 'score'>[]
+  axisScores: Pick<AxisScore, 'axis_id' | 'score'>[],
+  dbAxes?: DbAxisMeta[]
 ): { core_axes: AxisScoreSummary[]; facets: AxisScoreSummary[] } {
   const core_axes: AxisScoreSummary[] = []
   const facets: AxisScoreSummary[] = []
+  const dbById: Record<string, DbAxisMeta> = Object.fromEntries(
+    (dbAxes ?? []).map(a => [a.id, a])
+  )
 
   for (const s of axisScores) {
-    const meta = AXES[s.axis_id as AxisId]
-    if (!meta) continue
+    const db = dbById[s.axis_id]
+    const staticMeta = AXES[s.axis_id as AxisId]
+    if (!db && !staticMeta) continue
+
+    const meta = {
+      name: db?.name ?? staticMeta!.name,
+      pole_negative: db?.pole_negative ?? staticMeta?.pole_negative ?? '',
+      pole_positive: db?.pole_positive ?? staticMeta?.pole_positive ?? ''
+    }
 
     const summary: AxisScoreSummary = {
       axis_id: s.axis_id,
@@ -79,7 +104,10 @@ export function buildAxisSummaries(
       pole_label: poleLabelFor(meta, s.score)
     }
 
-    if ((meta as { is_facet?: boolean }).is_facet) {
+    const isFacet = db?.family
+      ? db.family === 'facet'
+      : !!(staticMeta as { is_facet?: boolean } | undefined)?.is_facet
+    if (isFacet) {
       facets.push(summary)
     } else {
       core_axes.push(summary)

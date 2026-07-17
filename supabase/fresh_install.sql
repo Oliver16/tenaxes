@@ -1,20 +1,16 @@
+BEGIN;
+
 -- =====================================================
--- POLYAXIS FRESH INSTALL
+-- POLYAXIS FRESH INSTALL - 300 QUESTION COMPREHENSIVE BANK
+--
 -- Complete database setup for a NEW Supabase project.
+-- Includes 18 clean ideological constructs, 300 active questions,
+-- 48 deliberate collision scenarios across 24 mirrored axis pairs,
+-- semantic coverage metadata, audit views, auth/profile support,
+-- RLS policies, roles, responses, and results.
 --
--- Generated from a verified end-to-end application of schema.sql,
--- seeds, and every migration through 20260717030000, then dumped and
--- tested against a clean database. Contains the full current state:
--- all tables, RLS policies, functions, views, 15 axes, 288 questions
--- (286 active), and 383 question-axis links.
---
--- This file is Supabase SQL Editor compatible: plain SQL only
--- (multi-row INSERTs, no psql meta-commands, no COPY FROM stdin).
---
--- Usage: paste this whole file into the Supabase SQL Editor of a new
--- project and run it once. Do NOT also run schema.sql/seeds/migrations
--- afterward - this file replaces them for new projects. See
--- docs/supabase-migration.md for the full migration runbook.
+-- Run once in the Supabase SQL Editor on a new project.
+-- This file replaces all prior schema, seed, and migration files.
 -- =====================================================
 
 --
@@ -165,6 +161,20 @@ SET default_tablespace = '';
 SET default_table_access_method = heap;
 
 --
+-- Name: question_bank_versions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.question_bank_versions (
+    id text NOT NULL,
+    name text NOT NULL,
+    notes text,
+    question_count integer NOT NULL,
+    collision_count integer NOT NULL,
+    created_at timestamp with time zone DEFAULT now()
+);
+
+
+--
 -- Name: survey_results; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -172,6 +182,7 @@ CREATE TABLE public.survey_results (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     session_id text NOT NULL,
     user_id uuid,
+    bank_version text DEFAULT 'v2.0'::text NOT NULL,
     core_axes jsonb,
     facets jsonb,
     top_flavors jsonb,
@@ -190,15 +201,17 @@ CREATE TABLE public.survey_results (
 --
 
 CREATE VIEW public.aggregate_scores AS
- SELECT (axis.value ->> 'axis_id'::text) AS axis_id,
+ SELECT survey_results.bank_version,
+    (axis.value ->> 'axis_id'::text) AS axis_id,
     (axis.value ->> 'name'::text) AS axis_name,
     avg(((axis.value ->> 'score'::text))::double precision) AS avg_score,
     stddev(((axis.value ->> 'score'::text))::double precision) AS std_dev,
     count(*) AS sample_size
    FROM public.survey_results,
     LATERAL jsonb_array_elements(survey_results.core_axes) axis(value)
-  GROUP BY (axis.value ->> 'axis_id'::text), (axis.value ->> 'name'::text);
-
+  GROUP BY survey_results.bank_version,
+    (axis.value ->> 'axis_id'::text),
+    (axis.value ->> 'name'::text);
 
 --
 -- Name: axes; Type: TABLE; Schema: public; Owner: -
@@ -208,9 +221,11 @@ CREATE TABLE public.axes (
     id text NOT NULL,
     name text NOT NULL,
     description text,
-    pole_negative text,
-    pole_positive text,
-    created_at timestamp with time zone DEFAULT now()
+    pole_negative text NOT NULL,
+    pole_positive text NOT NULL,
+    family text NOT NULL,
+    created_at timestamp with time zone DEFAULT now(),
+    CONSTRAINT axes_family_check CHECK ((family = ANY (ARRAY['core'::text, 'facet'::text])))
 );
 
 
@@ -249,13 +264,15 @@ CREATE TABLE public.questions (
     text text NOT NULL,
     educational_content text,
     display_order integer NOT NULL,
-    active boolean DEFAULT true,
-    weight numeric(4,2) DEFAULT 1.0,
-    question_type text DEFAULT 'conceptual'::text,
+    active boolean DEFAULT true NOT NULL,
+    weight numeric(4,2) DEFAULT 1.0 NOT NULL,
+    question_type text DEFAULT 'conceptual'::text NOT NULL,
+    bank_version text DEFAULT 'v2.0'::text NOT NULL,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
     CONSTRAINT questions_key_check CHECK ((key = ANY (ARRAY['-1'::integer, 1]))),
-    CONSTRAINT questions_question_type_check CHECK ((question_type = ANY (ARRAY['conceptual'::text, 'applied'::text])))
+    CONSTRAINT questions_question_type_check CHECK ((question_type = ANY (ARRAY['conceptual'::text, 'applied'::text]))),
+    CONSTRAINT questions_bank_order_unique UNIQUE (bank_version, display_order)
 );
 
 
@@ -263,7 +280,28 @@ CREATE TABLE public.questions (
 -- Name: TABLE questions; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.questions IS 'Survey questions table - now includes 202 applied questions (99-202) covering all 13 axes';
+COMMENT ON TABLE public.questions IS 'Comprehensive Polyaxis bank: 300 questions across 18 constructs, including 48 deliberate collision scenarios.';
+
+
+--
+-- Name: question_metadata; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.question_metadata (
+    question_id bigint NOT NULL,
+    bank_version text NOT NULL,
+    policy_domain text NOT NULL,
+    latent_conflict text,
+    actor_level text,
+    policy_instrument text,
+    scenario_conditions text,
+    item_family text NOT NULL,
+    collision_pair text,
+    created_at timestamp with time zone DEFAULT now(),
+    CONSTRAINT question_metadata_item_family_check CHECK ((item_family = ANY (ARRAY['base'::text, 'collision'::text])))
+);
+
+COMMENT ON TABLE public.question_metadata IS 'Semantic tags for coverage auditing, adaptive form assembly, and deliberate collision-scenario analysis.';
 
 
 --
@@ -324,6 +362,7 @@ CREATE TABLE public.survey_responses (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     session_id text NOT NULL,
     user_id uuid,
+    bank_version text DEFAULT 'v2.0'::text NOT NULL,
     responses jsonb NOT NULL,
     created_at timestamp with time zone DEFAULT now(),
     question_order integer[]
@@ -417,6 +456,63 @@ CREATE VIEW public.questions_by_axis AS
 
 
 --
+-- Name: axis_pole_balance_audit; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.axis_pole_balance_audit AS
+ SELECT q.axis_id,
+    count(*) FILTER (WHERE q.key = '-1'::integer) AS negative_primary,
+    count(*) FILTER (WHERE q.key = 1) AS positive_primary,
+    count(*) FILTER (WHERE q.question_type = 'conceptual'::text AND q.key = '-1'::integer) AS conceptual_negative,
+    count(*) FILTER (WHERE q.question_type = 'conceptual'::text AND q.key = 1) AS conceptual_positive,
+    count(*) FILTER (WHERE q.question_type = 'applied'::text AND q.key = '-1'::integer) AS applied_negative,
+    count(*) FILTER (WHERE q.question_type = 'applied'::text AND q.key = 1) AS applied_positive,
+    count(*) FILTER (WHERE m.item_family = 'collision'::text AND q.key = '-1'::integer) AS collision_negative,
+    count(*) FILTER (WHERE m.item_family = 'collision'::text AND q.key = 1) AS collision_positive
+   FROM public.questions q
+     LEFT JOIN public.question_metadata m ON m.question_id = q.id
+  WHERE q.active = true
+  GROUP BY q.axis_id
+  ORDER BY q.axis_id;
+
+
+--
+-- Name: policy_domain_coverage; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.policy_domain_coverage AS
+ SELECT m.policy_domain,
+    count(*) AS question_count,
+    count(*) FILTER (WHERE q.question_type = 'applied'::text) AS applied_count,
+    count(DISTINCT q.axis_id) AS primary_axes,
+    count(*) FILTER (WHERE m.item_family = 'collision'::text) AS collision_count
+   FROM public.question_metadata m
+     JOIN public.questions q ON q.id = m.question_id
+  WHERE q.active = true
+  GROUP BY m.policy_domain
+  ORDER BY count(*) DESC, m.policy_domain;
+
+
+--
+-- Name: collision_pair_coverage; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.collision_pair_coverage AS
+ SELECT LEAST(p.axis_id, t.axis_id) AS axis_a,
+    GREATEST(p.axis_id, t.axis_id) AS axis_b,
+    count(*) AS scenario_count,
+    count(*) FILTER (WHERE p.axis_key = t.axis_key) AS same_sign_count,
+    count(*) FILTER (WHERE p.axis_key <> t.axis_key) AS opposite_sign_count
+   FROM public.question_axis_links p
+     JOIN public.question_axis_links t ON t.question_id = p.question_id AND t.role = 'tradeoff'::text
+     JOIN public.questions q ON q.id = p.question_id
+  WHERE p.role = 'primary'::text AND q.active = true
+  GROUP BY LEAST(p.axis_id, t.axis_id), GREATEST(p.axis_id, t.axis_id)
+  ORDER BY LEAST(p.axis_id, t.axis_id), GREATEST(p.axis_id, t.axis_id);
+
+
+
+--
 -- Name: questions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
@@ -475,26 +571,36 @@ ALTER TABLE ONLY public.questions ALTER COLUMN id SET DEFAULT nextval('public.qu
 
 
 --
+-- Data for Name: question_bank_versions; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+INSERT INTO public.question_bank_versions (id, name, notes, question_count, collision_count) VALUES
+    ('v2.0', 'Polyaxis Comprehensive Question Bank', '18 constructs; 108 conceptual anchors; 144 single-axis applied scenarios; 48 deliberate collision scenarios across 24 mirrored pairs.', 300, 48);
+
+
+--
 -- Data for Name: axes; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-INSERT INTO public.axes VALUES
-	('C1', 'Economic Control', NULL, 'State-Directed', 'Market-Directed', '2026-07-17 00:17:32.520474+00'),
-	('C2', 'Economic Equality', NULL, 'Redistributionist', 'Property Rights', '2026-07-17 00:17:32.520474+00'),
-	('C3', 'Coercive Power', NULL, 'Security/Order', 'Civil Liberties', '2026-07-17 00:17:32.520474+00'),
-	('C4', 'Where Power Sits', NULL, 'Centralized', 'Localized', '2026-07-17 00:17:32.520474+00'),
-	('C5', 'Cultural Orientation', NULL, 'Traditionalist', 'Progressivist', '2026-07-17 00:17:32.520474+00'),
-	('C6', 'Group Boundaries', NULL, 'Particularist', 'Universalist', '2026-07-17 00:17:32.520474+00'),
-	('C7', 'Sovereignty Scope', NULL, 'Sovereigntist', 'Integrationist', '2026-07-17 00:17:32.520474+00'),
-	('C8', 'Technology Stance', NULL, 'Tech-Skeptical', 'Tech-Solutionist', '2026-07-17 00:17:32.520474+00'),
-	('C9', 'Nature''s Moral Weight', NULL, 'Anthropocentric', 'Ecocentric', '2026-07-17 00:17:32.520474+00'),
-	('F1', 'Change Strategy', NULL, 'Gradualist', 'Radical', '2026-07-17 00:17:32.520474+00'),
-	('F2', 'Institutional Trust', NULL, 'Trusting', 'Skeptical', '2026-07-17 00:17:32.520474+00'),
-	('F3', 'Justice Style', NULL, 'Retributive', 'Restorative', '2026-07-17 00:17:32.520474+00'),
-	('F4', 'Decision Authority', NULL, 'Majoritarian', 'Constitutionalist', '2026-07-17 00:17:32.966753+00'),
-	('F5', 'Force & Peace', NULL, 'Dove', 'Hawk', '2026-07-17 00:17:32.966753+00'),
-	('C10', 'Moral Epistemology', NULL, 'Moral Universalist', 'Moral Pluralist', '2026-07-17 00:17:32.520474+00');
-
+INSERT INTO public.axes (id, name, description, pole_negative, pole_positive, family) VALUES
+    ('C1', 'Economic Coordination', 'Whether production, investment, and essential services should be directed primarily by public authority or decentralized markets.', 'State-Directed', 'Market-Directed', 'core'),
+    ('C2', 'Distribution & Property', 'How strongly policy should redistribute resources versus protect holdings, contracts, and unequal outcomes.', 'Redistributionist', 'Property-Rights', 'core'),
+    ('C3', 'Liberty & Public Order', 'How readily coercive power may restrict privacy, movement, expression, or conduct to prevent harm and maintain order.', 'Security/Order', 'Civil Liberties', 'core'),
+    ('C4', 'Territorial Authority', 'Whether binding political authority should sit mainly at national or more local and regional levels.', 'Centralized', 'Localized', 'core'),
+    ('C5', 'Cultural Continuity', 'Whether inherited social norms and institutions should be preserved or revised as identities, families, and values change.', 'Traditionalist', 'Progressivist', 'core'),
+    ('C6', 'Scope of Obligation', 'Whether shared membership creates stronger moral claims or basic obligations should be allocated impartially across group boundaries.', 'Particularist', 'Universalist', 'core'),
+    ('C7', 'Sovereignty Scope', 'Whether nation-states should retain final authority or accept binding regional and global institutions.', 'Sovereigntist', 'Integrationist', 'core'),
+    ('C8', 'Technology Orientation', 'How readily society should deploy powerful technologies under uncertainty and accept disruption for prospective gains.', 'Tech-Cautious', 'Tech-Accelerative', 'core'),
+    ('C9', 'Ecological Moral Standing', 'Whether nature is valued mainly for human benefit or has independent moral standing that can constrain human activity.', 'Anthropocentric', 'Ecocentric', 'core'),
+    ('C10', 'Moral Objectivity', 'Whether moral truths exist independently of culture and approval or are substantially constructed through history and social practice.', 'Moral Objectivist', 'Moral Contextualist', 'core'),
+    ('C11', 'Value Structure', 'Whether competing values can ultimately be ranked by one coherent framework or remain genuinely irreducible.', 'Moral Monist', 'Value Pluralist', 'core'),
+    ('F1', 'Change Strategy', 'Whether durable change should proceed incrementally or through rapid, disruptive, and structural action.', 'Gradualist', 'Transformative', 'facet'),
+    ('F2', 'Institutional Confidence', 'How much confidence established institutions and expert systems deserve absent independent verification.', 'Trusting', 'Skeptical', 'facet'),
+    ('F3', 'Justice Style', 'Whether justice should emphasize deserved punishment and condemnation or repair, restitution, and reintegration.', 'Retributive', 'Restorative', 'facet'),
+    ('F4', 'Democratic Constraint', 'Whether elected majorities should normally prevail or be limited by entrenched rights and constitutional checks.', 'Majoritarian', 'Constitutionalist', 'facet'),
+    ('F5', 'Epistemic Authority', 'Whether specialized public decisions should remain under democratic control or be delegated to technically qualified bodies.', 'Popular/Elected Judgment', 'Expert Delegation', 'facet'),
+    ('F6', 'Democratic Mediation', 'Whether citizens should decide major issues directly or act mainly through representatives who deliberate and negotiate.', 'Direct Democracy', 'Representative Deliberation', 'facet'),
+    ('F7', 'Force & Peace', 'How readily military force, deterrence, and coercive retaliation should be used in international affairs.', 'Dove', 'Hawk', 'facet');
 
 --
 -- Data for Name: profiles; Type: TABLE DATA; Schema: public; Owner: -
@@ -506,691 +612,968 @@ INSERT INTO public.axes VALUES
 -- Data for Name: question_axis_links; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-INSERT INTO public.question_axis_links VALUES
-	(1, 1, 'C1', 'primary', 1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(2, 2, 'C1', 'primary', 1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(3, 3, 'C1', 'primary', 1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(4, 4, 'C1', 'primary', 1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(5, 5, 'C1', 'primary', -1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(6, 6, 'C1', 'primary', -1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(7, 7, 'C1', 'primary', -1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(8, 8, 'C1', 'primary', -1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(9, 9, 'C2', 'primary', -1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(10, 10, 'C2', 'primary', -1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(11, 11, 'C2', 'primary', -1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(12, 12, 'C2', 'primary', -1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(13, 13, 'C2', 'primary', 1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(14, 14, 'C2', 'primary', 1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(15, 15, 'C2', 'primary', 1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(16, 16, 'C2', 'primary', 1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(17, 17, 'C3', 'primary', 1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(18, 18, 'C3', 'primary', 1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(19, 19, 'C3', 'primary', 1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(20, 20, 'C3', 'primary', 1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(21, 21, 'C3', 'primary', -1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(22, 22, 'C3', 'primary', -1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(23, 23, 'C3', 'primary', -1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(24, 24, 'C3', 'primary', -1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(25, 25, 'C4', 'primary', 1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(26, 26, 'C4', 'primary', 1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(27, 27, 'C4', 'primary', 1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(28, 28, 'C4', 'primary', 1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(29, 29, 'C4', 'primary', -1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(30, 30, 'C4', 'primary', -1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(31, 31, 'C4', 'primary', -1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(32, 32, 'C4', 'primary', -1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(33, 33, 'C5', 'primary', 1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(34, 34, 'C5', 'primary', 1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(35, 35, 'C5', 'primary', 1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(36, 36, 'C5', 'primary', 1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(37, 37, 'C5', 'primary', -1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(38, 38, 'C5', 'primary', -1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(39, 39, 'C5', 'primary', -1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(40, 40, 'C5', 'primary', -1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(41, 41, 'C6', 'primary', -1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(42, 42, 'C6', 'primary', -1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(43, 43, 'C6', 'primary', -1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(44, 44, 'C6', 'primary', -1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(45, 45, 'C6', 'primary', 1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(46, 46, 'C6', 'primary', 1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(47, 47, 'C6', 'primary', 1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(48, 48, 'C6', 'primary', 1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(49, 49, 'C7', 'primary', -1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(50, 50, 'C7', 'primary', -1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(51, 51, 'C7', 'primary', -1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(52, 52, 'C7', 'primary', -1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(53, 53, 'C7', 'primary', 1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(54, 54, 'C7', 'primary', 1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(55, 55, 'C7', 'primary', 1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(56, 56, 'C7', 'primary', 1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(57, 57, 'C8', 'primary', -1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(58, 58, 'C8', 'primary', -1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(59, 59, 'C8', 'primary', -1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(60, 60, 'C8', 'primary', -1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(61, 61, 'C8', 'primary', 1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(62, 62, 'C8', 'primary', 1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(63, 63, 'C8', 'primary', 1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(64, 64, 'C8', 'primary', 1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(65, 65, 'C9', 'primary', 1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(66, 66, 'C9', 'primary', -1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(67, 67, 'C9', 'primary', 1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(68, 68, 'C9', 'primary', 1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(69, 69, 'C9', 'primary', 1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(70, 70, 'C9', 'primary', -1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(71, 71, 'C9', 'primary', -1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(72, 72, 'C9', 'primary', -1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(73, 73, 'C10', 'primary', 1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(74, 74, 'C10', 'primary', -1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(75, 75, 'C10', 'primary', -1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(76, 76, 'C10', 'primary', -1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(77, 77, 'C10', 'primary', -1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(78, 78, 'C10', 'primary', 1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(79, 79, 'C10', 'primary', 1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(80, 80, 'C10', 'primary', 1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(81, 81, 'F1', 'primary', 1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(82, 82, 'F1', 'primary', 1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(83, 83, 'F1', 'primary', 1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(84, 84, 'F1', 'primary', -1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(85, 85, 'F1', 'primary', -1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(86, 86, 'F1', 'primary', -1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(87, 87, 'F2', 'primary', 1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(88, 88, 'F2', 'primary', 1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(89, 89, 'F2', 'primary', 1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(90, 90, 'F2', 'primary', -1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(91, 91, 'F2', 'primary', -1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(92, 92, 'F2', 'primary', -1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(93, 93, 'F3', 'primary', 1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(94, 94, 'F3', 'primary', 1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(95, 95, 'F3', 'primary', 1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(96, 96, 'F3', 'primary', -1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(97, 97, 'F3', 'primary', -1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(98, 98, 'F3', 'primary', -1, 1.00, '2026-07-17 00:17:32.799464+00'),
-	(99, 99, 'C1', 'primary', 1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(100, 100, 'C1', 'primary', -1, 1.25, '2026-07-17 00:17:32.799464+00');
-INSERT INTO public.question_axis_links VALUES
-	(101, 101, 'C1', 'primary', 1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(102, 102, 'C1', 'primary', -1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(103, 103, 'C2', 'primary', -1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(104, 104, 'C2', 'primary', 1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(105, 105, 'C2', 'primary', -1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(106, 106, 'C2', 'primary', 1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(107, 107, 'C3', 'primary', 1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(108, 108, 'C3', 'primary', -1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(109, 109, 'C3', 'primary', 1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(110, 110, 'C3', 'primary', -1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(111, 111, 'C4', 'primary', 1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(112, 112, 'C4', 'primary', -1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(113, 113, 'C4', 'primary', 1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(114, 114, 'C4', 'primary', -1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(115, 115, 'C5', 'primary', 1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(116, 116, 'C5', 'primary', -1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(117, 117, 'C5', 'primary', 1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(118, 118, 'C5', 'primary', -1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(119, 119, 'C6', 'primary', 1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(120, 120, 'C6', 'primary', -1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(121, 121, 'C6', 'primary', 1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(122, 122, 'C6', 'primary', -1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(123, 123, 'C7', 'primary', -1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(124, 124, 'C7', 'primary', 1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(125, 125, 'C7', 'primary', -1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(126, 126, 'C7', 'primary', 1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(127, 127, 'C8', 'primary', 1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(128, 128, 'C8', 'primary', -1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(129, 129, 'C8', 'primary', 1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(130, 130, 'C8', 'primary', -1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(131, 131, 'C9', 'primary', 1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(132, 132, 'C9', 'primary', -1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(133, 133, 'C9', 'primary', 1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(134, 134, 'C9', 'primary', -1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(135, 135, 'C10', 'primary', 1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(136, 136, 'C10', 'primary', -1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(137, 137, 'C10', 'primary', 1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(138, 138, 'C10', 'primary', -1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(139, 139, 'F1', 'primary', 1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(140, 140, 'F1', 'primary', -1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(141, 141, 'F1', 'primary', 1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(142, 142, 'F1', 'primary', -1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(143, 143, 'F2', 'primary', 1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(144, 144, 'F2', 'primary', -1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(145, 145, 'F2', 'primary', 1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(146, 146, 'F2', 'primary', -1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(147, 147, 'F3', 'primary', 1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(148, 148, 'F3', 'primary', -1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(149, 149, 'F3', 'primary', 1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(150, 150, 'F3', 'primary', -1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(151, 151, 'C1', 'primary', 1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(152, 152, 'C1', 'primary', -1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(153, 153, 'C1', 'primary', 1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(154, 154, 'C1', 'primary', -1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(155, 155, 'C2', 'primary', -1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(156, 156, 'C2', 'primary', 1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(157, 157, 'C2', 'primary', -1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(158, 158, 'C2', 'primary', 1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(159, 159, 'C3', 'primary', 1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(160, 160, 'C3', 'primary', -1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(161, 161, 'C3', 'primary', 1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(162, 162, 'C3', 'primary', -1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(163, 163, 'C4', 'primary', 1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(164, 164, 'C4', 'primary', -1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(165, 165, 'C4', 'primary', 1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(166, 166, 'C4', 'primary', -1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(167, 167, 'C5', 'primary', 1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(168, 168, 'C5', 'primary', -1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(169, 169, 'C5', 'primary', 1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(170, 170, 'C5', 'primary', -1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(171, 171, 'C6', 'primary', 1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(172, 172, 'C6', 'primary', -1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(173, 173, 'C6', 'primary', 1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(174, 174, 'C6', 'primary', -1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(175, 175, 'C7', 'primary', -1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(176, 176, 'C7', 'primary', 1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(177, 177, 'C7', 'primary', -1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(178, 178, 'C7', 'primary', 1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(179, 179, 'C8', 'primary', 1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(180, 180, 'C8', 'primary', -1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(181, 181, 'C8', 'primary', 1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(182, 182, 'C8', 'primary', -1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(183, 183, 'C9', 'primary', 1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(184, 184, 'C9', 'primary', -1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(185, 185, 'C9', 'primary', 1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(186, 186, 'C9', 'primary', -1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(187, 187, 'C10', 'primary', 1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(188, 188, 'C10', 'primary', -1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(189, 189, 'C10', 'primary', 1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(190, 190, 'C10', 'primary', -1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(191, 191, 'F1', 'primary', 1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(192, 192, 'F1', 'primary', -1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(193, 193, 'F1', 'primary', 1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(194, 194, 'F1', 'primary', -1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(195, 195, 'F2', 'primary', 1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(196, 196, 'F2', 'primary', -1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(197, 197, 'F2', 'primary', 1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(198, 198, 'F2', 'primary', -1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(199, 199, 'F3', 'primary', 1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(200, 200, 'F3', 'primary', -1, 1.25, '2026-07-17 00:17:32.799464+00');
-INSERT INTO public.question_axis_links VALUES
-	(201, 201, 'F3', 'primary', 1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(202, 202, 'F3', 'primary', -1, 1.25, '2026-07-17 00:17:32.799464+00'),
-	(218, 107, 'C8', 'tradeoff', -1, 0.7, '2026-07-17 00:17:32.810713+00'),
-	(246, 124, 'C2', 'tradeoff', -1, 0.6, '2026-07-17 00:17:32.810713+00'),
-	(254, 128, 'F2', 'tradeoff', 1, 0.6, '2026-07-17 00:17:32.810713+00'),
-	(262, 131, 'C2', 'tradeoff', -1, 0.4, '2026-07-17 00:17:32.810713+00'),
-	(266, 133, 'C2', 'tradeoff', -1, 0.7, '2026-07-17 00:17:32.810713+00'),
-	(268, 134, 'C2', 'tradeoff', 1, 0.7, '2026-07-17 00:17:32.810713+00'),
-	(278, 139, 'C3', 'tradeoff', 1, 0.7, '2026-07-17 00:17:32.810713+00'),
-	(281, 141, 'C3', 'tradeoff', 1, 0.5, '2026-07-17 00:17:32.810713+00'),
-	(296, 151, 'C2', 'tradeoff', 1, 0.6, '2026-07-17 00:17:32.810713+00'),
-	(300, 153, 'C2', 'tradeoff', 1, 0.6, '2026-07-17 00:17:32.810713+00'),
-	(310, 159, 'C8', 'tradeoff', -1, 0.7, '2026-07-17 00:17:32.810713+00'),
-	(313, 160, 'C8', 'tradeoff', 1, 0.5, '2026-07-17 00:17:32.810713+00'),
-	(315, 161, 'C8', 'tradeoff', -1, 0.6, '2026-07-17 00:17:32.810713+00'),
-	(319, 163, 'C2', 'tradeoff', 1, 0.6, '2026-07-17 00:17:32.810713+00'),
-	(342, 176, 'C3', 'tradeoff', -1, 0.5, '2026-07-17 00:17:32.810713+00'),
-	(346, 178, 'C8', 'tradeoff', -1, 0.5, '2026-07-17 00:17:32.810713+00'),
-	(348, 179, 'C3', 'tradeoff', -1, 0.7, '2026-07-17 00:17:32.810713+00'),
-	(353, 182, 'C3', 'tradeoff', 1, 0.6, '2026-07-17 00:17:32.810713+00'),
-	(357, 184, 'C2', 'tradeoff', 1, 0.6, '2026-07-17 00:17:32.810713+00'),
-	(359, 185, 'C2', 'tradeoff', -1, 0.5, '2026-07-17 00:17:32.810713+00'),
-	(361, 186, 'C2', 'tradeoff', -1, 0.7, '2026-07-17 00:17:32.810713+00'),
-	(368, 190, 'C7', 'tradeoff', 1, 0.6, '2026-07-17 00:17:32.810713+00'),
-	(370, 191, 'C3', 'tradeoff', 1, 0.8, '2026-07-17 00:17:32.810713+00'),
-	(372, 192, 'C3', 'tradeoff', -1, 0.5, '2026-07-17 00:17:32.810713+00'),
-	(376, 194, 'C3', 'tradeoff', -1, 0.5, '2026-07-17 00:17:32.810713+00'),
-	(264, 132, 'C2', 'tradeoff', 1, 0.6, '2026-07-17 00:17:32.810713+00'),
-	(355, 183, 'C2', 'tradeoff', -1, 0.7, '2026-07-17 00:17:32.810713+00'),
-	(204, 99, 'C8', 'secondary', 1, 0.6, '2026-07-17 00:17:32.810713+00'),
-	(206, 100, 'C2', 'secondary', -1, 0.5, '2026-07-17 00:17:32.810713+00'),
-	(208, 101, 'F2', 'secondary', 1, 0.4, '2026-07-17 00:17:32.810713+00'),
-	(214, 105, 'C1', 'secondary', -1, 0.6, '2026-07-17 00:17:32.810713+00'),
-	(216, 106, 'C1', 'secondary', 1, 0.4, '2026-07-17 00:17:32.810713+00'),
-	(228, 113, 'C1', 'secondary', -1, 0.6, '2026-07-17 00:17:32.810713+00'),
-	(233, 116, 'C6', 'secondary', -1, 0.5, '2026-07-17 00:17:32.810713+00'),
-	(235, 117, 'C10', 'secondary', 1, 0.4, '2026-07-17 00:17:32.810713+00'),
-	(248, 125, 'C1', 'secondary', -1, 0.4, '2026-07-17 00:17:32.810713+00'),
-	(250, 126, 'C9', 'secondary', 1, 0.7, '2026-07-17 00:17:32.810713+00'),
-	(256, 129, 'C9', 'secondary', 1, 0.5, '2026-07-17 00:17:32.810713+00'),
-	(259, 130, 'C5', 'secondary', -1, 0.5, '2026-07-17 00:17:32.810713+00'),
-	(273, 137, 'C5', 'secondary', 1, 0.5, '2026-07-17 00:17:32.810713+00'),
-	(275, 138, 'C7', 'secondary', 1, 0.5, '2026-07-17 00:17:32.810713+00'),
-	(276, 138, 'C2', 'secondary', -1, 0.4, '2026-07-17 00:17:32.810713+00'),
-	(291, 148, 'C10', 'secondary', -1, 0.6, '2026-07-17 00:17:32.810713+00'),
-	(304, 155, 'C1', 'secondary', -1, 0.7, '2026-07-17 00:17:32.810713+00'),
-	(321, 164, 'C3', 'secondary', 1, 0.5, '2026-07-17 00:17:32.810713+00'),
-	(323, 165, 'C5', 'secondary', -1, 0.6, '2026-07-17 00:17:32.810713+00'),
-	(325, 166, 'C6', 'secondary', -1, 0.6, '2026-07-17 00:17:32.810713+00'),
-	(333, 171, 'C7', 'secondary', 1, 0.6, '2026-07-17 00:17:32.810713+00'),
-	(335, 172, 'C7', 'secondary', -1, 0.6, '2026-07-17 00:17:32.810713+00'),
-	(344, 177, 'C6', 'secondary', -1, 0.6, '2026-07-17 00:17:32.810713+00'),
-	(351, 181, 'C2', 'secondary', -1, 0.6, '2026-07-17 00:17:32.810713+00'),
-	(364, 188, 'C5', 'secondary', 1, 0.7, '2026-07-17 00:17:32.810713+00'),
-	(374, 193, 'F2', 'secondary', 1, 0.5, '2026-07-17 00:17:32.810713+00'),
-	(378, 195, 'C8', 'secondary', -1, 0.6, '2026-07-17 00:17:32.810713+00'),
-	(382, 197, 'F1', 'secondary', 1, 0.4, '2026-07-17 00:17:32.810713+00'),
-	(387, 200, 'C3', 'secondary', -1, 0.6, '2026-07-17 00:17:32.810713+00'),
-	(221, 109, 'F1', 'secondary', 1, 0.6, '2026-07-17 00:17:32.810713+00'),
-	(390, 203, 'C7', 'primary', 1, 1.25, '2026-07-17 00:17:32.894091+00'),
-	(391, 203, 'C2', 'tradeoff', -1, 0.6, '2026-07-17 00:17:32.894091+00'),
-	(392, 204, 'C7', 'primary', -1, 1.25, '2026-07-17 00:17:32.894091+00'),
-	(393, 204, 'C2', 'tradeoff', 1, 0.6, '2026-07-17 00:17:32.894091+00'),
-	(394, 205, 'C8', 'primary', 1, 1.25, '2026-07-17 00:17:32.894091+00'),
-	(395, 205, 'F2', 'tradeoff', -1, 0.6, '2026-07-17 00:17:32.894091+00'),
-	(396, 206, 'C8', 'primary', -1, 1.25, '2026-07-17 00:17:32.894091+00'),
-	(397, 206, 'F2', 'tradeoff', 1, 0.6, '2026-07-17 00:17:32.894091+00'),
-	(398, 207, 'C4', 'primary', -1, 1.25, '2026-07-17 00:17:32.894091+00'),
-	(399, 207, 'C2', 'tradeoff', -1, 0.6, '2026-07-17 00:17:32.894091+00'),
-	(400, 208, 'C4', 'primary', 1, 1.25, '2026-07-17 00:17:32.894091+00'),
-	(401, 208, 'C2', 'tradeoff', 1, 0.5, '2026-07-17 00:17:32.894091+00'),
-	(402, 209, 'C7', 'primary', 1, 1.25, '2026-07-17 00:17:32.894091+00'),
-	(403, 209, 'C3', 'tradeoff', -1, 0.6, '2026-07-17 00:17:32.894091+00'),
-	(404, 210, 'C7', 'primary', -1, 1.25, '2026-07-17 00:17:32.894091+00'),
-	(405, 210, 'C3', 'tradeoff', 1, 0.6, '2026-07-17 00:17:32.894091+00'),
-	(406, 211, 'C7', 'primary', 1, 1.25, '2026-07-17 00:17:32.894091+00'),
-	(407, 211, 'C8', 'tradeoff', -1, 0.6, '2026-07-17 00:17:32.894091+00'),
-	(408, 212, 'C7', 'primary', -1, 1.25, '2026-07-17 00:17:32.894091+00'),
-	(409, 212, 'C8', 'tradeoff', 1, 0.6, '2026-07-17 00:17:32.894091+00'),
-	(410, 213, 'C10', 'primary', -1, 1.25, '2026-07-17 00:17:32.894091+00'),
-	(411, 213, 'C7', 'tradeoff', 1, 0.6, '2026-07-17 00:17:32.894091+00'),
-	(412, 214, 'C10', 'primary', 1, 1.25, '2026-07-17 00:17:32.894091+00'),
-	(413, 214, 'C7', 'tradeoff', -1, 0.6, '2026-07-17 00:17:32.894091+00'),
-	(414, 215, 'C9', 'primary', -1, 1.25, '2026-07-17 00:17:32.894091+00'),
-	(415, 215, 'C2', 'tradeoff', -1, 0.6, '2026-07-17 00:17:32.894091+00'),
-	(416, 216, 'C9', 'primary', 1, 1.25, '2026-07-17 00:17:32.894091+00'),
-	(417, 216, 'C2', 'tradeoff', 1, 0.6, '2026-07-17 00:17:32.894091+00'),
-	(418, 217, 'C1', 'primary', -1, 1.25, '2026-07-17 00:17:32.894091+00'),
-	(419, 217, 'C2', 'tradeoff', -1, 0.6, '2026-07-17 00:17:32.894091+00'),
-	(420, 218, 'C5', 'primary', -1, 1.25, '2026-07-17 00:17:32.894091+00'),
-	(421, 218, 'C3', 'tradeoff', -1, 0.6, '2026-07-17 00:17:32.894091+00'),
-	(422, 219, 'C3', 'primary', 1, 1.25, '2026-07-17 00:17:32.894091+00'),
-	(423, 219, 'C5', 'tradeoff', 1, 0.6, '2026-07-17 00:17:32.894091+00'),
-	(424, 220, 'C3', 'primary', -1, 1.25, '2026-07-17 00:17:32.894091+00'),
-	(425, 220, 'C5', 'tradeoff', -1, 0.6, '2026-07-17 00:17:32.894091+00'),
-	(426, 221, 'F4', 'primary', 1, 1.0, '2026-07-17 00:17:32.966753+00'),
-	(427, 222, 'F4', 'primary', -1, 1.0, '2026-07-17 00:17:32.966753+00'),
-	(428, 223, 'F4', 'primary', 1, 1.0, '2026-07-17 00:17:32.966753+00'),
-	(429, 224, 'F4', 'primary', -1, 1.0, '2026-07-17 00:17:32.966753+00'),
-	(430, 225, 'F4', 'primary', 1, 1.0, '2026-07-17 00:17:32.966753+00');
-INSERT INTO public.question_axis_links VALUES
-	(431, 226, 'F4', 'primary', -1, 1.0, '2026-07-17 00:17:32.966753+00'),
-	(432, 227, 'F4', 'primary', -1, 1.25, '2026-07-17 00:17:32.966753+00'),
-	(433, 227, 'F2', 'tradeoff', 1, 0.6, '2026-07-17 00:17:32.966753+00'),
-	(434, 228, 'F4', 'primary', 1, 1.25, '2026-07-17 00:17:32.966753+00'),
-	(435, 228, 'F2', 'tradeoff', -1, 0.6, '2026-07-17 00:17:32.966753+00'),
-	(436, 229, 'F4', 'primary', -1, 1.25, '2026-07-17 00:17:32.966753+00'),
-	(437, 230, 'F4', 'primary', 1, 1.25, '2026-07-17 00:17:32.966753+00'),
-	(438, 231, 'F5', 'primary', 1, 1.0, '2026-07-17 00:17:32.966753+00'),
-	(439, 232, 'F5', 'primary', -1, 1.0, '2026-07-17 00:17:32.966753+00'),
-	(440, 233, 'F5', 'primary', 1, 1.0, '2026-07-17 00:17:32.966753+00'),
-	(441, 234, 'F5', 'primary', -1, 1.0, '2026-07-17 00:17:32.966753+00'),
-	(442, 235, 'F5', 'primary', 1, 1.0, '2026-07-17 00:17:32.966753+00'),
-	(443, 236, 'F5', 'primary', -1, 1.0, '2026-07-17 00:17:32.966753+00'),
-	(444, 237, 'F5', 'primary', 1, 1.25, '2026-07-17 00:17:32.966753+00'),
-	(445, 238, 'F5', 'primary', -1, 1.25, '2026-07-17 00:17:32.966753+00'),
-	(446, 239, 'F5', 'primary', 1, 1.25, '2026-07-17 00:17:32.966753+00'),
-	(447, 239, 'C7', 'tradeoff', -1, 0.5, '2026-07-17 00:17:32.966753+00'),
-	(448, 240, 'F5', 'primary', -1, 1.25, '2026-07-17 00:17:32.966753+00'),
-	(449, 241, 'C5', 'primary', -1, 1.25, '2026-07-17 00:17:32.966753+00'),
-	(450, 242, 'C5', 'primary', 1, 1.25, '2026-07-17 00:17:32.966753+00'),
-	(451, 242, 'C3', 'tradeoff', -1, 0.6, '2026-07-17 00:17:32.966753+00'),
-	(452, 243, 'C5', 'primary', -1, 1.25, '2026-07-17 00:17:32.966753+00'),
-	(453, 243, 'C3', 'tradeoff', 1, 0.6, '2026-07-17 00:17:32.966753+00'),
-	(454, 244, 'C2', 'primary', -1, 1.25, '2026-07-17 00:17:32.966753+00'),
-	(455, 245, 'C1', 'primary', 1, 1.25, '2026-07-17 00:17:32.966753+00'),
-	(456, 245, 'C2', 'tradeoff', 1, 0.6, '2026-07-17 00:17:32.966753+00'),
-	(457, 246, 'C2', 'primary', -1, 1.25, '2026-07-17 00:17:32.966753+00'),
-	(458, 246, 'C1', 'tradeoff', -1, 0.6, '2026-07-17 00:17:32.966753+00'),
-	(459, 247, 'C2', 'primary', 1, 1.25, '2026-07-17 00:17:32.966753+00'),
-	(460, 248, 'C2', 'primary', -1, 1.25, '2026-07-17 00:17:32.966753+00'),
-	(461, 248, 'C3', 'tradeoff', -1, 0.6, '2026-07-17 00:17:32.966753+00'),
-	(462, 249, 'C2', 'primary', 1, 1.25, '2026-07-17 00:17:32.966753+00'),
-	(463, 249, 'C3', 'tradeoff', 1, 0.6, '2026-07-17 00:17:32.966753+00'),
-	(464, 250, 'C2', 'primary', -1, 1.25, '2026-07-17 00:17:32.966753+00'),
-	(465, 250, 'C3', 'tradeoff', -1, 0.5, '2026-07-17 00:17:32.966753+00'),
-	(466, 251, 'C3', 'primary', 1, 1.25, '2026-07-17 00:17:32.966753+00'),
-	(467, 251, 'C5', 'secondary', 1, 0.4, '2026-07-17 00:17:32.966753+00'),
-	(468, 252, 'C3', 'primary', 1, 1.25, '2026-07-17 00:17:32.966753+00'),
-	(469, 253, 'C3', 'primary', -1, 1.25, '2026-07-17 00:17:32.966753+00'),
-	(470, 254, 'C3', 'primary', 1, 1.25, '2026-07-17 00:17:32.966753+00'),
-	(471, 255, 'C3', 'primary', -1, 1.25, '2026-07-17 00:17:32.966753+00'),
-	(472, 256, 'C3', 'primary', -1, 1.25, '2026-07-17 00:17:32.966753+00'),
-	(473, 257, 'C2', 'primary', -1, 1.25, '2026-07-17 00:17:32.966753+00'),
-	(474, 258, 'C6', 'primary', 1, 1.25, '2026-07-17 00:17:32.966753+00'),
-	(475, 259, 'C2', 'primary', -1, 1.25, '2026-07-17 00:17:32.966753+00'),
-	(476, 260, 'C2', 'primary', 1, 1.25, '2026-07-17 00:17:32.966753+00'),
-	(477, 261, 'C2', 'primary', 1, 1.25, '2026-07-17 00:17:32.966753+00'),
-	(478, 262, 'C9', 'primary', 1, 1.25, '2026-07-17 00:17:32.966753+00'),
-	(479, 263, 'C9', 'primary', -1, 1.25, '2026-07-17 00:17:32.966753+00'),
-	(480, 264, 'C5', 'primary', 1, 1.25, '2026-07-17 00:17:32.966753+00'),
-	(481, 265, 'F4', 'primary', 1, 1.25, '2026-07-17 03:00:00+00'),
-	(482, 266, 'F4', 'primary', -1, 1.25, '2026-07-17 03:00:00+00'),
-	(483, 267, 'F4', 'primary', 1, 1.25, '2026-07-17 03:00:00+00'),
-	(484, 267, 'F2', 'tradeoff', -1, 0.60, '2026-07-17 03:00:00+00'),
-	(485, 268, 'F4', 'primary', -1, 1.25, '2026-07-17 03:00:00+00'),
-	(486, 269, 'F5', 'primary', 1, 1.00, '2026-07-17 03:00:00+00'),
-	(487, 270, 'F5', 'primary', -1, 1.00, '2026-07-17 03:00:00+00'),
-	(488, 271, 'F5', 'primary', 1, 1.25, '2026-07-17 03:00:00+00'),
-	(489, 271, 'C7', 'tradeoff', -1, 0.50, '2026-07-17 03:00:00+00'),
-	(490, 272, 'F5', 'primary', -1, 1.25, '2026-07-17 03:00:00+00'),
-	(491, 272, 'C7', 'tradeoff', 1, 0.50, '2026-07-17 03:00:00+00'),
-	(492, 273, 'F5', 'primary', 1, 1.25, '2026-07-17 03:00:00+00'),
-	(493, 274, 'F5', 'primary', -1, 1.25, '2026-07-17 03:00:00+00'),
-	(494, 275, 'F5', 'primary', 1, 1.25, '2026-07-17 03:00:00+00'),
-	(495, 276, 'F5', 'primary', -1, 1.25, '2026-07-17 03:00:00+00'),
-	(496, 277, 'C8', 'primary', 1, 1.25, '2026-07-17 03:00:00+00'),
-	(497, 277, 'C9', 'tradeoff', -1, 0.60, '2026-07-17 03:00:00+00'),
-	(498, 278, 'C8', 'primary', -1, 1.25, '2026-07-17 03:00:00+00'),
-	(499, 278, 'C9', 'tradeoff', 1, 0.60, '2026-07-17 03:00:00+00'),
-	(500, 279, 'C9', 'primary', 1, 1.25, '2026-07-17 03:00:00+00'),
-	(501, 279, 'C8', 'tradeoff', -1, 0.60, '2026-07-17 03:00:00+00'),
-	(502, 280, 'C9', 'primary', -1, 1.25, '2026-07-17 03:00:00+00'),
-	(503, 280, 'C8', 'tradeoff', 1, 0.60, '2026-07-17 03:00:00+00'),
-	(504, 281, 'C1', 'primary', 1, 1.25, '2026-07-17 03:00:00+00'),
-	(505, 282, 'C1', 'primary', -1, 1.25, '2026-07-17 03:00:00+00'),
-	(506, 283, 'C4', 'primary', 1, 1.25, '2026-07-17 03:00:00+00'),
-	(507, 284, 'C4', 'primary', -1, 1.25, '2026-07-17 03:00:00+00'),
-	(508, 285, 'C5', 'primary', 1, 1.25, '2026-07-17 03:00:00+00'),
-	(509, 286, 'C6', 'primary', -1, 1.25, '2026-07-17 03:00:00+00'),
-	(510, 287, 'C5', 'primary', 1, 1.25, '2026-07-17 03:00:00+00'),
-	(511, 287, 'C3', 'tradeoff', -1, 0.60, '2026-07-17 03:00:00+00'),
-	(512, 288, 'C5', 'primary', -1, 1.25, '2026-07-17 03:00:00+00'),
-	(513, 288, 'C3', 'tradeoff', 1, 0.60, '2026-07-17 03:00:00+00');
-
+INSERT INTO public.question_axis_links (question_id, axis_id, role, axis_key, weight) VALUES
+    (1, 'C1', 'primary', -1, 1.0),
+    (2, 'C1', 'primary', -1, 1.0),
+    (3, 'C1', 'primary', -1, 1.0),
+    (4, 'C1', 'primary', 1, 1.0),
+    (5, 'C1', 'primary', 1, 1.0),
+    (6, 'C1', 'primary', 1, 1.0),
+    (7, 'C1', 'primary', -1, 1.15),
+    (8, 'C1', 'primary', -1, 1.15),
+    (9, 'C1', 'primary', -1, 1.15),
+    (10, 'C1', 'primary', -1, 1.15),
+    (11, 'C1', 'primary', 1, 1.15),
+    (12, 'C1', 'primary', 1, 1.15),
+    (13, 'C1', 'primary', 1, 1.15),
+    (14, 'C1', 'primary', 1, 1.15),
+    (15, 'C2', 'primary', -1, 1.0),
+    (16, 'C2', 'primary', -1, 1.0),
+    (17, 'C2', 'primary', -1, 1.0),
+    (18, 'C2', 'primary', 1, 1.0),
+    (19, 'C2', 'primary', 1, 1.0),
+    (20, 'C2', 'primary', 1, 1.0),
+    (21, 'C2', 'primary', -1, 1.15),
+    (22, 'C2', 'primary', -1, 1.15),
+    (23, 'C2', 'primary', -1, 1.15),
+    (24, 'C2', 'primary', -1, 1.15),
+    (25, 'C2', 'primary', 1, 1.15),
+    (26, 'C2', 'primary', 1, 1.15),
+    (27, 'C2', 'primary', 1, 1.15),
+    (28, 'C2', 'primary', 1, 1.15),
+    (29, 'C3', 'primary', -1, 1.0),
+    (30, 'C3', 'primary', -1, 1.0),
+    (31, 'C3', 'primary', -1, 1.0),
+    (32, 'C3', 'primary', 1, 1.0),
+    (33, 'C3', 'primary', 1, 1.0),
+    (34, 'C3', 'primary', 1, 1.0),
+    (35, 'C3', 'primary', -1, 1.15),
+    (36, 'C3', 'primary', -1, 1.15),
+    (37, 'C3', 'primary', -1, 1.15),
+    (38, 'C3', 'primary', -1, 1.15),
+    (39, 'C3', 'primary', 1, 1.15),
+    (40, 'C3', 'primary', 1, 1.15),
+    (41, 'C3', 'primary', 1, 1.15),
+    (42, 'C3', 'primary', 1, 1.15),
+    (43, 'C4', 'primary', -1, 1.0),
+    (44, 'C4', 'primary', -1, 1.0),
+    (45, 'C4', 'primary', -1, 1.0),
+    (46, 'C4', 'primary', 1, 1.0),
+    (47, 'C4', 'primary', 1, 1.0),
+    (48, 'C4', 'primary', 1, 1.0),
+    (49, 'C4', 'primary', -1, 1.15),
+    (50, 'C4', 'primary', -1, 1.15),
+    (51, 'C4', 'primary', -1, 1.15),
+    (52, 'C4', 'primary', -1, 1.15),
+    (53, 'C4', 'primary', 1, 1.15),
+    (54, 'C4', 'primary', 1, 1.15),
+    (55, 'C4', 'primary', 1, 1.15),
+    (56, 'C4', 'primary', 1, 1.15),
+    (57, 'C5', 'primary', -1, 1.0),
+    (58, 'C5', 'primary', -1, 1.0),
+    (59, 'C5', 'primary', -1, 1.0),
+    (60, 'C5', 'primary', 1, 1.0),
+    (61, 'C5', 'primary', 1, 1.0),
+    (62, 'C5', 'primary', 1, 1.0),
+    (63, 'C5', 'primary', -1, 1.15),
+    (64, 'C5', 'primary', -1, 1.15),
+    (65, 'C5', 'primary', -1, 1.15),
+    (66, 'C5', 'primary', -1, 1.15),
+    (67, 'C5', 'primary', 1, 1.15),
+    (68, 'C5', 'primary', 1, 1.15),
+    (69, 'C5', 'primary', 1, 1.15),
+    (70, 'C5', 'primary', 1, 1.15),
+    (71, 'C6', 'primary', -1, 1.0),
+    (72, 'C6', 'primary', -1, 1.0),
+    (73, 'C6', 'primary', -1, 1.0),
+    (74, 'C6', 'primary', 1, 1.0),
+    (75, 'C6', 'primary', 1, 1.0),
+    (76, 'C6', 'primary', 1, 1.0),
+    (77, 'C6', 'primary', -1, 1.15),
+    (78, 'C6', 'primary', -1, 1.15),
+    (79, 'C6', 'primary', -1, 1.15),
+    (80, 'C6', 'primary', -1, 1.15),
+    (81, 'C6', 'primary', 1, 1.15),
+    (82, 'C6', 'primary', 1, 1.15),
+    (83, 'C6', 'primary', 1, 1.15),
+    (84, 'C6', 'primary', 1, 1.15),
+    (85, 'C7', 'primary', -1, 1.0),
+    (86, 'C7', 'primary', -1, 1.0),
+    (87, 'C7', 'primary', -1, 1.0),
+    (88, 'C7', 'primary', 1, 1.0),
+    (89, 'C7', 'primary', 1, 1.0),
+    (90, 'C7', 'primary', 1, 1.0),
+    (91, 'C7', 'primary', -1, 1.15),
+    (92, 'C7', 'primary', -1, 1.15),
+    (93, 'C7', 'primary', -1, 1.15),
+    (94, 'C7', 'primary', -1, 1.15),
+    (95, 'C7', 'primary', 1, 1.15),
+    (96, 'C7', 'primary', 1, 1.15),
+    (97, 'C7', 'primary', 1, 1.15),
+    (98, 'C7', 'primary', 1, 1.15),
+    (99, 'C8', 'primary', -1, 1.0),
+    (100, 'C8', 'primary', -1, 1.0),
+    (101, 'C8', 'primary', -1, 1.0),
+    (102, 'C8', 'primary', 1, 1.0),
+    (103, 'C8', 'primary', 1, 1.0),
+    (104, 'C8', 'primary', 1, 1.0),
+    (105, 'C8', 'primary', -1, 1.15),
+    (106, 'C8', 'primary', -1, 1.15),
+    (107, 'C8', 'primary', -1, 1.15),
+    (108, 'C8', 'primary', -1, 1.15),
+    (109, 'C8', 'primary', 1, 1.15),
+    (110, 'C8', 'primary', 1, 1.15),
+    (111, 'C8', 'primary', 1, 1.15),
+    (112, 'C8', 'primary', 1, 1.15),
+    (113, 'C9', 'primary', -1, 1.0),
+    (114, 'C9', 'primary', -1, 1.0),
+    (115, 'C9', 'primary', -1, 1.0),
+    (116, 'C9', 'primary', 1, 1.0),
+    (117, 'C9', 'primary', 1, 1.0),
+    (118, 'C9', 'primary', 1, 1.0),
+    (119, 'C9', 'primary', -1, 1.15),
+    (120, 'C9', 'primary', -1, 1.15),
+    (121, 'C9', 'primary', -1, 1.15),
+    (122, 'C9', 'primary', -1, 1.15),
+    (123, 'C9', 'primary', 1, 1.15),
+    (124, 'C9', 'primary', 1, 1.15),
+    (125, 'C9', 'primary', 1, 1.15),
+    (126, 'C9', 'primary', 1, 1.15),
+    (127, 'C10', 'primary', -1, 1.0),
+    (128, 'C10', 'primary', -1, 1.0),
+    (129, 'C10', 'primary', -1, 1.0),
+    (130, 'C10', 'primary', 1, 1.0),
+    (131, 'C10', 'primary', 1, 1.0),
+    (132, 'C10', 'primary', 1, 1.0),
+    (133, 'C10', 'primary', -1, 1.15),
+    (134, 'C10', 'primary', -1, 1.15),
+    (135, 'C10', 'primary', -1, 1.15),
+    (136, 'C10', 'primary', -1, 1.15),
+    (137, 'C10', 'primary', 1, 1.15),
+    (138, 'C10', 'primary', 1, 1.15),
+    (139, 'C10', 'primary', 1, 1.15),
+    (140, 'C10', 'primary', 1, 1.15),
+    (141, 'C11', 'primary', -1, 1.0),
+    (142, 'C11', 'primary', -1, 1.0),
+    (143, 'C11', 'primary', -1, 1.0),
+    (144, 'C11', 'primary', 1, 1.0),
+    (145, 'C11', 'primary', 1, 1.0),
+    (146, 'C11', 'primary', 1, 1.0),
+    (147, 'C11', 'primary', -1, 1.15),
+    (148, 'C11', 'primary', -1, 1.15),
+    (149, 'C11', 'primary', -1, 1.15),
+    (150, 'C11', 'primary', -1, 1.15),
+    (151, 'C11', 'primary', 1, 1.15),
+    (152, 'C11', 'primary', 1, 1.15),
+    (153, 'C11', 'primary', 1, 1.15),
+    (154, 'C11', 'primary', 1, 1.15),
+    (155, 'F1', 'primary', -1, 1.0),
+    (156, 'F1', 'primary', -1, 1.0),
+    (157, 'F1', 'primary', -1, 1.0),
+    (158, 'F1', 'primary', 1, 1.0),
+    (159, 'F1', 'primary', 1, 1.0),
+    (160, 'F1', 'primary', 1, 1.0),
+    (161, 'F1', 'primary', -1, 1.15),
+    (162, 'F1', 'primary', -1, 1.15),
+    (163, 'F1', 'primary', -1, 1.15),
+    (164, 'F1', 'primary', -1, 1.15),
+    (165, 'F1', 'primary', 1, 1.15),
+    (166, 'F1', 'primary', 1, 1.15),
+    (167, 'F1', 'primary', 1, 1.15),
+    (168, 'F1', 'primary', 1, 1.15),
+    (169, 'F2', 'primary', -1, 1.0),
+    (170, 'F2', 'primary', -1, 1.0),
+    (171, 'F2', 'primary', -1, 1.0),
+    (172, 'F2', 'primary', 1, 1.0),
+    (173, 'F2', 'primary', 1, 1.0),
+    (174, 'F2', 'primary', 1, 1.0),
+    (175, 'F2', 'primary', -1, 1.15),
+    (176, 'F2', 'primary', -1, 1.15),
+    (177, 'F2', 'primary', -1, 1.15),
+    (178, 'F2', 'primary', -1, 1.15),
+    (179, 'F2', 'primary', 1, 1.15),
+    (180, 'F2', 'primary', 1, 1.15),
+    (181, 'F2', 'primary', 1, 1.15),
+    (182, 'F2', 'primary', 1, 1.15),
+    (183, 'F3', 'primary', -1, 1.0),
+    (184, 'F3', 'primary', -1, 1.0),
+    (185, 'F3', 'primary', -1, 1.0),
+    (186, 'F3', 'primary', 1, 1.0),
+    (187, 'F3', 'primary', 1, 1.0),
+    (188, 'F3', 'primary', 1, 1.0),
+    (189, 'F3', 'primary', -1, 1.15),
+    (190, 'F3', 'primary', -1, 1.15),
+    (191, 'F3', 'primary', -1, 1.15),
+    (192, 'F3', 'primary', -1, 1.15),
+    (193, 'F3', 'primary', 1, 1.15),
+    (194, 'F3', 'primary', 1, 1.15),
+    (195, 'F3', 'primary', 1, 1.15),
+    (196, 'F3', 'primary', 1, 1.15),
+    (197, 'F4', 'primary', -1, 1.0),
+    (198, 'F4', 'primary', -1, 1.0),
+    (199, 'F4', 'primary', -1, 1.0),
+    (200, 'F4', 'primary', 1, 1.0),
+    (201, 'F4', 'primary', 1, 1.0),
+    (202, 'F4', 'primary', 1, 1.0),
+    (203, 'F4', 'primary', -1, 1.15),
+    (204, 'F4', 'primary', -1, 1.15),
+    (205, 'F4', 'primary', -1, 1.15),
+    (206, 'F4', 'primary', -1, 1.15),
+    (207, 'F4', 'primary', 1, 1.15),
+    (208, 'F4', 'primary', 1, 1.15),
+    (209, 'F4', 'primary', 1, 1.15),
+    (210, 'F4', 'primary', 1, 1.15),
+    (211, 'F5', 'primary', -1, 1.0),
+    (212, 'F5', 'primary', -1, 1.0),
+    (213, 'F5', 'primary', -1, 1.0),
+    (214, 'F5', 'primary', 1, 1.0),
+    (215, 'F5', 'primary', 1, 1.0),
+    (216, 'F5', 'primary', 1, 1.0),
+    (217, 'F5', 'primary', -1, 1.15),
+    (218, 'F5', 'primary', -1, 1.15),
+    (219, 'F5', 'primary', -1, 1.15),
+    (220, 'F5', 'primary', -1, 1.15),
+    (221, 'F5', 'primary', 1, 1.15),
+    (222, 'F5', 'primary', 1, 1.15),
+    (223, 'F5', 'primary', 1, 1.15),
+    (224, 'F5', 'primary', 1, 1.15),
+    (225, 'F6', 'primary', -1, 1.0),
+    (226, 'F6', 'primary', -1, 1.0),
+    (227, 'F6', 'primary', -1, 1.0),
+    (228, 'F6', 'primary', 1, 1.0),
+    (229, 'F6', 'primary', 1, 1.0),
+    (230, 'F6', 'primary', 1, 1.0),
+    (231, 'F6', 'primary', -1, 1.15),
+    (232, 'F6', 'primary', -1, 1.15),
+    (233, 'F6', 'primary', -1, 1.15),
+    (234, 'F6', 'primary', -1, 1.15),
+    (235, 'F6', 'primary', 1, 1.15),
+    (236, 'F6', 'primary', 1, 1.15),
+    (237, 'F6', 'primary', 1, 1.15),
+    (238, 'F6', 'primary', 1, 1.15),
+    (239, 'F7', 'primary', -1, 1.0),
+    (240, 'F7', 'primary', -1, 1.0),
+    (241, 'F7', 'primary', -1, 1.0),
+    (242, 'F7', 'primary', 1, 1.0),
+    (243, 'F7', 'primary', 1, 1.0),
+    (244, 'F7', 'primary', 1, 1.0),
+    (245, 'F7', 'primary', -1, 1.15),
+    (246, 'F7', 'primary', -1, 1.15),
+    (247, 'F7', 'primary', -1, 1.15),
+    (248, 'F7', 'primary', -1, 1.15),
+    (249, 'F7', 'primary', 1, 1.15),
+    (250, 'F7', 'primary', 1, 1.15),
+    (251, 'F7', 'primary', 1, 1.15),
+    (252, 'F7', 'primary', 1, 1.15),
+    (253, 'C1', 'primary', 1, 1.25),
+    (253, 'C3', 'tradeoff', -1, 0.65),
+    (254, 'C1', 'primary', -1, 1.25),
+    (254, 'C3', 'tradeoff', -1, 0.65),
+    (255, 'C4', 'primary', 1, 1.25),
+    (255, 'C1', 'tradeoff', -1, 0.65),
+    (256, 'C4', 'primary', -1, 1.25),
+    (256, 'C1', 'tradeoff', -1, 0.65),
+    (257, 'C1', 'primary', 1, 1.25),
+    (257, 'C7', 'tradeoff', 1, 0.65),
+    (258, 'C1', 'primary', -1, 1.25),
+    (258, 'C7', 'tradeoff', 1, 0.65),
+    (259, 'C6', 'primary', 1, 1.25),
+    (259, 'C2', 'tradeoff', 1, 0.65),
+    (260, 'C2', 'primary', 1, 1.25),
+    (260, 'C6', 'tradeoff', -1, 0.65),
+    (261, 'C2', 'primary', -1, 1.25),
+    (261, 'C5', 'tradeoff', 1, 0.65),
+    (262, 'C5', 'primary', -1, 1.25),
+    (262, 'C2', 'tradeoff', -1, 0.65),
+    (263, 'C9', 'primary', 1, 1.25),
+    (263, 'C3', 'tradeoff', -1, 0.65),
+    (264, 'C3', 'primary', -1, 1.25),
+    (264, 'C9', 'tradeoff', -1, 0.65),
+    (265, 'C7', 'primary', 1, 1.25),
+    (265, 'C4', 'tradeoff', 1, 0.65),
+    (266, 'C7', 'primary', -1, 1.25),
+    (266, 'C4', 'tradeoff', 1, 0.65),
+    (267, 'C5', 'primary', 1, 1.25),
+    (267, 'C8', 'tradeoff', 1, 0.65),
+    (268, 'C8', 'primary', -1, 1.25),
+    (268, 'C5', 'tradeoff', 1, 0.65),
+    (269, 'C7', 'primary', 1, 1.25),
+    (269, 'C6', 'tradeoff', 1, 0.65),
+    (270, 'C6', 'primary', -1, 1.25),
+    (270, 'C7', 'tradeoff', 1, 0.65),
+    (271, 'C9', 'primary', -1, 1.25),
+    (271, 'C8', 'tradeoff', 1, 0.65),
+    (272, 'C9', 'primary', 1, 1.25),
+    (272, 'C8', 'tradeoff', 1, 0.65),
+    (273, 'C8', 'primary', -1, 1.25),
+    (273, 'C10', 'tradeoff', -1, 0.65),
+    (274, 'C10', 'primary', 1, 1.25),
+    (274, 'C8', 'tradeoff', -1, 0.65),
+    (275, 'C11', 'primary', 1, 1.25),
+    (275, 'C9', 'tradeoff', 1, 0.65),
+    (276, 'C9', 'primary', -1, 1.25),
+    (276, 'C11', 'tradeoff', 1, 0.65),
+    (277, 'C3', 'primary', 1, 1.25),
+    (277, 'F1', 'tradeoff', 1, 0.65),
+    (278, 'F5', 'primary', 1, 1.25),
+    (278, 'F2', 'tradeoff', 1, 0.65),
+    (279, 'F4', 'primary', 1, 1.25),
+    (279, 'F3', 'tradeoff', 1, 0.65),
+    (280, 'F6', 'primary', -1, 1.25),
+    (280, 'C4', 'tradeoff', -1, 0.65),
+    (281, 'F7', 'primary', 1, 1.25),
+    (281, 'C7', 'tradeoff', 1, 0.65),
+    (282, 'F6', 'primary', 1, 1.25),
+    (282, 'F1', 'tradeoff', -1, 0.65),
+    (283, 'F1', 'primary', 1, 1.25),
+    (283, 'C3', 'tradeoff', -1, 0.65),
+    (284, 'F6', 'primary', -1, 1.25),
+    (284, 'C4', 'tradeoff', 1, 0.65),
+    (285, 'C7', 'primary', -1, 1.25),
+    (285, 'F7', 'tradeoff', 1, 0.65),
+    (286, 'F6', 'primary', 1, 1.25),
+    (286, 'F1', 'tradeoff', 1, 0.65),
+    (287, 'F2', 'primary', -1, 1.25),
+    (287, 'F5', 'tradeoff', 1, 0.65),
+    (288, 'F3', 'primary', -1, 1.25),
+    (288, 'F4', 'tradeoff', 1, 0.65),
+    (289, 'C10', 'primary', -1, 1.25),
+    (289, 'C11', 'tradeoff', -1, 0.65),
+    (290, 'C11', 'primary', -1, 1.25),
+    (290, 'C10', 'tradeoff', 1, 0.65),
+    (291, 'F2', 'primary', 1, 1.25),
+    (291, 'F1', 'tradeoff', 1, 0.65),
+    (292, 'F1', 'primary', -1, 1.25),
+    (292, 'F2', 'tradeoff', 1, 0.65),
+    (293, 'C3', 'primary', -1, 1.25),
+    (293, 'F3', 'tradeoff', -1, 0.65),
+    (294, 'F3', 'primary', 1, 1.25),
+    (294, 'C3', 'tradeoff', -1, 0.65),
+    (295, 'F5', 'primary', -1, 1.25),
+    (295, 'F4', 'tradeoff', -1, 0.65),
+    (296, 'F4', 'primary', -1, 1.25),
+    (296, 'F5', 'tradeoff', 1, 0.65),
+    (297, 'F7', 'primary', -1, 1.25),
+    (297, 'C3', 'tradeoff', -1, 0.65),
+    (298, 'C3', 'primary', 1, 1.25),
+    (298, 'F7', 'tradeoff', -1, 0.65),
+    (299, 'C8', 'primary', 1, 1.25),
+    (299, 'C1', 'tradeoff', 1, 0.65),
+    (300, 'C8', 'primary', 1, 1.25),
+    (300, 'C1', 'tradeoff', -1, 0.65);
 
 --
 -- Data for Name: questions; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-INSERT INTO public.questions VALUES
-	(1, 'C1', 1, 'Private enterprise generally delivers goods and services more efficiently than government agencies.', NULL, 1, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(2, 'C1', 1, 'Prices for essential goods should be determined by supply and demand, not government regulation.', NULL, 3, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(3, 'C1', 1, 'Governments should allow failing businesses to collapse rather than intervene with bailouts.', NULL, 5, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(4, 'C1', 1, 'Competition between private companies benefits consumers more than public alternatives would.', NULL, 6, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(5, 'C1', -1, 'Governments should set price controls on necessities like housing, food, and medicine.', NULL, 7, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(6, 'C1', -1, 'The state should directly control strategic industries like energy, transportation, and banking.', NULL, 8, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(7, 'C1', -1, 'Central planning can distribute resources more fairly than markets do.', NULL, 9, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(8, 'C1', -1, 'Essential services (water, electricity, internet) should be publicly owned and operated.', NULL, 10, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(9, 'C2', -1, 'Narrowing the gap between rich and poor should be a central goal of economic policy.', NULL, 12, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(11, 'C2', -1, 'Large concentrations of private wealth are corrosive to democracy and social cohesion.', NULL, 14, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(12, 'C2', -1, 'Society has an obligation to ensure that no one falls below a decent standard of living.', NULL, 15, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(13, 'C2', 1, 'People have a fundamental right to keep what they earn, regardless of how much others have.', NULL, 17, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(14, 'C2', 1, 'Inheritance taxes unfairly prevent families from passing on what they have built.', NULL, 18, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(15, 'C2', 1, 'High taxes on top earners discourage the productive effort that benefits everyone.', NULL, 19, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(16, 'C2', 1, 'Wealth inequality is a natural outcome of differences in talent, effort, and choices.', NULL, 20, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(17, 'C3', 1, 'Protecting individual privacy is more important than making law enforcement''s job easier.', NULL, 22, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(18, 'C3', 1, 'People should be free to express offensive views without legal penalty.', NULL, 23, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(19, 'C3', 1, 'Citizens should have access to strong encryption without government back-doors.', NULL, 24, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(21, 'C3', -1, 'Strict law enforcement and visible policing are necessary to maintain public safety.', NULL, 26, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(22, 'C3', -1, 'Governments should be able to detain terrorism suspects without trial when security demands it.', NULL, 27, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(23, 'C3', -1, 'Some speech is so harmful that it should be legally prohibited.', NULL, 28, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(25, 'C4', 1, 'Local communities should have the final word on matters like zoning, schooling, and policing.', NULL, 29, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(26, 'C4', 1, 'States or provinces should be able to pass laws that differ from national policy.', NULL, 30, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(27, 'C4', 1, 'Decisions made closest to the people affected tend to produce better outcomes.', NULL, 31, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(28, 'C4', 1, 'Taxes should mostly be raised and spent by local and regional governments, not the national one.', NULL, 32, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(29, 'C4', -1, 'National standards are necessary to guarantee equal rights and services everywhere.', NULL, 33, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(30, 'C4', -1, 'Only a strong central government can coordinate responses to large-scale challenges.', NULL, 34, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(31, 'C4', -1, 'When every region goes its own way, problems that cross borders - pollution, crime, infrastructure - go unsolved.', NULL, 35, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(32, 'C4', -1, 'Some issues are too important to leave to local jurisdictions with varying capacities.', NULL, 36, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(33, 'C5', 1, 'Cultural norms should evolve to reflect new understandings of identity and relationships.', NULL, 37, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(34, 'C5', 1, 'Society benefits when people question inherited customs and experiment with new ways of living.', NULL, 38, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(35, 'C5', 1, 'Traditional expectations about gender and family are outdated constraints that should be discarded.', NULL, 39, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(36, 'C5', 1, 'Moral progress often requires abandoning practices that previous generations considered normal.', NULL, 40, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(37, 'C5', -1, 'Longstanding traditions carry wisdom that modern generations too easily dismiss.', NULL, 41, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(38, 'C5', -1, 'Stable families built on time-tested structures are the foundation of a healthy society.', NULL, 42, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(39, 'C5', -1, 'Rapid cultural change destabilizes communities and erodes the values that bind people together.', NULL, 43, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(40, 'C5', -1, 'There is value in preserving customs and rituals even when their original purpose has faded.', NULL, 44, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(41, 'C6', -1, 'People naturally and rightly owe more loyalty to their own community than to outsiders.', NULL, 44, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(42, 'C6', -1, 'A society that does not put its own members first will eventually be unable to help anyone.', NULL, 45, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(43, 'C6', -1, 'It is reasonable to prioritize people who share your culture or heritage in hiring and assistance.', NULL, 46, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(44, 'C6', -1, 'Strong group identity and mutual obligation within communities produce better outcomes than abstract universalism.', NULL, 60, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(45, 'C6', 1, 'Treating a stranger''s child as no less important than a neighbor''s child is a moral ideal worth striving for.', NULL, 63, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(46, 'C6', 1, 'Moral rules should apply equally to all people regardless of nationality, ethnicity, or religion.', NULL, 64, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(47, 'C6', 1, 'Aid and assistance should be allocated based on need, not on shared identity or proximity.', NULL, 67, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(49, 'C7', -1, 'A nation must control its own borders and immigration without outside interference.', NULL, 47, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(50, 'C7', -1, 'Trade agreements that constrain domestic policy undermine democratic self-determination.', NULL, 48, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(51, 'C7', -1, 'Supranational bodies like the UN, EU, or WTO have accumulated too much power over national affairs.', NULL, 49, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(52, 'C7', -1, 'Citizens of a country, not international bodies, should decide the laws that govern them.', NULL, 50, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(53, 'C7', 1, 'International courts should be able to override national laws that violate human rights.', NULL, 52, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(54, 'C7', 1, 'Nations should transfer some sovereignty to global institutions to address climate change.', NULL, 53, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(56, 'C7', 1, 'Global problems require global governance that nations cannot opt out of.', NULL, 55, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(57, 'C8', -1, 'Technology tends to create new problems as fast as it solves existing ones.', NULL, 56, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(58, 'C8', -1, 'Society has become dangerously dependent on complex systems that few people understand.', NULL, 57, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(59, 'C8', -1, 'Some technologies—certain weapons, surveillance tools, AI systems—should never have been built.', NULL, 58, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(60, 'C8', -1, 'Complex technologies fail in ways that even their designers cannot predict or control.', NULL, 66, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(61, 'C8', 1, 'Automation and AI will create more prosperity than they destroy over time.', NULL, 61, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(62, 'C8', 1, 'New technologies should generally be deployed quickly; we can address problems as they arise.', NULL, 62, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(63, 'C8', 1, 'Most major problems—health, poverty, climate—can be solved primarily through technological innovation.', NULL, 65, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(64, 'C8', 1, 'Genetic engineering of crops and humans should be embraced as a tool for improving life.', NULL, 68, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(65, 'C9', 1, 'Humans have a duty to preserve wild nature even at significant cost to our own prosperity.', NULL, 69, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(66, 'C9', -1, 'The natural world exists as a resource for human use and flourishing.', NULL, 70, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(67, 'C9', 1, 'Ecosystems and species have intrinsic value that does not depend on their usefulness to humans.', NULL, 71, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(68, 'C9', 1, 'Economic development should be constrained when it threatens biodiversity or ecosystem health.', NULL, 72, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(69, 'C9', 1, 'Animals'' interests should carry moral weight even when protecting them benefits no human.', NULL, 73, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(70, 'C9', -1, 'Human beings matter morally in a way that animals and ecosystems simply do not.', NULL, 74, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(71, 'C9', -1, 'When human well-being and environmental preservation conflict, human needs should come first.', NULL, 75, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(72, 'C9', -1, 'Protecting endangered species is not worth major economic sacrifice.', NULL, 76, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(73, 'C10', 1, 'What counts as right and wrong depends largely on cultural context and historical circumstances.', NULL, 77, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(74, 'C10', -1, 'Some actions are objectively wrong regardless of what any culture or individual believes.', NULL, 78, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(75, 'C10', -1, 'Moral truths exist and can be discovered through reason, experience, or revelation.', NULL, 79, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(76, 'C10', -1, 'Without grounding in universal principles, ethics becomes arbitrary and unstable.', NULL, 80, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(77, 'C10', -1, 'Across all cultures and eras, certain core moral standards remain constant.', NULL, 2, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(78, 'C10', 1, 'Morality is a human construction that evolves as societies develop new understandings.', NULL, 4, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(79, 'C10', 1, 'Ethical disagreements often cannot be resolved because people are starting from incompatible premises.', NULL, 16, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(80, 'C10', 1, 'There is no single correct moral framework; reasonable people can hold fundamentally different values.', NULL, 98, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(81, 'F1', 1, 'Sometimes dramatic, disruptive action is the only way to overcome entrenched injustice.', NULL, 81, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(82, 'F1', 1, 'Protest and civil disobedience are legitimate tools when institutions fail to respond.', NULL, 82, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(83, 'F1', 1, 'Fundamental change requires confrontation, not negotiation with those who benefit from the status quo.', NULL, 83, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(84, 'F1', -1, 'Lasting reform comes through patient, incremental work within existing institutions.', NULL, 86, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(85, 'F1', -1, 'Stability and continuity are valuable even when change is desirable in principle.', NULL, 11, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(86, 'F1', -1, 'Revolutionary movements usually cause more suffering than the injustices they aimed to correct.', NULL, 94, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(87, 'F2', 1, 'Major institutions—government, media, corporations—routinely mislead the public to serve their own interests.', NULL, 83, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(88, 'F2', 1, 'Official experts often conceal important information or present biased conclusions.', NULL, 84, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(89, 'F2', 1, 'Even well-designed institutions end up serving the industries and interest groups they were meant to oversee.', NULL, 85, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(90, 'F2', -1, 'On balance, the institutions that run society are genuinely trying to do the right thing.', NULL, 87, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(91, 'F2', -1, 'Most professionals—doctors, scientists, judges—can be trusted to act with integrity.', NULL, 88, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(92, 'F2', -1, 'Democratic institutions, despite their flaws, generally produce fair outcomes over time.', NULL, 89, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(93, 'F3', 1, 'The primary goal of justice should be repairing harm and reintegrating offenders into society.', NULL, 91, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(94, 'F3', 1, 'Bringing victims and offenders together to seek understanding produces better outcomes than punishment alone.', NULL, 92, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(95, 'F3', 1, 'Most people who commit crimes need support and rehabilitation, not cages.', NULL, 93, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(96, 'F3', -1, 'Wrongdoers deserve punishment proportional to the severity of their offense.', NULL, 95, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(97, 'F3', -1, 'A justice system that does not punish crime fails to uphold moral order.', NULL, 96, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(98, 'F3', -1, 'Accountability means facing real consequences, not just dialogue and reconciliation.', NULL, 97, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(99, 'C1', 1, 'When ride-sharing apps like Uber entered my city, I supported letting them compete with traditional taxis rather than banning or heavily restricting them.', NULL, 101, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(100, 'C1', -1, 'During the recent spike in gas prices, I would have supported the government temporarily capping fuel prices, even knowing it might cause some supply issues.', NULL, 102, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(101, 'C1', 1, 'If a local hospital is struggling financially, it''s better to let a private company take it over than to have the government step in to run it.', NULL, 103, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(102, 'C1', -1, 'Electricity should be provided by a single public utility rather than competing private companies, even if competition might lower some prices.', NULL, 104, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(103, 'C2', -1, 'If a billionaire dies and leaves $5 billion to their adult children, I support taxing at least half of that inheritance.', NULL, 105, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(104, 'C2', 1, 'A family farm that''s been passed down for generations shouldn''t face estate taxes that might force a sale, even if it''s now worth millions.', NULL, 106, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(105, 'C2', -1, 'My city should add a tax on homes worth over $2 million to fund affordable housing, even if it reduces property values for wealthy homeowners.', NULL, 107, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00');
-INSERT INTO public.questions VALUES
-	(106, 'C2', 1, 'A business owner who built a successful company from nothing has earned the right to pay themselves whatever they want, regardless of what their employees make.', NULL, 108, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(107, 'C3', 1, 'Even if it makes catching criminals harder, I oppose requiring tech companies to build ''back doors'' that let police access encrypted messages.', NULL, 109, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(108, 'C3', -1, 'Schools should be allowed to randomly search student lockers and backpacks for weapons and drugs without needing specific suspicion.', NULL, 110, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(109, 'C3', 1, 'Protesters who block a highway to demand political action shouldn''t face serious criminal charges, even though they disrupted traffic.', NULL, 111, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(110, 'C3', -1, 'Social media platforms should be required to quickly remove content that authorities flag as potentially dangerous misinformation.', NULL, 112, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(111, 'C4', 1, 'If my state wants to set a minimum wage different from the federal level, it should be free to do so without federal interference.', NULL, 113, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(112, 'C4', -1, 'When some local governments refused to enforce public health measures during COVID, state governments were right to override them.', NULL, 114, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(113, 'C4', 1, 'My city should be able to set its own rules about short-term rentals like Airbnb, even if state law tries to prevent local regulation.', NULL, 115, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(114, 'C4', -1, 'Education standards should be set nationally so that a high school diploma means the same thing whether you''re in Mississippi or Massachusetts.', NULL, 116, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(115, 'C5', 1, 'Elementary schools should teach that families come in many forms—single parents, same-sex parents, grandparents raising kids—as equally valid.', NULL, 117, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(116, 'C5', -1, 'A historic nativity scene on public land should stay up during Christmas, even if some residents object to religious displays.', NULL, 118, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(117, 'C5', 1, 'Workplaces that ask employees to share their preferred pronouns are making a reasonable accommodation for changing social norms.', NULL, 119, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(118, 'C5', -1, 'When a century-old statue becomes controversial, communities should lean toward keeping it with added historical context rather than removing it.', NULL, 120, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(119, 'C6', 1, 'Universities should award scholarships to the most qualified applicants worldwide, even if that means fewer go to students from our own country.', NULL, 121, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(120, 'C6', -1, 'When affordable housing is limited, long-term residents and their families should get priority over recent arrivals.', NULL, 122, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(121, 'C6', 1, 'If our country has more vaccines than we need, we should donate the surplus based on global need rather than stockpiling for ourselves.', NULL, 123, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(122, 'C6', -1, 'A small business owner isn''t wrong to prefer hiring people from their own community, all else being equal.', NULL, 124, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(123, 'C7', -1, 'If an international trade court rules against our country''s policy, we should be able to ignore that ruling if we disagree.', NULL, 125, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(124, 'C7', 1, 'I support a global minimum corporate tax rate, even though it limits our country''s ability to attract businesses with lower rates.', NULL, 126, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(125, 'C7', -1, 'Our country shouldn''t have to change its food safety standards just to comply with international trade agreements.', NULL, 127, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(126, 'C7', 1, 'Countries that fail to meet binding international climate commitments should face real penalties, even wealthy powerful ones.', NULL, 128, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(127, 'C8', 1, 'A city should replace bus drivers with autonomous vehicles if data shows it would reduce accidents, even though it eliminates jobs.', NULL, 129, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(128, 'C8', -1, 'I would decline a free genetic test that predicts disease risk if it meant a company would store my DNA data indefinitely.', NULL, 130, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(129, 'C8', 1, 'If lab-grown meat becomes affordable, society should actively encourage switching from traditional beef, even if it hurts ranchers.', NULL, 131, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(130, 'C8', -1, 'Schools should limit students'' use of AI writing tools even if it makes them less competitive, because learning to write matters.', NULL, 132, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(131, 'C9', 1, 'A hydroelectric dam that would provide clean energy to 50,000 homes should be blocked if it destroys habitat for an endangered species.', NULL, 133, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(132, 'C9', -1, 'If reintroduced wolves are killing livestock, ranchers should be allowed to shoot them even if wolf populations are still recovering.', NULL, 134, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(133, 'C9', 1, 'Old-growth forest shouldn''t be logged even for well-paying jobs, because some ecosystems can never be replaced once destroyed.', NULL, 135, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(134, 'C9', -1, 'A mining project that would create 500 good jobs should proceed even if it damages a remote wilderness area few people ever visit.', NULL, 136, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(135, 'C10', 1, 'Different cultures can reach opposite conclusions about end-of-life care, and neither position is more objectively correct.', NULL, 137, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(136, 'C10', -1, 'If a close friend from another culture defended a practice I find deeply wrong, I would say it is wrong - not just ''different''.', NULL, 138, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(137, 'C10', 1, 'On abortion, I believe reasonable people with good intentions can reach completely different conclusions based on equally valid moral frameworks.', NULL, 139, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(138, 'C10', -1, 'Some business practices are simply unethical everywhere—it''s not just ''cultural differences'' when companies exploit workers in poor countries.', NULL, 140, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(139, 'F1', 1, 'When activists block traffic or disrupt businesses to demand urgent action, their tactics can be justified by the importance of their cause.', NULL, 141, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(140, 'F1', -1, 'A political movement should accept a partial compromise now rather than holding out for everything, even if full victory might come later.', NULL, 142, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(141, 'F1', 1, 'Sometimes you have to break rules to expose injustice—whistleblowers who leak classified documents can be heroes even if they broke the law.', NULL, 143, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(142, 'F1', -1, 'I''d rather see a modest reform pass with broad support than a sweeping overhaul rammed through that the next government could reverse.', NULL, 144, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(144, 'F2', -1, 'When a major newspaper retracts a story after discovering errors, it shows the system works—media can correct itself.', NULL, 146, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(145, 'F2', 1, 'When a big company settles a fraud case without admitting guilt, I assume the misconduct went far beyond what was proven.', NULL, 147, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(146, 'F2', -1, 'When a study passes peer review at a major scientific journal, I take its findings seriously even when they cut against my politics.', NULL, 148, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(147, 'F3', 1, 'If a teenager vandalized my car, I''d prefer they do community service and pay me back directly rather than go through the criminal system.', NULL, 149, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(148, 'F3', -1, 'An executive who defrauded retirees of their savings should go to prison even if they''ve repaid every penny and shown genuine remorse.', NULL, 150, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(149, 'F3', 1, 'For most non-violent crimes, programs that connect offenders with victims and community members work better than jail time.', NULL, 151, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(150, 'F3', -1, 'Some crimes are so serious that punishment is deserved regardless of whether it rehabilitates the offender or deters others.', NULL, 152, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(151, 'C1', 1, 'In cities where rents are soaring, I oppose strict rent caps; it''s better to let landlords charge market rates so more housing gets built over time.', NULL, 153, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(152, 'C1', -1, 'Public transit should be owned and operated by the city, even if private bus companies say they could run the system more cheaply for a profit.', NULL, 154, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(153, 'C1', 1, 'If a supermarket chain replaces most cashiers with self-checkout machines to keep prices low, that tradeoff is acceptable even though it eliminates some jobs.', NULL, 155, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(154, 'C1', -1, 'During a recession, the government should directly subsidize struggling companies to keep workers employed, even if the businesses were poorly managed.', NULL, 156, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(155, 'C2', -1, 'If a city has many vacant luxury condos, I support taxing or converting them into affordable housing even if it reduces returns for investors.', NULL, 157, false, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(156, 'C2', 1, 'I oppose broad student loan forgiveness; borrowers should repay what they agreed to rather than shifting the cost to taxpayers.', NULL, 158, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(157, 'C2', -1, 'I support a yearly wealth tax on multimillionaires to fund universal childcare and healthcare, even if some wealthy people move away.', NULL, 159, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(158, 'C2', 1, 'A flat income tax where everyone pays the same percentage is fairer than higher tax rates on top earners.', NULL, 160, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(159, 'C3', 1, 'I oppose installing facial-recognition cameras throughout my city, even if police argue it would significantly reduce crime.', NULL, 161, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(160, 'C3', -1, 'Police should be allowed to use predictive algorithms to identify likely offenders, even if those systems sometimes reflect biased historical data.', NULL, 162, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(161, 'C3', 1, 'During a pandemic, I am uncomfortable with smartphone location tracking to enforce quarantine, even if it would slow the spread of disease.', NULL, 163, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(162, 'C3', -1, 'In high-crime neighborhoods, I support imposing temporary curfews even though it restricts the freedom of residents who have done nothing wrong.', NULL, 164, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(163, 'C4', 1, 'Neighborhoods should have real power over local zoning decisions, even if that slows down new housing construction citywide.', NULL, 165, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(164, 'C4', -1, 'Use-of-force standards for police should be set at the national level so departments can''t adopt looser local policies.', NULL, 166, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(165, 'C4', 1, 'Local school boards should be free to adopt their own curriculum on controversial topics, even if national experts disagree.', NULL, 167, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(166, 'C4', -1, 'The national government should be able to override cities that declare themselves sanctuary cities for undocumented immigrants.', NULL, 168, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(167, 'C5', 1, 'Adults should be allowed to change the gender marker on their IDs based on self-identification, without requiring medical procedures or court hearings.', NULL, 169, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(168, 'C5', -1, 'Classic books that contain racist or sexist language should be taught in their original form, not replaced with edited versions or removed from classes.', NULL, 170, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(169, 'C5', 1, 'Public schools should allow students to form clubs around any gender or sexual identity, even if some parents strongly object.', NULL, 171, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(170, 'C5', -1, 'Elementary school teachers should avoid discussing topics like open relationships or nontraditional sexual lifestyles, even if some families are comfortable with them.', NULL, 172, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(171, 'C6', 1, 'When our country accepts refugees, priority should go to the most vulnerable people globally rather than those from allied or culturally similar nations.', NULL, 173, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(172, 'C6', -1, 'If my country faces a natural disaster, I think we should fully fund domestic recovery before sending major aid to other countries.', NULL, 174, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(173, 'C6', 1, 'I''d rather donate to a charity that fights extreme poverty overseas than one that funds relatively minor improvements in my own neighborhood.', NULL, 175, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(174, 'C6', -1, 'Public agencies should buy from suppliers in our own country even when foreign firms offer taxpayers a better price.', NULL, 176, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(175, 'C7', -1, 'I oppose international courts having the power to prosecute my country''s soldiers for actions taken in war.', NULL, 177, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(176, 'C7', 1, 'During serious global pandemics, the World Health Organization should be able to impose binding travel restrictions that member countries must follow.', NULL, 178, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(177, 'C7', -1, 'Our national legislature should set immigration levels on its own; international refugee agreements shouldn''t force us to take more people than we choose.', NULL, 179, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(178, 'C7', 1, 'I support a binding global treaty that limits autonomous weapons and AI military systems, even if it restricts my country''s technological edge.', NULL, 180, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(179, 'C8', 1, 'My city should install a dense network of traffic and air-quality sensors to optimize flows and health, even though it means constant monitoring of public spaces.', NULL, 181, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(180, 'C8', -1, 'I would rather have a human judge decide criminal sentences than rely on an algorithm, even if data shows the algorithm is slightly more consistent.', NULL, 182, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(181, 'C8', 1, 'If advanced AI and automation dramatically increase profits, I support funding a universal basic income from those gains to soften job losses.', NULL, 183, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(182, 'C8', -1, 'Even if brain–computer interfaces could treat serious disabilities, I am uneasy about normalizing implants that let companies or governments access people''s thoughts.', NULL, 184, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(183, 'C9', 1, 'I support banning commercial fishing in fragile coral reef areas, even if it raises seafood prices and hurts some local businesses.', NULL, 185, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(184, 'C9', -1, 'Building a new highway through a rural area is acceptable if it significantly cuts commute times, even though it fragments wildlife habitat.', NULL, 186, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(185, 'C9', 1, 'To fight climate change, I would back strict limits on frequent air travel, even if it makes personal vacations much harder.', NULL, 187, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(186, 'C9', -1, 'In dense cities, converting remaining vacant green lots into affordable housing is an acceptable tradeoff, even if it reduces access to nature.', NULL, 188, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(187, 'C10', 1, 'When two countries handle hate speech very differently, I think each approach can be morally appropriate for its own culture.', NULL, 189, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(188, 'C10', -1, 'Cultural traditions that involve permanently harming children''s bodies, like genital cutting, are wrong everywhere and should be discouraged globally.', NULL, 190, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(189, 'C10', 1, 'If I moved to a country whose laws were built on moral views very different from mine, I would accept its system as no less legitimate than ours.', NULL, 191, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(190, 'C10', -1, 'I believe there are universal human rights that all governments must respect, even when those rights conflict with long-standing local customs.', NULL, 192, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(191, 'F1', 1, 'Physically blocking construction of a project you believe is deeply harmful - a pipeline, a prison, a highway - can be a legitimate political tactic.', NULL, 193, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(192, 'F1', -1, 'Even when I''m deeply frustrated with the system, political change should come through elections and courts, not property damage or street clashes.', NULL, 194, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(193, 'F1', 1, 'I admire movements that refuse to compromise on core demands, even if it means they lose in the short term.', NULL, 195, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(194, 'F1', -1, 'I prefer leaders who avoid inflaming tensions and seek incremental agreements, even if that means slower progress on issues I care about.', NULL, 196, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(195, 'F2', 1, 'I assume large tech companies are hiding important information about how they collect and use people''s data.', NULL, 197, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(196, 'F2', -1, 'When multiple levels of courts uphold a law over many years, I generally trust that the law is constitutional even if I dislike it.', NULL, 198, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(197, 'F2', 1, 'I think official economic statistics and political polls are often manipulated, so I don''t put much stock in them.', NULL, 199, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(198, 'F2', -1, 'If several independent news outlets report the same event, I usually trust the basic facts even if details might be off.', NULL, 200, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(199, 'F3', 1, 'Criminal records for non-violent offenses should be sealed after a few years, so people can genuinely start over.', NULL, 201, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(200, 'F3', -1, 'People who repeatedly commit serious violent crimes should receive long mandatory prison sentences, even if rehabilitation programs might work in some cases.', NULL, 202, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(201, 'F3', 1, 'I support giving victims a say in restorative justice programs, even when the law would allow a much harsher sentence.', NULL, 203, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(202, 'F3', -1, 'Publicly naming and shaming serious offenders is important, even after they have completed their prison sentences.', NULL, 204, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(203, 'C7', 1, 'Trade agreements should include enforceable minimum labor standards for all member countries, even if that raises prices at home.', NULL, 205, true, 1.25, 'applied', '2026-07-17 00:17:32.894091+00', '2026-07-17 00:17:32.894091+00'),
-	(204, 'C7', -1, 'Our country should be free to offer special tax breaks to attract global companies, even if international bodies say it undercuts poorer nations.', NULL, 206, true, 1.25, 'applied', '2026-07-17 00:17:32.894091+00', '2026-07-17 00:17:32.894091+00'),
-	(205, 'C8', 1, 'I would use an AI assistant for everyday medical questions, even though that means a tech company handles my health information.', NULL, 207, true, 1.25, 'applied', '2026-07-17 00:17:32.894091+00', '2026-07-17 00:17:32.894091+00'),
-	(206, 'C8', -1, 'I avoid smart-home devices like voice assistants, even though they are convenient, because I don''t trust companies with always-on microphones in my house.', NULL, 208, true, 1.25, 'applied', '2026-07-17 00:17:32.894091+00', '2026-07-17 00:17:32.894091+00');
-INSERT INTO public.questions VALUES
-	(207, 'C4', -1, 'The state should be able to override local zoning rules to require that every town allows apartments and affordable housing.', NULL, 209, true, 1.25, 'applied', '2026-07-17 00:17:32.894091+00', '2026-07-17 00:17:32.894091+00'),
-	(208, 'C4', 1, 'A neighborhood should be able to block a homeless shelter from opening on its street, even if the city says the shelter is badly needed.', NULL, 210, true, 1.25, 'applied', '2026-07-17 00:17:32.894091+00', '2026-07-17 00:17:32.894091+00'),
-	(209, 'C7', 1, 'To fight cross-border crime, international agencies should be able to require member countries to check travelers against shared biometric watchlists, even though ordinary people end up tracked.', NULL, 211, true, 1.25, 'applied', '2026-07-17 00:17:32.894091+00', '2026-07-17 00:17:32.894091+00'),
-	(210, 'C7', -1, 'Our country should refuse international data-sharing rules that require logging citizens'' travel and communications, even if that makes cross-border crime harder to fight.', NULL, 212, true, 1.25, 'applied', '2026-07-17 00:17:32.894091+00', '2026-07-17 00:17:32.894091+00'),
-	(211, 'C7', 1, 'Nations should accept binding global limits on editing human embryos, even if it slows medical breakthroughs at home.', NULL, 213, true, 1.25, 'applied', '2026-07-17 00:17:32.894091+00', '2026-07-17 00:17:32.894091+00'),
-	(212, 'C7', -1, 'Our country should push ahead with cutting-edge genetic and AI research even when international bodies call for a global pause.', NULL, 214, true, 1.25, 'applied', '2026-07-17 00:17:32.894091+00', '2026-07-17 00:17:32.894091+00'),
-	(213, 'C10', -1, 'International institutions should pressure countries that criminalize homosexuality to change those laws, even where the laws reflect majority local values.', NULL, 215, true, 1.25, 'applied', '2026-07-17 00:17:32.894091+00', '2026-07-17 00:17:32.894091+00'),
-	(214, 'C10', 1, 'Even when I find another culture''s practices deeply wrong, international bodies shouldn''t force that culture to change.', NULL, 216, true, 1.25, 'applied', '2026-07-17 00:17:32.894091+00', '2026-07-17 00:17:32.894091+00'),
-	(215, 'C9', -1, 'Environmental review should be fast-tracked or waived for affordable housing projects, even if some habitat and green space is lost.', NULL, 217, true, 1.25, 'applied', '2026-07-17 00:17:32.894091+00', '2026-07-17 00:17:32.894091+00'),
-	(216, 'C9', 1, 'A city should keep its large parks intact even if selling part of the land could fund thousands of subsidized homes.', NULL, 218, true, 1.25, 'applied', '2026-07-17 00:17:32.894091+00', '2026-07-17 00:17:32.894091+00'),
-	(217, 'C1', -1, 'Emergency laws should ban ride-price surges during disasters, even if that means fewer drivers show up exactly when demand spikes.', NULL, 219, true, 1.25, 'applied', '2026-07-17 00:17:32.894091+00', '2026-07-17 00:17:32.894091+00'),
-	(218, 'C5', -1, 'The government should be able to restrict art or entertainment that mocks sacred religious traditions.', NULL, 220, true, 1.25, 'applied', '2026-07-17 00:17:32.894091+00', '2026-07-17 00:17:32.894091+00'),
-	(219, 'C3', 1, 'Even when public behavior offends community standards of decency, the government shouldn''t have the power to ban it.', NULL, 221, true, 1.25, 'applied', '2026-07-17 00:17:32.894091+00', '2026-07-17 00:17:32.894091+00'),
-	(220, 'C3', -1, 'Schools should be able to enforce dress codes that reflect traditional community values, even when students say it limits their self-expression.', NULL, 222, true, 1.25, 'applied', '2026-07-17 00:17:32.894091+00', '2026-07-17 00:17:32.894091+00'),
-	(10, 'C2', -1, 'Guaranteeing every citizen a basic income would create a more just society.', 'A universal basic income provides a guaranteed income floor for all citizens. Supporters argue it reduces poverty and provides security in a changing economy. Critics view it as an inefficient transfer that discourages work and production. How it would be funded is a separate question - this item asks only about the goal.', 13, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.930816+00'),
-	(20, 'C3', 1, 'Governments should not have the power to shut down protests just because they are disruptive.', 'This question asks about the limits of state power over assembly. Civil liberties advocates view protest rights as a fundamental check on government, even when protests disrupt daily life. Order-focused perspectives argue authorities need discretion to protect the public and keep society functioning.', 25, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.930816+00'),
-	(24, 'C3', -1, 'Authorities should be able to ban public gatherings that risk disorder, even before any law has been broken.', 'Preventive restrictions raise the security-liberty tradeoff in its sharpest form: acting before harm occurs. Security-oriented perspectives argue prevention protects the public; civil libertarians counter that pre-emptive bans punish people for things that have not happened and invite abuse.', 90, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.930816+00'),
-	(48, 'C6', 1, 'How much someone''s wellbeing matters shouldn''t depend on where they happen to have been born.', 'Universalists view birthplace as morally arbitrary - suffering matters equally wherever it occurs. Particularists argue that special obligations to family, community, and nation are natural and necessary, and that concern legitimately diminishes with distance.', 59, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.930816+00'),
-	(55, 'C7', 1, 'Countries benefit from joining agreements that let people live and work freely across each other''s borders.', 'Free-movement agreements (like the EU''s) pool a core element of sovereignty. Integrationists argue such arrangements expand opportunity and bind nations together peacefully. Sovereigntists counter that control over who enters and settles is a defining national power that should not be delegated.', 54, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.930816+00'),
-	(143, 'F2', 1, 'When public health officials recommend a new vaccine, I assume politics or money shaped the guidance more than evidence.', NULL, 145, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.930816+00'),
-	(221, 'F4', 1, 'Fundamental rights belong in constitutions precisely so that no election result can take them away.', 'Constitutionalists entrench rights beyond the reach of ordinary majorities, arguing that what an election can grant, an election can revoke. Majoritarians counter that binding future voters to past decisions lets the dead govern the living, and that rights are safest when a live majority actively defends them.', 223, true, 1.00, 'conceptual', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
-	(222, 'F4', -1, 'No court, expert body, or institution should be able to block the clearly expressed will of the majority for long.', 'Majoritarians hold that legitimacy flows only from the people, so institutional vetoes must ultimately yield. Constitutionalists argue that durable checks are what distinguish constitutional democracy from mob rule, protecting minorities and long-term interests.', 224, true, 1.00, 'conceptual', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
-	(223, 'F4', 1, 'Some public questions are too technical for popular opinion to settle and are better delegated to qualified experts.', 'Advocates of delegation point to central banking, drug approval, and pandemic response as areas where expertise outperforms popular sentiment. Critics argue expert bodies escape accountability and smuggle value judgments in as technical ones.', 225, true, 1.00, 'conceptual', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
-	(224, 'F4', -1, 'Ordinary citizens, not experts or judges, should make the big decisions about society''s direction - even on complex issues.', 'Democratic populists argue citizens are the rightful authors of their collective life and that "complexity" is often an excuse to exclude them. Constitutionalists respond that good judgment on technical questions requires knowledge most citizens lack the time to acquire.', 226, true, 1.00, 'conceptual', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
-	(225, 'F4', 1, 'Constitutions should be hard to change, even when current majorities find them inconvenient.', 'Entrenchment protects fundamental rules from momentary passions and shifting majorities. Critics argue the dead hand of the past should not bind the living, and that rigid constitutions preserve outdated arrangements.', 227, true, 1.00, 'conceptual', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
-	(226, 'F4', -1, 'Putting major national questions directly to voters in referendums produces more legitimate decisions than leaving them to politicians.', 'Direct-democracy advocates argue referendums cut out self-interested intermediaries and settle big questions with unmatched legitimacy. Skeptics point to campaigns that reduce complex tradeoffs to slogans and outcomes that swing on turnout.', 228, true, 1.00, 'conceptual', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
-	(227, 'F4', -1, 'If a large majority of voters supports a policy, the government should implement it even when most experts warn it will backfire.', NULL, 229, true, 1.25, 'applied', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
-	(228, 'F4', 1, 'An independent central bank should keep control of interest rates even when elected leaders demand cheaper borrowing before an election.', NULL, 230, true, 1.25, 'applied', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
-	(229, 'F4', -1, 'Voters should be able to remove judges who repeatedly block popular laws.', NULL, 231, true, 1.25, 'applied', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
-	(230, 'F4', 1, 'Even on divisive moral questions like assisted dying, careful legislative deliberation is better than a simple yes/no referendum.', NULL, 232, true, 1.25, 'applied', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
-	(231, 'F5', 1, 'Sometimes military force is the only language aggressive regimes understand.', 'Hawks argue that appeasement invites escalation and that credible force is what keeps predatory states in check. Doves counter that force usually breeds the next conflict and that this framing forecloses diplomacy too early.', 233, true, 1.00, 'conceptual', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
-	(232, 'F5', -1, 'War is almost never worth its cost in lives, even when the cause seems just.', 'Near-pacifists weigh the certain horrors of war against its speculative benefits and find almost no war justified. Interventionists respond that refusing to fight can carry even higher costs - conquest, atrocity, and the collapse of deterrence.', 234, true, 1.00, 'conceptual', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
-	(233, 'F5', 1, 'A strong military prevents wars; weakness invites them.', 'Deterrence theory holds that visible strength raises the cost of aggression and so preserves peace. Critics argue arms build-ups feed security spirals in which each side''s "defensive" strength looks like a threat to the other.', 235, true, 1.00, 'conceptual', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
-	(234, 'F5', -1, 'Most wars our country has fought could have been avoided through diplomacy and restraint.', 'Doves read history as a catalog of avoidable wars driven by pride, fear, and bad information. Hawks read the same history as proof that some adversaries cannot be talked out of aggression, only deterred or defeated.', 236, true, 1.00, 'conceptual', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
-	(235, 'F5', 1, 'Countries with the power to stop mass atrocities abroad have a duty to intervene, with force if necessary.', 'Humanitarian interventionists argue sovereignty is no shield for genocide. Opponents - both dovish and sovereigntist - point to interventions that deepened the suffering they meant to stop, and question who authorizes such wars.', 237, true, 1.00, 'conceptual', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
-	(236, 'F5', -1, 'Shifting military spending to domestic needs would make us better off, not less safe.', 'Advocates see defense budgets as bloated opportunity costs paid in schools and hospitals. Skeptics argue security underwrites everything else and that underfunded deterrence is the most expensive mistake a country can make.', 238, true, 1.00, 'conceptual', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
-	(237, 'F5', 1, 'If an allied democracy is invaded, our country should be willing to send troops - not just weapons and aid.', NULL, 239, true, 1.25, 'applied', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
-	(238, 'F5', -1, 'I would oppose striking a hostile country''s weapons programs unless we were attacked first.', NULL, 240, true, 1.25, 'applied', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
-	(239, 'F5', 1, 'Targeting a terrorist leader hiding in another country without that country''s permission can be justified.', NULL, 241, true, 1.25, 'applied', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
-	(240, 'F5', -1, 'Our country should pledge never to use nuclear weapons first, even if that weakens deterrence.', NULL, 242, true, 1.25, 'applied', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
-	(241, 'C5', -1, 'Religious organizations should be able to run publicly funded schools that teach according to their faith.', NULL, 243, true, 1.25, 'applied', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
-	(242, 'C5', 1, 'Government employees should keep religious symbols out of sight while serving the public, so the state stays neutral.', NULL, 244, true, 1.25, 'applied', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
-	(243, 'C5', -1, 'People should be able to refuse work duties that conflict with their religious beliefs, even when it inconveniences employers or customers.', NULL, 245, true, 1.25, 'applied', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
-	(244, 'C2', -1, 'Workers have the right to strike even when it shuts down services the public depends on.', NULL, 246, true, 1.25, 'applied', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
-	(245, 'C1', 1, 'Companies should be able to hire replacements for striking workers to keep their business running.', NULL, 247, true, 1.25, 'applied', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
-	(246, 'C2', -1, 'Gig workers like rideshare drivers should get employee benefits, even if it raises prices and means fewer flexible jobs.', NULL, 248, true, 1.25, 'applied', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
-	(247, 'C2', 1, 'Employees who don''t want a union shouldn''t have to pay union dues, even if they benefit from the contract the union negotiated.', NULL, 249, true, 1.25, 'applied', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
-	(248, 'C2', -1, 'Taxing people more to guarantee everyone housing and healthcare expands freedom overall, even though it limits what earners keep.', NULL, 250, true, 1.25, 'applied', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
-	(249, 'C2', 1, 'Freedom means the government leaving you alone - even if some people end up without the means to make much of that freedom.', NULL, 251, true, 1.25, 'applied', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
-	(250, 'C2', -1, 'Mandatory paycheck deductions for retirement and health coverage make people freer in the long run, even though they override individual choice.', NULL, 252, true, 1.25, 'applied', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
-	(251, 'C3', 1, 'Terminally ill adults should have the legal right to end their lives with medical assistance.', NULL, 253, true, 1.25, 'applied', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
-	(252, 'C3', 1, 'Adults should be free to use recreational drugs, with the state limited to regulating safety and purity.', NULL, 254, true, 1.25, 'applied', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
-	(253, 'C3', -1, 'Governments should be able to require vaccination during dangerous outbreaks, with real penalties for refusing.', NULL, 255, true, 1.25, 'applied', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
-	(254, 'C3', 1, 'Law-abiding adults should be able to own firearms for self-defense without having to prove a special need.', NULL, 256, true, 1.25, 'applied', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
-	(255, 'C3', -1, 'Requiring licenses, training, and registration for all gun owners is a reasonable public-safety measure.', NULL, 257, true, 1.25, 'applied', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
-	(256, 'C3', -1, 'Courts should be able to temporarily take guns from people shown to be a danger to themselves or others.', NULL, 258, true, 1.25, 'applied', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
-	(257, 'C2', -1, 'Schools and employers should be able to give extra consideration to applicants from groups that faced historical exclusion.', NULL, 259, false, 1.25, 'applied', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
-	(258, 'C6', 1, 'Admissions and hiring should be strictly colorblind - the same criteria for everyone, regardless of group history.', NULL, 260, true, 1.25, 'applied', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
-	(259, 'C2', -1, 'Communities that were dispossessed through slavery, segregation, or seized land are owed real compensation today.', NULL, 261, true, 1.25, 'applied', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
-	(260, 'C2', 1, 'Preferences based on group identity are unfair to individuals who did nothing wrong, whatever the historical justification.', NULL, 262, true, 1.25, 'applied', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
-	(261, 'C2', 1, 'Public borrowing that pushes today''s costs onto future generations is unfair, even when it funds programs people want now.', NULL, 263, true, 1.25, 'applied', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
-	(262, 'C9', 1, 'Harms to people fifty years from now should weigh as heavily in policy as harms to people today.', NULL, 264, true, 1.25, 'applied', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
-	(263, 'C9', -1, 'It''s reasonable to focus on today''s poverty and disease before spending heavily against risks that mainly affect future generations.', NULL, 265, true, 1.25, 'applied', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
-	(264, 'C5', 1, 'Ending a pregnancy in its early months should be legal, with the decision left to the woman and her doctor.', NULL, 266, true, 1.25, 'applied', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
-	(265, 'F4', 1, 'Election district maps should be drawn by independent commissions, not by the party in power.', NULL, 267, true, 1.25, 'applied', '2026-07-17 03:00:00+00', '2026-07-17 03:00:00+00'),
-	(266, 'F4', -1, 'In a genuine emergency, elected leaders should be able to act immediately without waiting for courts or oversight bodies to approve.', NULL, 268, true, 1.25, 'applied', '2026-07-17 03:00:00+00', '2026-07-17 03:00:00+00'),
-	(267, 'F4', 1, 'If most residents vote to ban water fluoridation against overwhelming scientific advice, the city should keep fluoridating.', NULL, 269, true, 1.25, 'applied', '2026-07-17 03:00:00+00', '2026-07-17 03:00:00+00'),
-	(268, 'F4', -1, 'Mega-projects like new airports, rail lines, and power plants should be approved by public vote, not by planning agencies.', NULL, 270, true, 1.25, 'applied', '2026-07-17 03:00:00+00', '2026-07-17 03:00:00+00'),
-	(269, 'F5', 1, 'Backing down from a military commitment invites more aggression than honoring it, whatever the cost.', 'Credibility hawks argue that reneging on commitments teaches adversaries that threats work, making every future crisis more dangerous. Critics call this the commitment trap: fighting unwanted wars to preserve a reputation whose deterrent value is unproven.', 271, true, 1.00, 'conceptual', '2026-07-17 03:00:00+00', '2026-07-17 03:00:00+00'),
-	(270, 'F5', -1, 'A society that celebrates its military too much ends up finding reasons to use it.', 'Critics of militarism argue that glorifying armed force builds political pressure to use it and crowds out diplomatic instincts. Others respond that honoring service sustains the morale and recruitment a credible defense requires, and implies nothing about eagerness for war.', 272, true, 1.00, 'conceptual', '2026-07-17 03:00:00+00', '2026-07-17 03:00:00+00'),
-	(271, 'F5', 1, 'Our country should be willing to strike militarily to stop a genocide, even without UN authorization.', NULL, 273, true, 1.25, 'applied', '2026-07-17 03:00:00+00', '2026-07-17 03:00:00+00'),
-	(272, 'F5', -1, 'We should hold off on military action until international bodies authorize it, even if that means acting too late to help.', NULL, 274, true, 1.25, 'applied', '2026-07-17 03:00:00+00', '2026-07-17 03:00:00+00'),
-	(273, 'F5', 1, 'If our country faced a serious military threat, bringing back mandatory military service would be justified.', NULL, 275, true, 1.25, 'applied', '2026-07-17 03:00:00+00', '2026-07-17 03:00:00+00'),
-	(274, 'F5', -1, 'Even with hostile regimes, keeping embassies open and talking is better than cutting ties and isolating them.', NULL, 276, true, 1.25, 'applied', '2026-07-17 03:00:00+00', '2026-07-17 03:00:00+00'),
-	(275, 'F5', 1, 'Our country should sell weapons to friendly governments, even knowing some deals will end up in conflicts we regret.', NULL, 277, true, 1.25, 'applied', '2026-07-17 03:00:00+00', '2026-07-17 03:00:00+00'),
-	(276, 'F5', -1, 'Our country should close most of its overseas military bases and bring the troops home.', NULL, 278, true, 1.25, 'applied', '2026-07-17 03:00:00+00', '2026-07-17 03:00:00+00'),
-	(277, 'C8', 1, 'Expanding nuclear power is a good climate strategy, even accepting the waste and accident risks that come with it.', NULL, 279, true, 1.25, 'applied', '2026-07-17 03:00:00+00', '2026-07-17 03:00:00+00'),
-	(278, 'C8', -1, 'Even to fight climate change, we shouldn''t deploy planet-scale technologies like solar geoengineering that tinker with systems we barely understand.', NULL, 280, true, 1.25, 'applied', '2026-07-17 03:00:00+00', '2026-07-17 03:00:00+00'),
-	(279, 'C9', 1, 'Removing aging dams to restore wild rivers and salmon runs is worth losing the clean power they generate.', NULL, 281, true, 1.25, 'applied', '2026-07-17 03:00:00+00', '2026-07-17 03:00:00+00'),
-	(280, 'C9', -1, 'Dams that still provide clean power and flood control should be kept, even where removing them would revive lost ecosystems.', NULL, 282, true, 1.25, 'applied', '2026-07-17 03:00:00+00', '2026-07-17 03:00:00+00'),
-	(281, 'C1', 1, 'Private companies financing roads and bridges through tolls will build and maintain them better than government agencies funded by taxes.', NULL, 283, true, 1.25, 'applied', '2026-07-17 03:00:00+00', '2026-07-17 03:00:00+00'),
-	(282, 'C1', -1, 'Projects like high-speed rail are worth building even when no private investor would fund them - only government can build at that scale.', NULL, 284, true, 1.25, 'applied', '2026-07-17 03:00:00+00', '2026-07-17 03:00:00+00'),
-	(283, 'C4', 1, 'Communities should be able to say no to wind farms and transmission lines in their area, even if it slows the national energy transition.', NULL, 285, true, 1.25, 'applied', '2026-07-17 03:00:00+00', '2026-07-17 03:00:00+00'),
-	(284, 'C4', -1, 'The national government should be able to fast-track critical energy and transport projects over local objections.', NULL, 286, true, 1.25, 'applied', '2026-07-17 03:00:00+00', '2026-07-17 03:00:00+00'),
-	(285, 'C5', 1, 'When a community asks to be described by a new name or term, adopting the new language is a matter of respect, not ''political correctness''.', NULL, 287, true, 1.25, 'applied', '2026-07-17 03:00:00+00', '2026-07-17 03:00:00+00'),
-	(286, 'C6', -1, 'It''s fair for a country to favor citizenship applicants who already share its language, culture, or ancestry.', NULL, 288, true, 1.25, 'applied', '2026-07-17 03:00:00+00', '2026-07-17 03:00:00+00'),
-	(287, 'C5', 1, 'Religious slaughter practices should have to meet the same animal-welfare rules as everyone else, with no exemptions.', NULL, 289, true, 1.25, 'applied', '2026-07-17 03:00:00+00', '2026-07-17 03:00:00+00'),
-	(288, 'C5', -1, 'Parents should be free to raise and school their children according to their religious traditions, even when that means opting out of mainstream curriculum requirements.', NULL, 290, true, 1.25, 'applied', '2026-07-17 03:00:00+00', '2026-07-17 03:00:00+00');
+INSERT INTO public.questions (id, axis_id, key, text, educational_content, display_order, active, weight, question_type, bank_version) VALUES
+    (1, 'C1', -1, 'Markets do not reliably provide essential services fairly without direct public control.', NULL, 1, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (2, 'C1', -1, 'Governments should steer investment toward strategic social goals rather than leave capital allocation mainly to private investors.', NULL, 2, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (3, 'C1', -1, 'Public ownership is often justified when an industry is a natural monopoly or basic necessity.', NULL, 3, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (4, 'C1', 1, 'Decentralized prices usually coordinate complex economic activity better than administrative plans.', NULL, 4, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (5, 'C1', 1, 'Competition among private providers generally improves quality and lowers costs.', NULL, 5, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (6, 'C1', 1, 'Businesses should normally be allowed to fail when they cannot serve customers profitably.', NULL, 6, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (7, 'C1', -1, 'Electricity transmission and distribution should be operated as a regulated public utility rather than as competing private networks.', 'Electric grids are network systems in which duplicating wires is often inefficient, so many jurisdictions use regulated monopolies or public utilities.', 7, TRUE, 1.15, 'applied', 'v2.0'),
+    (8, 'C1', -1, 'The government should use a public development bank to direct long-term credit toward regions that private lenders consistently neglect.', 'A public development bank is a government-backed lender created to finance long-term projects or sectors that private credit may underserve.', 8, TRUE, 1.15, 'applied', 'v2.0'),
+    (9, 'C1', -1, 'The state should take an ownership stake in domestic semiconductor production when dependence on foreign suppliers threatens national resilience.', 'An ownership stake gives the government partial equity and influence rather than only offering a grant, loan, or tax credit.', 9, TRUE, 1.15, 'applied', 'v2.0'),
+    (10, 'C1', -1, 'During a severe shortage of a life-saving medicine, the government should temporarily cap prices and allocate supplies by medical need.', 'A temporary price cap limits the maximum legal price, while allocation rules determine who receives scarce supply.', 10, TRUE, 1.15, 'applied', 'v2.0'),
+    (11, 'C1', 1, 'New private clinics should be allowed to compete with public hospitals when they meet the same safety and transparency standards.', 'Competition here assumes all providers must meet the same licensing, safety, and disclosure requirements.', 11, TRUE, 1.15, 'applied', 'v2.0'),
+    (12, 'C1', 1, 'Occupational licensing should be removed when it mainly restricts entry and cannot be shown to protect public safety.', 'Occupational licensing requires government permission to enter a profession, often through education, examination, or fee requirements.', 12, TRUE, 1.15, 'applied', 'v2.0'),
+    (13, 'C1', 1, 'A poorly managed airline should be allowed to enter bankruptcy rather than receive repeated public subsidies to preserve every route and job.', 'Bankruptcy can reorganize or liquidate a firm while applying established rules to creditors, workers, and customers.', 13, TRUE, 1.15, 'applied', 'v2.0'),
+    (14, 'C1', 1, 'Municipal broadband systems should face competition from private providers rather than receive an exclusive local monopoly.', 'Municipal broadband is internet service owned or operated by a local government.', 14, TRUE, 1.15, 'applied', 'v2.0'),
+    (15, 'C2', -1, 'Reducing large inequalities should be a central aim of economic policy.', NULL, 15, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (16, 'C2', -1, 'Society should guarantee everyone a decent material floor regardless of market income.', NULL, 16, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (17, 'C2', -1, 'Extreme concentrations of wealth undermine equal citizenship.', NULL, 17, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (18, 'C2', 1, 'People have a strong claim to keep lawfully acquired income and property.', NULL, 18, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (19, 'C2', 1, 'Unequal outcomes are acceptable when the rules are fair and opportunities are open.', NULL, 19, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (20, 'C2', 1, 'Passing property to one''s family is a legitimate extension of ownership.', NULL, 20, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (21, 'C2', -1, 'A universal basic income funded by higher taxes on top incomes should guarantee every adult a minimum cash floor.', 'A universal basic income is a regular cash payment provided without a work requirement or means test.', 21, TRUE, 1.15, 'applied', 'v2.0'),
+    (22, 'C2', -1, 'State funding should equalize per-pupil school resources across wealthy and poor districts, even when it requires transferring local tax revenue.', 'Fiscal equalization shifts revenue so jurisdictions with different tax bases can provide more comparable services.', 22, TRUE, 1.15, 'applied', 'v2.0'),
+    (23, 'C2', -1, 'Long-term care for older adults and people with severe disabilities should be publicly guaranteed and financed according to ability to pay.', 'Long-term care includes ongoing help with daily living in homes, community settings, or residential facilities.', 23, TRUE, 1.15, 'applied', 'v2.0'),
+    (24, 'C2', -1, 'Very large financial inheritances should face progressive taxation, with clearly defined exemptions for genuinely operating family businesses.', 'An estate tax is assessed on transferred wealth at death; progressive rates rise with the size of the taxable estate.', 24, TRUE, 1.15, 'applied', 'v2.0'),
+    (25, 'C2', 1, 'People who signed standard student loans should generally repay them rather than receive broad cancellation funded by taxpayers who did not borrow.', 'Broad cancellation forgives debt across a large class of borrowers rather than only in cases such as fraud, disability, or insolvency.', 25, TRUE, 1.15, 'applied', 'v2.0'),
+    (26, 'C2', 1, 'Owner-occupied homes should not be subject to an annual wealth tax merely because neighborhood values have risen.', 'An annual wealth tax is based on the value of owned assets rather than only on income or a sale.', 26, TRUE, 1.15, 'applied', 'v2.0'),
+    (27, 'C2', 1, 'Private firms should not be required to transfer ownership shares to employees as a condition of remaining in business.', 'Mandatory employee equity would require firms to transfer part of ownership, not merely share profits or offer optional stock plans.', 27, TRUE, 1.15, 'applied', 'v2.0'),
+    (28, 'C2', 1, 'A flat income tax with a generous personal exemption is fairer than progressively higher marginal tax rates.', 'A flat tax applies one marginal rate above an exemption; a progressive system applies higher marginal rates to higher income brackets.', 28, TRUE, 1.15, 'applied', 'v2.0'),
+    (29, 'C3', -1, 'Preventing serious harm can justify restrictions before an individual offense occurs.', NULL, 29, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (30, 'C3', -1, 'Law enforcement needs broad powers when public safety is under substantial threat.', NULL, 30, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (31, 'C3', -1, 'Maintaining public order sometimes requires limiting movement, assembly, or privacy.', NULL, 31, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (32, 'C3', 1, 'Government should need specific evidence before restricting a peaceful person''s liberty.', NULL, 32, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (33, 'C3', 1, 'Privacy should not be sacrificed merely because surveillance would make enforcement easier.', NULL, 33, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (34, 'C3', 1, 'Offensive or unpopular expression should remain legal unless it directly threatens others.', NULL, 34, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (35, 'C3', -1, 'A court should be able to order temporary inpatient treatment for a person in an acute psychotic crisis who poses a serious and immediate danger.', 'Involuntary inpatient treatment confines a person for care without consent and is normally subject to legal standards and review.', 35, TRUE, 1.15, 'applied', 'v2.0'),
+    (36, 'C3', -1, 'Authorities should be able to impose a narrowly limited quarantine on people confirmed to carry a highly lethal contagious disease.', 'Quarantine restricts the movement of people exposed to or carrying an infectious disease.', 36, TRUE, 1.15, 'applied', 'v2.0'),
+    (37, 'C3', -1, 'After several nights of organized violence, a city may impose a temporary nighttime curfew with judicial review.', 'A curfew restricts presence in public places during specified hours and may include exemptions for work, care, and emergencies.', 37, TRUE, 1.15, 'applied', 'v2.0'),
+    (38, 'C3', -1, 'Large public events may require universal bag screening even when there is no individualized suspicion.', 'Universal screening applies the same search procedure to all entrants rather than selecting individuals based on suspicion.', 38, TRUE, 1.15, 'applied', 'v2.0'),
+    (39, 'C3', 1, 'Police should need a warrant to obtain a person''s historical cellphone-location records.', 'Historical cellphone-location records can reconstruct where a device was located over time.', 39, TRUE, 1.15, 'applied', 'v2.0'),
+    (40, 'C3', 1, 'Property should not be permanently seized through civil forfeiture unless its owner is convicted or the government proves the property''s involvement in court.', 'Civil forfeiture allows property connected to alleged wrongdoing to be seized through a civil process that may not require an owner''s criminal conviction.', 40, TRUE, 1.15, 'applied', 'v2.0'),
+    (41, 'C3', 1, 'Emergency powers should expire automatically unless the legislature affirmatively renews them after public debate.', 'A sunset clause makes a legal power expire on a set date unless lawmakers renew it.', 41, TRUE, 1.15, 'applied', 'v2.0'),
+    (42, 'C3', 1, 'Adults should be permitted to possess small amounts of currently illegal drugs for personal use, subject to health and age regulations.', 'Decriminalization removes criminal penalties for possession; legalization also permits regulated production or sale.', 42, TRUE, 1.15, 'applied', 'v2.0'),
+    (43, 'C4', -1, 'National standards are necessary when local variation would produce unequal basic rights or services.', NULL, 43, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (44, 'C4', -1, 'Large-scale problems are usually handled best by a central government with broad coordinating authority.', NULL, 44, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (45, 'C4', -1, 'Higher levels of government should prevent local decisions that impose serious costs on neighboring regions.', NULL, 45, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (46, 'C4', 1, 'Decisions should normally be made by the smallest jurisdiction capable of handling them.', NULL, 46, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (47, 'C4', 1, 'Regions should be free to experiment with substantially different policies.', NULL, 47, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (48, 'C4', 1, 'Subnational governments should retain meaningful authority that the national government cannot easily revoke.', NULL, 48, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (49, 'C4', -1, 'National election-administration standards should govern ballot access, counting procedures, and post-election audits in every region.', 'Election administration includes registration, ballot handling, counting, certification, and auditing procedures.', 49, TRUE, 1.15, 'applied', 'v2.0'),
+    (50, 'C4', -1, 'The national government should be able to approve interstate transmission lines after a uniform review, even when individual localities object.', 'Transmission lines move electricity over long distances and often cross many local jurisdictions.', 50, TRUE, 1.15, 'applied', 'v2.0'),
+    (51, 'C4', -1, 'A national disaster agency should be able to direct resources and personnel across state or provincial boundaries during a major catastrophe.', 'Central command allows one authority to allocate scarce personnel and equipment across jurisdictions.', 51, TRUE, 1.15, 'applied', 'v2.0'),
+    (52, 'C4', -1, 'A national minimum school-funding floor should prevent poor regions from offering substantially fewer basic educational resources.', 'A funding floor sets a national minimum while allowing regions to spend more.', 52, TRUE, 1.15, 'applied', 'v2.0'),
+    (53, 'C4', 1, 'States or provinces should set most school curricula rather than follow a single national curriculum.', 'Curriculum authority determines required subjects, standards, and instructional frameworks.', 53, TRUE, 1.15, 'applied', 'v2.0'),
+    (54, 'C4', 1, 'Municipalities should control zoning and housing density unless their decisions create clearly demonstrated harms outside their borders.', 'Zoning regulates land uses, building types, and development density.', 54, TRUE, 1.15, 'applied', 'v2.0'),
+    (55, 'C4', 1, 'Indigenous or tribal governments should have primary authority over land use and natural resources within their recognized territories.', 'Primary authority means other governments intervene only under clearly defined legal exceptions.', 55, TRUE, 1.15, 'applied', 'v2.0'),
+    (56, 'C4', 1, 'Regions should be free to adopt different tax and social-policy models so voters can compare real alternatives.', 'Policy experimentation allows jurisdictions to test different approaches under comparable national rules.', 56, TRUE, 1.15, 'applied', 'v2.0'),
+    (57, 'C5', -1, 'Longstanding traditions often contain social knowledge that reformers underestimate.', NULL, 57, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (58, 'C5', -1, 'Stable family and civic institutions are more important than constant adaptation to changing preferences.', NULL, 58, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (59, 'C5', -1, 'Rapid cultural change can weaken the shared norms needed for social trust.', NULL, 59, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (60, 'C5', 1, 'Social norms should change when inherited roles unnecessarily restrict people''s lives.', NULL, 60, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (61, 'C5', 1, 'Institutions should revise traditions that exclude people without sufficient justification.', NULL, 61, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (62, 'C5', 1, 'New family and cultural forms can be as socially valuable as inherited ones.', NULL, 62, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (63, 'C5', -1, 'Public schools should emphasize a shared national language even while offering additional support to students who speak other languages at home.', 'A shared-language policy can coexist with transitional or supplemental multilingual support.', 63, TRUE, 1.15, 'applied', 'v2.0'),
+    (64, 'C5', -1, 'Communities should generally retain historic monuments and civic rituals while adding context rather than removing them when values change.', 'Contextualization adds interpretation or counter-perspectives without removing the original object or ritual.', 64, TRUE, 1.15, 'applied', 'v2.0'),
+    (65, 'C5', -1, 'The law should make it harder to dissolve a marriage when dependent children are involved, except in cases of abuse or abandonment.', 'No-fault divorce allows dissolution without proving wrongdoing; this scenario asks whether additional procedural barriers should apply when children are involved.', 65, TRUE, 1.15, 'applied', 'v2.0'),
+    (66, 'C5', -1, 'Public institutions may preserve longstanding religiously rooted holidays and ceremonies when participation is voluntary.', 'A religiously rooted civic practice may retain historical meaning even when formal participation is optional.', 66, TRUE, 1.15, 'applied', 'v2.0'),
+    (67, 'C5', 1, 'Adoption eligibility should be based on caregiving ability rather than marital status, sexual orientation, or whether a household fits a traditional family model.', 'Adoption screening can evaluate safety, stability, and caregiving capacity without requiring one household structure.', 67, TRUE, 1.15, 'applied', 'v2.0'),
+    (68, 'C5', 1, 'Adults should have access to no-fault divorce without proving misconduct by a spouse.', 'No-fault divorce permits a marriage to end without proving adultery, abandonment, or another legal wrong.', 68, TRUE, 1.15, 'applied', 'v2.0'),
+    (69, 'C5', 1, 'Official civic ceremonies should be revised over time to include secular and minority traditions rather than preserve one inherited form.', 'Inclusive redesign changes shared public ceremonies rather than merely adding private alternatives.', 69, TRUE, 1.15, 'applied', 'v2.0'),
+    (70, 'C5', 1, 'Schools should teach that family and household arrangements have changed across history without presenting one current model as universally preferred.', 'The question concerns descriptive and normative framing, not whether schools must endorse every arrangement.', 70, TRUE, 1.15, 'applied', 'v2.0'),
+    (71, 'C6', -1, 'People legitimately owe stronger duties to family, community, and fellow citizens than to strangers.', NULL, 71, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (72, 'C6', -1, 'Shared membership and contribution can create special claims on common resources.', NULL, 72, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (73, 'C6', -1, 'A community may preserve benefits for its members without treating outsiders as morally inferior.', NULL, 73, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (74, 'C6', 1, 'A person''s nationality, ancestry, or distance should not reduce the moral weight of their basic needs.', NULL, 74, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (75, 'C6', 1, 'Aid should be allocated primarily according to need rather than group membership.', NULL, 75, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (76, 'C6', 1, 'Public institutions should apply the same basic rules across ethnic, religious, and national lines.', NULL, 76, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (77, 'C6', -1, 'When public housing is scarce, long-term local residents may receive priority among applicants with comparable levels of need.', 'A residency preference ranks otherwise similar applicants by length or continuity of local residence.', 77, TRUE, 1.15, 'applied', 'v2.0'),
+    (78, 'C6', -1, 'Veterans may receive a modest preference in public hiring because military service creates a special reciprocal obligation.', 'A modest preference can affect ranking without guaranteeing selection over substantially better-qualified applicants.', 78, TRUE, 1.15, 'applied', 'v2.0'),
+    (79, 'C6', -1, 'A locally funded mutual-aid program may reserve some benefits for people who have contributed to it over time.', 'Mutual-aid programs pool contributions among members and distribute benefits under agreed rules.', 79, TRUE, 1.15, 'applied', 'v2.0'),
+    (80, 'C6', -1, 'A diaspora charity may reasonably prioritize members of its own dispersed community before assisting unrelated groups.', 'A diaspora is a community dispersed from an ancestral homeland while maintaining shared ties.', 80, TRUE, 1.15, 'applied', 'v2.0'),
+    (81, 'C6', 1, 'Refugee admissions should prioritize vulnerability and danger rather than cultural similarity to the receiving country.', 'Vulnerability criteria can include persecution risk, medical need, family separation, and immediate danger.', 81, TRUE, 1.15, 'applied', 'v2.0'),
+    (82, 'C6', 1, 'After domestic high-risk groups are protected, surplus vaccines should be distributed internationally according to medical need.', 'The domestic threshold is satisfied before the question turns to allocation of remaining supply.', 82, TRUE, 1.15, 'applied', 'v2.0'),
+    (83, 'C6', 1, 'Public hiring and services should apply the same eligibility rules regardless of an applicant''s ethnicity, religion, or ancestry.', 'Uniform eligibility does not preclude accommodations tied to disability, language access, or other functional needs.', 83, TRUE, 1.15, 'applied', 'v2.0'),
+    (84, 'C6', 1, 'Humanitarian aid should be allocated where it prevents the most severe suffering rather than primarily to allied countries.', 'This contrasts humanitarian need with strategic or alliance-based allocation.', 84, TRUE, 1.15, 'applied', 'v2.0'),
+    (85, 'C7', -1, 'Domestic voters should retain final authority over laws that govern them.', NULL, 85, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (86, 'C7', -1, 'International agreements should not permanently bind a country against sustained democratic opposition.', NULL, 86, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (87, 'C7', -1, 'Nations need the ability to act unilaterally when common institutions fail.', NULL, 87, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (88, 'C7', 1, 'Countries should accept binding common rules when unilateral action cannot solve shared problems.', NULL, 88, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (89, 'C7', 1, 'Some sovereignty should be pooled in institutions capable of enforcing international commitments.', NULL, 89, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (90, 'C7', 1, 'International courts and regulators can legitimately constrain national governments.', NULL, 90, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (91, 'C7', -1, 'A country should retain an independent currency rather than join a monetary union that limits its control over interest rates and public spending.', 'A monetary union uses a shared currency and normally centralizes monetary policy.', 91, TRUE, 1.15, 'applied', 'v2.0'),
+    (92, 'C7', -1, 'National food-safety rules should not be weakened merely because an international trade tribunal considers them a barrier to commerce.', 'Trade tribunals assess whether domestic rules violate treaty commitments; they do not necessarily determine the scientific merits of the rule.', 92, TRUE, 1.15, 'applied', 'v2.0'),
+    (93, 'C7', -1, 'Foreign purchases of strategically important infrastructure should be subject to national-security screening even when treaties favor open investment.', 'Investment screening reviews foreign acquisitions for security or resilience risks.', 93, TRUE, 1.15, 'applied', 'v2.0'),
+    (94, 'C7', -1, 'A government should be able to withdraw from a treaty when its voters reject the continuing obligations.', 'Treaties often include withdrawal procedures and notice periods.', 94, TRUE, 1.15, 'applied', 'v2.0'),
+    (95, 'C7', 1, 'Countries should accept a common minimum corporate-tax floor to reduce profit shifting between jurisdictions.', 'A minimum corporate-tax floor reduces incentives to book profits in very low-tax jurisdictions.', 95, TRUE, 1.15, 'applied', 'v2.0'),
+    (96, 'C7', 1, 'Member states in a regional union should share responsibility for asylum claims according to population and capacity.', 'Burden sharing allocates responsibilities across jurisdictions rather than leaving claims where migrants first arrive.', 96, TRUE, 1.15, 'applied', 'v2.0'),
+    (97, 'C7', 1, 'Cross-border supply chains should be subject to enforceable international labor standards.', 'Enforceable standards may use inspections, complaints, trade consequences, or corporate liability.', 97, TRUE, 1.15, 'applied', 'v2.0'),
+    (98, 'C7', 1, 'Countries should accept binding international rules for reporting dangerous disease outbreaks and sharing pathogen data.', 'Pathogen data can support diagnosis, vaccines, and outbreak tracking but may carry economic or security concerns.', 98, TRUE, 1.15, 'applied', 'v2.0'),
+    (99, 'C8', -1, 'New technologies should face strong precaution when their harms could be irreversible.', NULL, 99, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (100, 'C8', -1, 'Resilience and human control are often more important than maximum technological efficiency.', NULL, 100, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (101, 'C8', -1, 'Some technologies create risks that society cannot responsibly manage after deployment.', NULL, 101, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (102, 'C8', 1, 'Innovation should generally proceed unless there is clear evidence of serious harm.', NULL, 102, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (103, 'C8', 1, 'Technological progress can solve constraints that political redistribution alone cannot.', NULL, 103, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (104, 'C8', 1, 'Society should accept some disruption and uncertainty to gain the long-term benefits of innovation.', NULL, 104, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (105, 'C8', -1, 'Heritable editing of human embryos should remain prohibited until safety, consent across generations, and governance problems are substantially resolved.', 'Heritable editing changes DNA in ways that may be passed to future generations.', 105, TRUE, 1.15, 'applied', 'v2.0'),
+    (106, 'C8', -1, 'Critical infrastructure should retain manual and offline backups even when full automation would be cheaper and more efficient.', 'Offline and manual backups reduce dependence on connected automated systems during cyberattack or system failure.', 106, TRUE, 1.15, 'applied', 'v2.0'),
+    (107, 'C8', -1, 'Routine police use of facial recognition in public spaces should be prohibited until accuracy, bias, and abuse risks are demonstrably controlled.', 'Facial-recognition systems compare images to stored templates and can produce false matches that vary across populations.', 107, TRUE, 1.15, 'applied', 'v2.0'),
+    (108, 'C8', -1, 'Large outdoor geoengineering experiments should require international authorization and strong evidence that harms are reversible.', 'Geoengineering deliberately alters large-scale Earth systems to affect climate.', 108, TRUE, 1.15, 'applied', 'v2.0'),
+    (109, 'C8', 1, 'Cities should deploy autonomous buses once independent evidence shows they are safer than human-driven fleets.', 'Autonomous buses operate without a human driver but may still use remote supervision and defined routes.', 109, TRUE, 1.15, 'applied', 'v2.0'),
+    (110, 'C8', 1, 'Gene-edited crops should be approved when they pass the same evidence-based safety standards as conventionally bred crops.', 'Gene editing changes selected DNA sequences and differs from adding genes from unrelated organisms.', 110, TRUE, 1.15, 'applied', 'v2.0'),
+    (111, 'C8', 1, 'Nuclear power should be expanded when modern designs can meet transparent safety and waste-management requirements.', 'Nuclear expansion can include existing reactor life extension, new large reactors, or smaller modular designs.', 111, TRUE, 1.15, 'applied', 'v2.0'),
+    (112, 'C8', 1, 'Clinicians should be allowed to use validated AI diagnostic systems with human oversight rather than wait for decades of additional experience.', 'A diagnostic AI estimates conditions from clinical data; human oversight retains a professional responsible for the final decision.', 112, TRUE, 1.15, 'applied', 'v2.0'),
+    (113, 'C9', -1, 'Environmental protection is ultimately justified by its contribution to human well-being.', NULL, 113, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (114, 'C9', -1, 'Human livelihoods should usually take priority when they directly conflict with ecological preservation.', NULL, 114, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (115, 'C9', -1, 'Nature may be responsibly transformed to meet important human needs.', NULL, 115, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (116, 'C9', 1, 'Species and ecosystems have value independent of their usefulness to people.', NULL, 116, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (117, 'C9', 1, 'Future generations and nonhuman life create moral duties for people living today.', NULL, 117, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (118, 'C9', 1, 'Some natural places should remain undeveloped even when development would produce substantial economic benefits.', NULL, 118, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (119, 'C9', -1, 'A renewable-energy transmission line may cross already disturbed habitat when it is necessary to provide reliable low-carbon power to large populations.', 'Disturbed habitat has already been substantially altered but may still retain ecological value.', 119, TRUE, 1.15, 'applied', 'v2.0'),
+    (120, 'C9', -1, 'Predators that repeatedly kill livestock may be lethally controlled when nonlethal measures have failed.', 'Nonlethal measures can include fencing, guard animals, relocation, and compensation.', 120, TRUE, 1.15, 'applied', 'v2.0'),
+    (121, 'C9', -1, 'Housing may be built on degraded habitat if developers restore comparable habitat elsewhere and prevent net pollution.', 'A habitat offset funds restoration or protection elsewhere to compensate for ecological loss.', 121, TRUE, 1.15, 'applied', 'v2.0'),
+    (122, 'C9', -1, 'Coastal flood defenses for dense communities should take priority over preserving every natural shoreline in its existing form.', 'Flood defenses can include seawalls, barriers, elevation, dunes, wetlands, and managed retreat.', 122, TRUE, 1.15, 'applied', 'v2.0'),
+    (123, 'C9', 1, 'Farming practices that cause severe, avoidable animal suffering should be phased out even if meat becomes more expensive.', 'Animal-welfare regulation can address confinement, handling, transport, and slaughter practices.', 123, TRUE, 1.15, 'applied', 'v2.0'),
+    (124, 'C9', 1, 'Mining should be denied in an intact watershed whose ecological functions cannot realistically be replaced.', 'A watershed includes the land and water systems draining to a shared river, lake, or aquifer.', 124, TRUE, 1.15, 'applied', 'v2.0'),
+    (125, 'C9', 1, 'Governments should restore wetlands and floodplains even when doing so removes some land from future development.', 'Wetlands and floodplains can reduce floods, filter water, and support habitat.', 125, TRUE, 1.15, 'applied', 'v2.0'),
+    (126, 'C9', 1, 'Groundwater extraction should be limited when continued pumping would irreversibly damage rivers, springs, or dependent ecosystems.', 'Groundwater pumping can reduce connected surface flows and permanently compact aquifers.', 126, TRUE, 1.15, 'applied', 'v2.0'),
+    (127, 'C10', -1, 'Some actions are objectively wrong regardless of what any culture or majority believes.', NULL, 127, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (128, 'C10', -1, 'Moral truth is not created by social approval or historical circumstance.', NULL, 128, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (129, 'C10', -1, 'Universal principles can legitimately be used to judge inherited customs.', NULL, 129, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (130, 'C10', 1, 'Moral standards are substantially shaped by culture and historical experience.', NULL, 130, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (131, 'C10', 1, 'There is no fully neutral standpoint outside human practices from which all moral disputes can be settled.', NULL, 131, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (132, 'C10', 1, 'Societies can create new moral standards as their understanding and circumstances change.', NULL, 132, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (133, 'C10', -1, 'Forced marriage is wrong even when families and local custom strongly approve of it.', 'Forced marriage lacks the free and ongoing consent of at least one person.', 133, TRUE, 1.15, 'applied', 'v2.0'),
+    (134, 'C10', -1, 'Torture remains morally wrong even when a large majority believes it would protect the country.', 'Torture intentionally inflicts severe pain or suffering to punish, intimidate, or obtain information.', 134, TRUE, 1.15, 'applied', 'v2.0'),
+    (135, 'C10', -1, 'Deliberately targeting civilians in war is wrong regardless of the cause being defended.', 'The principle of distinction requires separating military targets from civilians.', 135, TRUE, 1.15, 'applied', 'v2.0'),
+    (136, 'C10', -1, 'Using forced labor is unethical regardless of whether it is legal or culturally accepted where it occurs.', 'Forced labor is work extracted through coercion, threats, or inability to leave.', 136, TRUE, 1.15, 'applied', 'v2.0'),
+    (137, 'C10', 1, 'Societies may legitimately adopt different end-of-life practices because ideas about dignity and obligation are partly shaped by culture.', 'End-of-life practices can include treatment refusal, assisted dying, family decision roles, and definitions of appropriate care.', 137, TRUE, 1.15, 'applied', 'v2.0'),
+    (138, 'C10', 1, 'There is no single objectively correct model for how extended families should divide caregiving and inheritance responsibilities.', 'Extended-family systems assign duties across relatives in different ways.', 138, TRUE, 1.15, 'applied', 'v2.0'),
+    (139, 'C10', 1, 'Public policy should allow substantial moral disagreement about reproductive technology when consenting adults are involved and clear harm is uncertain.', 'Reproductive technologies can include donor conception, surrogacy, embryo selection, and fertility treatment.', 139, TRUE, 1.15, 'applied', 'v2.0'),
+    (140, 'C10', 1, 'Schools should present major ethical controversies as disputes shaped by different traditions rather than teach that one framework has settled every issue.', 'A plural curriculum can explain competing frameworks without treating every claim as equally well supported.', 140, TRUE, 1.15, 'applied', 'v2.0'),
+    (141, 'C11', -1, 'A coherent moral framework should be able to rank competing values in every case.', NULL, 141, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (142, 'C11', -1, 'Even difficult moral conflicts have a best answer in principle.', NULL, 142, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (143, 'C11', -1, 'Public institutions need a stable hierarchy of values rather than case-by-case balancing.', NULL, 143, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (144, 'C11', 1, 'Several values can be genuine and important without being reducible to one master principle.', NULL, 144, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (145, 'C11', 1, 'Reasonable people can continue to disagree even when they share the relevant facts.', NULL, 145, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (146, 'C11', 1, 'Some moral conflicts involve unavoidable loss because no option fully honors every value.', NULL, 146, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (147, 'C11', -1, 'When constitutional rights conflict, courts should apply a stable hierarchy rather than balance the values differently in each case.', 'A fixed hierarchy gives one right presumptive or categorical priority over another.', 147, TRUE, 1.15, 'applied', 'v2.0'),
+    (148, 'C11', -1, 'Emergency medical triage should follow one transparent priority rule rather than combine several competing principles case by case.', 'Triage rules may prioritize survival probability, urgency, life-years, waiting time, or equal chance.', 148, TRUE, 1.15, 'applied', 'v2.0'),
+    (149, 'C11', -1, 'Public institutions should adopt one consistent definition of human dignity across criminal, medical, and family law.', 'A single definition would guide multiple legal fields rather than allowing context-specific meanings.', 149, TRUE, 1.15, 'applied', 'v2.0'),
+    (150, 'C11', -1, 'When equal treatment conflicts with religious custom, equal treatment should have presumptive priority rather than be balanced anew in every case.', 'A presumptive priority can still allow narrow exceptions when the competing burden is unusually severe.', 150, TRUE, 1.15, 'applied', 'v2.0'),
+    (151, 'C11', 1, 'Conscientious exemptions should sometimes be allowed when they protect a serious moral commitment without imposing substantial harm on others.', 'A conscientious exemption excuses a person or institution from a generally applicable rule for a serious moral or religious reason.', 151, TRUE, 1.15, 'applied', 'v2.0'),
+    (152, 'C11', 1, 'End-of-life law should offer more than one ethically defensible option rather than enforce a single view of dignity.', 'Multiple options can include continued treatment, refusal, palliative sedation, or other legally defined choices.', 152, TRUE, 1.15, 'applied', 'v2.0'),
+    (153, 'C11', 1, 'Land-use decisions should openly balance housing, heritage, livelihoods, and ecology rather than treat one value as overriding in every case.', 'Multi-criteria balancing explicitly weighs several goals instead of maximizing only one.', 153, TRUE, 1.15, 'applied', 'v2.0'),
+    (154, 'C11', 1, 'Courts should acknowledge that some rights conflicts involve genuine losses on both sides rather than pretend one value always fully defeats the other.', 'Proportional balancing asks whether a restriction is suitable, necessary, and justified relative to its burden.', 154, TRUE, 1.15, 'applied', 'v2.0'),
+    (155, 'F1', -1, 'Durable reform usually comes from incremental changes that institutions can absorb.', NULL, 155, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (156, 'F1', -1, 'Rapid transformation often creates unintended harms greater than the problems it addresses.', NULL, 156, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (157, 'F1', -1, 'Stability and continuity have value even when significant reform is needed.', NULL, 157, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (158, 'F1', 1, 'Entrenched systems sometimes require rapid structural change rather than gradual adjustment.', NULL, 158, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (159, 'F1', 1, 'Disruption can be legitimate when ordinary channels consistently protect injustice.', NULL, 159, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (160, 'F1', 1, 'Compromise can preserve a harmful system by relieving the pressure for deeper reform.', NULL, 160, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (161, 'F1', -1, 'A national social program should be tested in several regions and revised before being implemented everywhere.', 'A pilot tests a policy on a limited scale before wider adoption.', 161, TRUE, 1.15, 'applied', 'v2.0'),
+    (162, 'F1', -1, 'A movement should accept a meaningful partial emissions law now rather than reject it while waiting for a complete climate package.', 'The scenario assumes the partial law creates a real improvement but does not achieve the movement''s full goal.', 162, TRUE, 1.15, 'applied', 'v2.0'),
+    (163, 'F1', -1, 'Police reform should proceed through staged standards, training, and oversight unless evidence shows the institutions cannot be repaired.', 'Staged reform changes rules and oversight over time rather than abolishing and replacing the institution at once.', 163, TRUE, 1.15, 'applied', 'v2.0'),
+    (164, 'F1', -1, 'Employees who uncover wrongdoing should normally use protected reporting channels before releasing confidential material publicly.', 'Protected channels may include inspectors general, regulators, unions, courts, or designated compliance offices.', 164, TRUE, 1.15, 'applied', 'v2.0'),
+    (165, 'F1', 1, 'A constitutional convention may be justified when ordinary amendment procedures repeatedly protect a failing political system.', 'A constitutional convention is a specially authorized body that proposes broad changes to fundamental political rules.', 165, TRUE, 1.15, 'applied', 'v2.0'),
+    (166, 'F1', 1, 'A general strike can be legitimate when normal bargaining and elections cannot overcome entrenched labor abuses.', 'A general strike is a broad work stoppage across multiple industries or sectors.', 166, TRUE, 1.15, 'applied', 'v2.0'),
+    (167, 'F1', 1, 'A movement may reject a partial compromise when accepting it would remove the pressure needed for structural reform.', 'The question assumes the partial measure provides some benefit but may reduce momentum for broader change.', 167, TRUE, 1.15, 'applied', 'v2.0'),
+    (168, 'F1', 1, 'A deeply discredited agency may need to be abolished and rebuilt rather than improved through another round of internal reforms.', 'Abolition and rebuilding replace the organization, mandate, and operating rules rather than only changing leadership or procedures.', 168, TRUE, 1.15, 'applied', 'v2.0'),
+    (169, 'F2', -1, 'Professional norms and oversight usually constrain misconduct within major institutions.', NULL, 169, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (170, 'F2', -1, 'Institutions that expose errors and correct them deserve a presumption of good faith.', NULL, 170, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (171, 'F2', -1, 'Stable institutions generally produce more reliable decisions than improvised alternatives.', NULL, 171, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (172, 'F2', 1, 'Powerful institutions often protect their own interests while presenting their choices as neutral.', NULL, 172, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (173, 'F2', 1, 'Official expertise should be independently verifiable rather than accepted on authority.', NULL, 173, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (174, 'F2', 1, 'Transparency and external audit are more reliable than institutional assurances.', NULL, 174, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (175, 'F2', -1, 'A certified election result should be accepted after transparent procedures, bipartisan observation, and a completed independent audit.', 'An election audit checks records or paper ballots using procedures independent of the original count.', 175, TRUE, 1.15, 'applied', 'v2.0'),
+    (176, 'F2', -1, 'When several independent research groups converge on the same finding, public policy should generally treat that consensus as reliable.', 'Convergent evidence comes from separate teams, methods, or datasets reaching compatible conclusions.', 176, TRUE, 1.15, 'applied', 'v2.0'),
+    (177, 'F2', -1, 'Judges should be presumed to be acting in good faith unless evidence shows corruption or undisclosed conflicts.', 'A presumption of good faith can be rebutted by evidence and does not prevent appeals or oversight.', 177, TRUE, 1.15, 'applied', 'v2.0'),
+    (178, 'F2', -1, 'A public-health agency may receive temporary operational discretion during an outbreak when it publishes its evidence and decisions for review.', 'Operational discretion allows an agency to act within delegated limits without obtaining new legislative approval for every step.', 178, TRUE, 1.15, 'applied', 'v2.0'),
+    (179, 'F2', 1, 'Regulators should be required to publish models, assumptions, and uncertainty ranges before major rules take effect.', 'Models and uncertainty ranges show how projected effects depend on assumptions and incomplete evidence.', 179, TRUE, 1.15, 'applied', 'v2.0'),
+    (180, 'F2', 1, 'Clinical-trial data supporting public recommendations should be available for independent reanalysis, not only summarized by sponsors or agencies.', 'Independent reanalysis checks whether results depend on analytic choices, exclusions, or reporting.', 180, TRUE, 1.15, 'applied', 'v2.0'),
+    (181, 'F2', 1, 'Senior officials should face strict cooling-off periods before taking paid roles in industries they regulated.', 'A cooling-off period delays lobbying or employment connected to an official''s former responsibilities.', 181, TRUE, 1.15, 'applied', 'v2.0'),
+    (182, 'F2', 1, 'Police and welfare algorithms should be subject to outside audits because agencies cannot be trusted to assess their own systems.', 'An outside audit can evaluate accuracy, bias, security, documentation, and appeal procedures.', 182, TRUE, 1.15, 'applied', 'v2.0'),
+    (183, 'F3', -1, 'Wrongdoers deserve punishment proportionate to the seriousness of their offense.', NULL, 183, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (184, 'F3', -1, 'Public condemnation and punishment help reaffirm the moral boundaries of a community.', NULL, 184, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (185, 'F3', -1, 'Some offenses merit punishment even when it does not rehabilitate the offender.', NULL, 185, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (186, 'F3', 1, 'Justice should focus primarily on repairing harm and reintegrating people into society.', NULL, 186, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (187, 'F3', 1, 'Victims and affected communities should have a meaningful role in resolving wrongdoing.', NULL, 187, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (188, 'F3', 1, 'Accountability can be achieved through restitution, treatment, and changed behavior rather than punishment alone.', NULL, 188, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (189, 'F3', -1, 'A professional who deliberately defrauds clients should lose their license even after full repayment and genuine remorse.', 'Professional discipline protects the public and can also express condemnation independent of criminal punishment.', 189, TRUE, 1.15, 'applied', 'v2.0'),
+    (190, 'F3', -1, 'A commander responsible for war crimes should face punishment even if prosecution complicates a peace agreement.', 'Peace agreements sometimes offer amnesty or reduced punishment in exchange for ending conflict.', 190, TRUE, 1.15, 'applied', 'v2.0'),
+    (191, 'F3', -1, 'A repeat violent offender may deserve a long prison sentence even when rehabilitation appears unlikely.', 'This scenario separates deserved punishment and incapacitation from confidence in rehabilitation.', 191, TRUE, 1.15, 'applied', 'v2.0'),
+    (192, 'F3', -1, 'A public official who knowingly sells decisions for bribes should serve prison time rather than receive only restitution and a ban from office.', 'Restitution returns illicit gains; a ban from office prevents future public service.', 192, TRUE, 1.15, 'applied', 'v2.0'),
+    (193, 'F3', 1, 'A juvenile who commits a serious assault should be offered intensive treatment, restitution, and supervised reintegration rather than automatically being sentenced as an adult.', 'A restorative sentence can include confinement or supervision while emphasizing treatment, repair, and reintegration.', 193, TRUE, 1.15, 'applied', 'v2.0'),
+    (194, 'F3', 1, 'A company that causes major pollution should be required to repair the damage, compensate communities, and submit to monitoring rather than rely mainly on punitive fines.', 'Remediation repairs environmental damage; monitoring verifies future compliance.', 194, TRUE, 1.15, 'applied', 'v2.0'),
+    (195, 'F3', 1, 'A school response to serious student violence should include victim participation, treatment, and a safety plan rather than rely only on exclusion.', 'Victim participation must be voluntary and can occur without face-to-face contact.', 195, TRUE, 1.15, 'applied', 'v2.0'),
+    (196, 'F3', 1, 'A truth commission may offer reduced punishment for full disclosure and victim reparations after a civil conflict.', 'Truth commissions investigate patterns of abuse and may trade reduced punishment for disclosure, acknowledgment, and reparations.', 196, TRUE, 1.15, 'applied', 'v2.0'),
+    (197, 'F4', -1, 'Elected majorities should normally prevail over judges and unelected constitutional bodies.', NULL, 197, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (198, 'F4', -1, 'A sustained democratic majority should be able to change most fundamental rules.', NULL, 198, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (199, 'F4', -1, 'Minority protections should not become a general excuse for overriding ordinary democratic decisions.', NULL, 199, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (200, 'F4', 1, 'Majority rule must be limited by rights that majorities cannot easily remove.', NULL, 200, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (201, 'F4', 1, 'Courts may legitimately invalidate laws that violate constitutional protections.', NULL, 201, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (202, 'F4', 1, 'Fundamental political rules should require broader agreement than a temporary majority.', NULL, 202, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (203, 'F4', -1, 'Elected legislatures, not courts, should normally have the final word on contested social policy.', 'Legislative supremacy gives elected lawmakers final authority, subject to elections rather than constitutional invalidation by courts.', 203, TRUE, 1.15, 'applied', 'v2.0'),
+    (204, 'F4', -1, 'A constitution should be amendable through two successive national majority votes without requiring a supermajority.', 'A supermajority requires more than half, such as two-thirds, to approve a change.', 204, TRUE, 1.15, 'applied', 'v2.0'),
+    (205, 'F4', -1, 'A national referendum should be able to reverse a policy created by judicial interpretation when voters clearly reject it.', 'A popular override allows voters to reverse a court-created rule through a defined democratic process.', 205, TRUE, 1.15, 'applied', 'v2.0'),
+    (206, 'F4', -1, 'Election rules may be changed by an elected majority after public debate rather than being insulated from ordinary politics.', 'Insulation can require independent commissions, supermajorities, or constitutional rules.', 206, TRUE, 1.15, 'applied', 'v2.0'),
+    (207, 'F4', 1, 'Courts should invalidate a popular law that denies equal civil rights to a religious or ethnic minority.', 'Constitutional invalidation prevents enforcement even when the law was democratically enacted.', 207, TRUE, 1.15, 'applied', 'v2.0'),
+    (208, 'F4', 1, 'Suspending core civil liberties during an emergency should require a legislative supermajority and prompt judicial review.', 'Prompt review requires courts to assess legality during, not only after, the emergency.', 208, TRUE, 1.15, 'applied', 'v2.0'),
+    (209, 'F4', 1, 'Independent election-administration rules should be protected from unilateral change by the party currently in power.', 'Entrenchment makes rules harder to change than ordinary legislation.', 209, TRUE, 1.15, 'applied', 'v2.0'),
+    (210, 'F4', 1, 'Fundamental constitutional amendments should require broader and more durable agreement than a single election majority.', 'Broader agreement may require supermajorities, regional consent, or approval across multiple elections.', 210, TRUE, 1.15, 'applied', 'v2.0'),
+    (211, 'F5', -1, 'Experts should advise democratic leaders but should not make value-laden public decisions for them.', NULL, 211, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (212, 'F5', -1, 'Democratic accountability is more important than technically optimal policy.', NULL, 212, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (213, 'F5', -1, 'Elected officials should retain authority even when professional bodies strongly disagree.', NULL, 213, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (214, 'F5', 1, 'Technical decisions should often be delegated to qualified professionals insulated from day-to-day politics.', NULL, 214, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (215, 'F5', 1, 'Expertise can justify limiting the discretion of elected officials in specialized fields.', NULL, 215, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (216, 'F5', 1, 'Evidence-based standards should constrain popular preferences when the public cannot easily evaluate complex risks.', NULL, 216, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (217, 'F5', -1, 'Elected lawmakers should decide whether government may use AI surveillance rather than delegate the value judgment to a technical commission.', 'A technical commission can assess feasibility and risk, but the question concerns who makes the final normative choice.', 217, TRUE, 1.15, 'applied', 'v2.0'),
+    (218, 'F5', -1, 'Local voters should make the final land-use tradeoff after experts present the evidence.', 'Experts provide analysis, while voters retain final authority over the tradeoff.', 218, TRUE, 1.15, 'applied', 'v2.0'),
+    (219, 'F5', -1, 'Civilian elected leaders should determine military objectives rather than defer to commanders because the issue is technically complex.', 'Civilian control gives elected authorities final responsibility for political objectives and acceptable risk.', 219, TRUE, 1.15, 'applied', 'v2.0'),
+    (220, 'F5', -1, 'Elected school boards should set curriculum priorities rather than delegate them entirely to academic specialists.', 'Curriculum priorities combine technical pedagogy with public judgments about goals and content.', 220, TRUE, 1.15, 'applied', 'v2.0'),
+    (221, 'F5', 1, 'An independent central bank should set short-term interest rates without needing approval from elected officials.', 'Central-bank independence separates routine monetary decisions from direct electoral control.', 221, TRUE, 1.15, 'applied', 'v2.0'),
+    (222, 'F5', 1, 'A scientific public-health body should set vaccine schedules using published evidence rather than popular vote.', 'Vaccine schedules determine recommended timing and eligibility based on disease risk and evidence.', 222, TRUE, 1.15, 'applied', 'v2.0'),
+    (223, 'F5', 1, 'An independent grid operator should be able to order reliability investments that elected officials may find politically unpopular.', 'A grid operator coordinates electricity supply and transmission to prevent instability and outages.', 223, TRUE, 1.15, 'applied', 'v2.0'),
+    (224, 'F5', 1, 'Exposure limits for toxic chemicals should be set by technical panels using transparent risk methods.', 'Exposure limits estimate acceptable risk using toxicology, epidemiology, and uncertainty factors.', 224, TRUE, 1.15, 'applied', 'v2.0'),
+    (225, 'F6', -1, 'Citizens should decide major public questions directly whenever practical.', NULL, 225, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (226, 'F6', -1, 'Referendums and initiatives are necessary checks on a self-protecting political class.', NULL, 226, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (227, 'F6', -1, 'Voters should be able to recall officials who lose public confidence before the next scheduled election.', NULL, 227, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (228, 'F6', 1, 'Representatives can weigh evidence and negotiate tradeoffs better than mass referendums.', NULL, 228, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (229, 'F6', 1, 'Complex policies should be shaped through deliberation and amendment rather than a single popular vote.', NULL, 229, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (230, 'F6', 1, 'Elected representatives should have discretion to make decisions that differ from current polling.', NULL, 230, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (231, 'F6', -1, 'Voters should be able to legalize or prohibit major policies through ballot initiatives even when the legislature disagrees.', 'A ballot initiative lets voters enact or repeal law directly after a petition process.', 231, TRUE, 1.15, 'applied', 'v2.0'),
+    (232, 'F6', -1, 'A mayor should be subject to recall before the next election when a petition reaches a high signature threshold.', 'A recall election asks voters whether to remove an official before the scheduled end of the term.', 232, TRUE, 1.15, 'applied', 'v2.0'),
+    (233, 'F6', -1, 'Major long-term public borrowing should require approval in a referendum.', 'Public borrowing commits future revenue to repay principal and interest.', 233, TRUE, 1.15, 'applied', 'v2.0'),
+    (234, 'F6', -1, 'Residents should directly vote on a meaningful share of the municipal budget.', 'Participatory budgeting lets residents propose and vote on specified public expenditures.', 234, TRUE, 1.15, 'applied', 'v2.0'),
+    (235, 'F6', 1, 'Complex tax reform should be decided by elected representatives after hearings and amendment rather than by a single up-or-down referendum.', 'Hearings and amendment allow provisions to be revised separately before final passage.', 235, TRUE, 1.15, 'applied', 'v2.0'),
+    (236, 'F6', 1, 'Legislatures should be allowed to make unpopular compromises that would be difficult to assemble through separate ballot questions.', 'A legislative package can link concessions across issues that voters would otherwise consider separately.', 236, TRUE, 1.15, 'applied', 'v2.0'),
+    (237, 'F6', 1, 'Citizens'' views should inform policy, but representatives should retain discretion to change position after reviewing evidence.', 'A trustee model asks representatives to use judgment rather than follow constituent instructions mechanically.', 237, TRUE, 1.15, 'applied', 'v2.0'),
+    (238, 'F6', 1, 'Minority-rights protections should not be submitted to frequent popular referendums.', 'Frequent referendums can repeatedly reopen settled legal status and expose small groups to majority campaigns.', 238, TRUE, 1.15, 'applied', 'v2.0'),
+    (239, 'F7', -1, 'Military force usually creates new dangers that outlast the problem it was meant to solve.', NULL, 239, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (240, 'F7', -1, 'Diplomacy and economic engagement should be preferred even when they take longer.', NULL, 240, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (241, 'F7', -1, 'The risk to civilians should create a strong presumption against using force.', NULL, 241, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (242, 'F7', 1, 'Peace often depends on a credible willingness to use military force.', NULL, 242, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (243, 'F7', 1, 'Military intervention can be justified to prevent a substantially worse outcome.', NULL, 243, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (244, 'F7', 1, 'Alliances are meaningful only when members are willing to fight for one another.', NULL, 244, TRUE, 1.0, 'conceptual', 'v2.0'),
+    (245, 'F7', -1, 'A country should not launch a preventive war based only on suspicion that another state may develop dangerous weapons.', 'Preventive war attacks a potential future threat before an imminent attack exists.', 245, TRUE, 1.15, 'applied', 'v2.0'),
+    (246, 'F7', -1, 'Diplomacy, inspections, and targeted sanctions should be exhausted before conventional military force is used.', 'Targeted sanctions focus on leaders, firms, or sectors rather than broadly restricting an entire population.', 246, TRUE, 1.15, 'applied', 'v2.0'),
+    (247, 'F7', -1, 'Arms sales should end when an allied government repeatedly uses the weapons against civilians.', 'Arms transfers can include sales, grants, maintenance, ammunition, and technical support.', 247, TRUE, 1.15, 'applied', 'v2.0'),
+    (248, 'F7', -1, 'Military conscription should be reserved for defense against a direct and severe threat to the country.', 'Conscription requires eligible people to perform military service.', 248, TRUE, 1.15, 'applied', 'v2.0'),
+    (249, 'F7', 1, 'A treaty ally that is invaded should be defended militarily even when doing so creates serious costs and escalation risks.', 'Collective-defense treaties commit members to assist one another after an attack.', 249, TRUE, 1.15, 'applied', 'v2.0'),
+    (250, 'F7', 1, 'Limited military strikes can be justified to stop an imminent mass killing when no effective peaceful option remains.', 'A limited strike uses force for a narrow objective rather than broader regime change or occupation.', 250, TRUE, 1.15, 'applied', 'v2.0'),
+    (251, 'F7', 1, 'A credible nuclear deterrent should be maintained as long as rival states possess nuclear weapons.', 'Nuclear deterrence aims to prevent attack by preserving a credible retaliatory capability.', 251, TRUE, 1.15, 'applied', 'v2.0'),
+    (252, 'F7', 1, 'A major state-sponsored cyberattack on critical infrastructure may justify proportionate offensive retaliation.', 'Proportionate retaliation may be cyber, economic, or military and should be limited to the scale and nature of the attack.', 252, TRUE, 1.15, 'applied', 'v2.0'),
+    (253, 'C1', 1, 'Private firms should be allowed to use biometric screening with customer consent, even if it substantially reduces privacy.', 'Biometric screening uses traits such as face, fingerprint, or voice to verify identity.', 253, TRUE, 1.25, 'applied', 'v2.0'),
+    (254, 'C1', -1, 'Government should require private venues to install standardized surveillance systems as a condition of operating, even if the mandate raises costs and reduces privacy.', 'A surveillance mandate can require cameras, identity checks, data retention, or reporting as a condition of operating.', 254, TRUE, 1.25, 'applied', 'v2.0'),
+    (255, 'C4', 1, 'Cities should be free to cap fees charged by delivery platforms, even if some firms leave those markets.', 'Platform fee caps limit the commission charged to restaurants, drivers, or customers.', 255, TRUE, 1.25, 'applied', 'v2.0'),
+    (256, 'C4', -1, 'The national government should require public ownership of water utilities in every region even when local voters prefer private provision.', 'A national mandate would remove local choice over whether the utility is publicly or privately owned.', 256, TRUE, 1.25, 'applied', 'v2.0'),
+    (257, 'C1', 1, 'Countries should accept binding international competition rules that prohibit subsidies and favoritism toward domestic firms.', 'Competition rules can restrict state aid, procurement favoritism, and subsidies that distort cross-border markets.', 257, TRUE, 1.25, 'applied', 'v2.0'),
+    (258, 'C1', -1, 'A group of countries should coordinate public subsidies for strategic industries through a binding international agreement.', 'The agreement would pool or coordinate state support rather than prohibit industrial policy.', 258, TRUE, 1.25, 'applied', 'v2.0'),
+    (259, 'C6', 1, 'Charitable donors should be free to direct their money to the neediest people worldwide without tax rules favoring domestic beneficiaries.', 'Tax neutrality means the government does not favor domestic over foreign beneficiaries when recognizing charitable gifts.', 259, TRUE, 1.25, 'applied', 'v2.0'),
+    (260, 'C2', 1, 'Charitable donors should be free to restrict privately funded scholarships to members of their own community even when equally needy outsiders apply.', 'A donor-directed restriction uses private funds but limits eligibility according to community membership.', 260, TRUE, 1.25, 'applied', 'v2.0'),
+    (261, 'C2', -1, 'Religious schools receiving public funds should follow the same nondiscrimination rules as other publicly funded schools, even when those rules conflict with doctrine.', 'A funding condition applies rules to institutions choosing to receive public money.', 261, TRUE, 1.25, 'applied', 'v2.0'),
+    (262, 'C5', -1, 'Government should provide a family allowance only to married couples raising children in a traditional household.', 'A family allowance is a public cash benefit tied to children or household status.', 262, TRUE, 1.25, 'applied', 'v2.0'),
+    (263, 'C9', 1, 'Government may prohibit private development in a critical wildlife corridor even when owners are willing to accept environmental mitigation.', 'A wildlife corridor connects habitats needed for migration, breeding, and genetic diversity.', 263, TRUE, 1.25, 'applied', 'v2.0'),
+    (264, 'C3', -1, 'During a severe food shortage, government may require landowners to clear protected habitat for emergency crop production.', 'The scenario uses compulsory production to increase food supply at direct ecological cost.', 264, TRUE, 1.25, 'applied', 'v2.0'),
+    (265, 'C7', 1, 'A state or province should be allowed to join an international climate compact even when the national government objects.', 'A compact is a formal cooperation agreement that may set shared targets or reporting rules.', 265, TRUE, 1.25, 'applied', 'v2.0'),
+    (266, 'C7', -1, 'Regions should be free to reject an international agreement adopted by the national government when the agreement intrudes on local authority.', 'A regional opt-out lets a subnational government refuse implementation within its jurisdiction.', 266, TRUE, 1.25, 'applied', 'v2.0'),
+    (267, 'C5', 1, 'Fertility clinics should be allowed to offer new reproductive technologies once safety is established, even when the technologies challenge traditional ideas about family.', 'Reproductive technologies can change biological, gestational, and social relationships within families.', 267, TRUE, 1.25, 'applied', 'v2.0'),
+    (268, 'C8', -1, 'Government should restrict automated systems that reproduce traditional gender and family assumptions, even if doing so slows deployment of useful AI.', 'Automated systems can reproduce assumptions embedded in training data, labels, objectives, or design choices.', 268, TRUE, 1.25, 'applied', 'v2.0'),
+    (269, 'C7', 1, 'A regional union should allocate asylum seekers among member states by capacity and need, even when voters in one state want to prioritize co-nationals.', 'Allocation formulas can consider population, fiscal capacity, prior admissions, and claimant vulnerability.', 269, TRUE, 1.25, 'applied', 'v2.0'),
+    (270, 'C6', -1, 'A country should join a regional trade and migration union while retaining citizen-only access to selected welfare benefits.', 'The country accepts common regional rules while preserving particular benefits for its own citizens.', 270, TRUE, 1.25, 'applied', 'v2.0'),
+    (271, 'C9', -1, 'Large desalination plants should be built to secure water for cities even when they cause manageable but significant harm to marine ecosystems.', 'Desalination removes salt from water and can affect marine life through intake systems, energy use, and concentrated brine discharge.', 271, TRUE, 1.25, 'applied', 'v2.0'),
+    (272, 'C9', 1, 'Precision fermentation and cultivated meat should be deployed to reduce land use and animal suffering even if they disrupt conventional agriculture.', 'Precision fermentation uses microbes to produce food ingredients; cultivated meat grows animal cells without raising whole animals.', 272, TRUE, 1.25, 'applied', 'v2.0'),
+    (273, 'C8', -1, 'Heritable gene editing should remain prohibited because altering future persons crosses a moral boundary even if it could prevent serious disease.', 'Heritable changes can affect descendants who cannot consent to the intervention.', 273, TRUE, 1.25, 'applied', 'v2.0'),
+    (274, 'C10', 1, 'Because societies hold different moral views about human enhancement, deployment should be paused until broad cross-cultural consent exists.', 'Broad cross-cultural consent means agreement across diverse societies, not unanimity by every individual.', 274, TRUE, 1.25, 'applied', 'v2.0'),
+    (275, 'C11', 1, 'Environmental law should balance species protection, housing, livelihoods, and cultural use case by case rather than give any one value automatic priority.', 'Case-by-case balancing can still set minimum protections while weighing context-specific losses.', 275, TRUE, 1.25, 'applied', 'v2.0'),
+    (276, 'C9', -1, 'Environmental law should permit essential human development to override habitat protection when several legitimate values conflict and no single value has absolute priority.', 'The scenario treats ecological protection as one important value among several rather than an absolute side constraint.', 276, TRUE, 1.25, 'applied', 'v2.0'),
+    (277, 'C3', 1, 'A movement may nonviolently occupy a government building to force urgent reform when lawful channels have repeatedly failed.', 'An occupation remains nonviolent but interferes with normal use of a public building.', 277, TRUE, 1.25, 'applied', 'v2.0'),
+    (278, 'F5', 1, 'An expert regulatory agency should receive broad discretion only when its data, models, and conflicts of interest are fully open to independent audit.', 'Broad discretion allows an agency to choose methods and timing within a general legal mandate.', 278, TRUE, 1.25, 'applied', 'v2.0'),
+    (279, 'F4', 1, 'A court may replace a voter-approved mandatory prison sentence with a restorative sentence when the mandate violates constitutional proportionality.', 'Proportionality review asks whether a punishment is excessive relative to the offense and legal rights.', 279, TRUE, 1.25, 'applied', 'v2.0'),
+    (280, 'F6', -1, 'A citywide referendum should be able to overturn a neighborhood board''s zoning decision.', 'The citywide electorate is a higher territorial level than the neighborhood board.', 280, TRUE, 1.25, 'applied', 'v2.0'),
+    (281, 'F7', 1, 'A country should join a mutual-defense alliance that obligates it to fight if any member is attacked.', 'A mutual-defense clause creates a standing obligation rather than a case-by-case promise.', 281, TRUE, 1.25, 'applied', 'v2.0'),
+    (282, 'F6', 1, 'Legislators should negotiate and enact one limited reform at a time rather than submit a sweeping package directly to voters.', 'The scenario combines incremental sequencing with representative bargaining rather than direct plebiscitary decision.', 282, TRUE, 1.25, 'applied', 'v2.0'),
+    (283, 'F1', 1, 'A newly elected reform government should use short, court-supervised restrictions on the travel and assets of implicated officials while it rapidly restructures deeply compromised institutions.', 'Temporary restraints limit liberty before final adjudication and therefore require narrow scope, evidence, and review.', 283, TRUE, 1.25, 'applied', 'v2.0'),
+    (284, 'F6', -1, 'Residents of a municipality should decide a major local land-use plan by binding referendum rather than leave the decision to the national legislature.', 'A binding referendum gives voters direct decision authority rather than an advisory role.', 284, TRUE, 1.25, 'applied', 'v2.0'),
+    (285, 'C7', -1, 'A country should launch a limited unilateral strike against an imminent external threat even when international institutions refuse authorization.', 'Unilateral force is undertaken without authorization from a treaty body, regional organization, or the United Nations.', 285, TRUE, 1.25, 'applied', 'v2.0'),
+    (286, 'F6', 1, 'A newly elected legislature should enact a comprehensive constitutional package quickly rather than divide it into separate referendums or incremental bills.', 'A comprehensive package changes several connected institutions through representative legislation in one reform window.', 286, TRUE, 1.25, 'applied', 'v2.0'),
+    (287, 'F2', -1, 'An independent central bank should be allowed to set interest rates without elected interference because its professional safeguards are generally trustworthy.', 'Central-bank independence delegates monetary decisions to appointed specialists within a statutory mandate.', 287, TRUE, 1.25, 'applied', 'v2.0'),
+    (288, 'F3', -1, 'A constitutional court should strike down a voter-approved amnesty for officials who committed torture because some offenses require proportionate punishment.', 'An amnesty removes criminal liability; constitutional review may limit amnesties for grave abuses.', 288, TRUE, 1.25, 'applied', 'v2.0'),
+    (289, 'C10', -1, 'A hospital ethics board should apply a single objective rule that protection of innocent life overrides autonomy, dignity, and social cost whenever they conflict.', 'A categorical rule gives one value lexical priority rather than balancing several values case by case.', 289, TRUE, 1.25, 'applied', 'v2.0'),
+    (290, 'C11', -1, 'A society may ground public ethics in one coherent moral tradition even if that tradition is historically contingent rather than objectively true.', 'A moral framework can be socially constructed yet still rank values coherently within the society that adopts it.', 290, TRUE, 1.25, 'applied', 'v2.0'),
+    (291, 'F2', 1, 'When watchdog evidence shows that an agency has repeatedly concealed corruption, its structure should be replaced quickly rather than repaired through gradual internal reforms.', 'Structural replacement changes authority, staffing, and procedures rather than relying only on internal corrective measures.', 291, TRUE, 1.25, 'applied', 'v2.0'),
+    (292, 'F1', -1, 'Even when major institutions are untrustworthy, reform should proceed through audited incremental changes rather than wholesale replacement.', 'Audited incremental reform changes bounded components while measuring results before broader restructuring.', 292, TRUE, 1.25, 'applied', 'v2.0'),
+    (293, 'C3', -1, 'Repeat violent offenders should receive long incapacitating sentences when necessary to protect the public, even if rehabilitation remains possible.', 'Incapacitation prevents further offenses during confinement independently of rehabilitation or moral desert.', 293, TRUE, 1.25, 'applied', 'v2.0'),
+    (294, 'F3', 1, 'A person convicted of serious assault should receive a shorter custodial sentence plus intensive restorative supervision when evidence shows that approach better reduces repeat violence.', 'Restorative supervision may combine restitution, treatment, victim participation, and close monitoring after a shorter period of custody.', 294, TRUE, 1.25, 'applied', 'v2.0'),
+    (295, 'F5', -1, 'Elected legislatures should be able to overrule expert agencies on major policy choices, and courts should not intervene unless a clear constitutional rule is violated.', 'Legislative override returns final value judgments to elected representatives while preserving only narrow constitutional review.', 295, TRUE, 1.25, 'applied', 'v2.0'),
+    (296, 'F4', -1, 'A legislative majority should be able to delegate binding emergency decisions to an expert agency without judicial review when the delegation is explicit, narrow, and temporary.', 'The legislature authorizes expert control, but constitutional courts are temporarily excluded from reviewing individual decisions.', 296, TRUE, 1.25, 'applied', 'v2.0'),
+    (297, 'F7', -1, 'Instead of overseas military action, government should rely on expanded domestic screening and surveillance to prevent attacks.', 'The strategy avoids military force but accepts broader coercive prevention within the country.', 297, TRUE, 1.25, 'applied', 'v2.0'),
+    (298, 'C3', 1, 'A country should reject both military retaliation and broad domestic surveillance after a foreign-sponsored attack, relying on ordinary criminal investigation and diplomacy.', 'The response uses ordinary legal powers and diplomatic pressure rather than war powers or exceptional domestic surveillance.', 298, TRUE, 1.25, 'applied', 'v2.0'),
+    (299, 'C8', 1, 'Private firms should be free to deploy labor-saving automation once safety standards are met, without job-preservation quotas or public ownership requirements.', 'Job-preservation quotas require firms to retain a specified amount of human labor despite available automation.', 299, TRUE, 1.25, 'applied', 'v2.0'),
+    (300, 'C8', 1, 'Government should build and operate a national advanced-computing utility so access to powerful AI is not controlled by a few private firms.', 'A public computing utility would own or operate large-scale computing capacity and allocate access under public rules.', 300, TRUE, 1.25, 'applied', 'v2.0');
 
+
+--
+-- Data for Name: question_metadata; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+INSERT INTO public.question_metadata (question_id, bank_version, policy_domain, latent_conflict, actor_level, policy_instrument, scenario_conditions, item_family, collision_pair) VALUES
+    (1, 'v2.0', 'general principles', 'State-Directed vs Market-Directed', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (2, 'v2.0', 'general principles', 'State-Directed vs Market-Directed', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (3, 'v2.0', 'general principles', 'State-Directed vs Market-Directed', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (4, 'v2.0', 'general principles', 'State-Directed vs Market-Directed', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (5, 'v2.0', 'general principles', 'State-Directed vs Market-Directed', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (6, 'v2.0', 'general principles', 'State-Directed vs Market-Directed', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (7, 'v2.0', 'energy & utilities', 'State-Directed vs Market-Directed', 'national/regional', 'public provision', 'ordinary', 'base', NULL),
+    (8, 'v2.0', 'macroeconomics & finance', 'State-Directed vs Market-Directed', 'national', 'public credit', 'persistent market gap', 'base', NULL),
+    (9, 'v2.0', 'industrial policy & trade', 'State-Directed vs Market-Directed', 'national', 'public ownership', 'strategic dependency', 'base', NULL),
+    (10, 'v2.0', 'healthcare', 'State-Directed vs Market-Directed', 'national', 'temporary price control & allocation', 'emergency; scarcity', 'base', NULL),
+    (11, 'v2.0', 'healthcare', 'State-Directed vs Market-Directed', 'national/regional', 'market entry', 'ordinary', 'base', NULL),
+    (12, 'v2.0', 'labor & professional regulation', 'State-Directed vs Market-Directed', 'state/regional', 'deregulation', 'evidence-contingent', 'base', NULL),
+    (13, 'v2.0', 'bankruptcy & transportation', 'State-Directed vs Market-Directed', 'national', 'bankruptcy instead of subsidy', 'recession/financial distress', 'base', NULL),
+    (14, 'v2.0', 'digital infrastructure', 'State-Directed vs Market-Directed', 'local', 'competitive provision', 'ordinary', 'base', NULL),
+    (15, 'v2.0', 'general principles', 'Redistributionist vs Property-Rights', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (16, 'v2.0', 'general principles', 'Redistributionist vs Property-Rights', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (17, 'v2.0', 'general principles', 'Redistributionist vs Property-Rights', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (18, 'v2.0', 'general principles', 'Redistributionist vs Property-Rights', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (19, 'v2.0', 'general principles', 'Redistributionist vs Property-Rights', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (20, 'v2.0', 'general principles', 'Redistributionist vs Property-Rights', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (21, 'v2.0', 'welfare & income support', 'Redistributionist vs Property-Rights', 'national', 'cash transfer & progressive tax', 'ordinary', 'base', NULL),
+    (22, 'v2.0', 'education finance', 'Redistributionist vs Property-Rights', 'state/regional', 'fiscal equalization', 'persistent geographic inequality', 'base', NULL),
+    (23, 'v2.0', 'healthcare & social insurance', 'Redistributionist vs Property-Rights', 'national', 'universal public guarantee', 'long-term need', 'base', NULL),
+    (24, 'v2.0', 'taxation & inheritance', 'Redistributionist vs Property-Rights', 'national', 'progressive estate tax', 'intergenerational transfer', 'base', NULL),
+    (25, 'v2.0', 'education debt', 'Redistributionist vs Property-Rights', 'national', 'contract enforcement', 'ordinary', 'base', NULL),
+    (26, 'v2.0', 'property taxation', 'Redistributionist vs Property-Rights', 'national/local', 'tax limitation', 'asset appreciation', 'base', NULL),
+    (27, 'v2.0', 'corporate governance & labor', 'Redistributionist vs Property-Rights', 'national', 'ownership mandate', 'ordinary', 'base', NULL),
+    (28, 'v2.0', 'income taxation', 'Redistributionist vs Property-Rights', 'national', 'flat tax', 'ordinary', 'base', NULL),
+    (29, 'v2.0', 'general principles', 'Security/Order vs Civil Liberties', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (30, 'v2.0', 'general principles', 'Security/Order vs Civil Liberties', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (31, 'v2.0', 'general principles', 'Security/Order vs Civil Liberties', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (32, 'v2.0', 'general principles', 'Security/Order vs Civil Liberties', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (33, 'v2.0', 'general principles', 'Security/Order vs Civil Liberties', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (34, 'v2.0', 'general principles', 'Security/Order vs Civil Liberties', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (35, 'v2.0', 'mental health & autonomy', 'Security/Order vs Civil Liberties', 'judiciary', 'involuntary treatment', 'immediate danger; temporary', 'base', NULL),
+    (36, 'v2.0', 'public health', 'Security/Order vs Civil Liberties', 'national/local', 'mandatory quarantine', 'emergency; confirmed infection; temporary', 'base', NULL),
+    (37, 'v2.0', 'public order & emergency powers', 'Security/Order vs Civil Liberties', 'local', 'curfew', 'emergency; temporary; reviewable', 'base', NULL),
+    (38, 'v2.0', 'public security', 'Security/Order vs Civil Liberties', 'local/private venue', 'universal screening', 'high-crowd risk', 'base', NULL),
+    (39, 'v2.0', 'privacy & policing', 'Security/Order vs Civil Liberties', 'judiciary/law enforcement', 'warrant requirement', 'ordinary', 'base', NULL),
+    (40, 'v2.0', 'criminal procedure & property', 'Security/Order vs Civil Liberties', 'law enforcement/judiciary', 'forfeiture limitation', 'ordinary', 'base', NULL),
+    (41, 'v2.0', 'emergency governance', 'Security/Order vs Civil Liberties', 'national/regional', 'sunset clause', 'emergency; temporary', 'base', NULL),
+    (42, 'v2.0', 'drug policy', 'Security/Order vs Civil Liberties', 'national/regional', 'decriminalization or legalization', 'adult consent', 'base', NULL),
+    (43, 'v2.0', 'general principles', 'Centralized vs Localized', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (44, 'v2.0', 'general principles', 'Centralized vs Localized', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (45, 'v2.0', 'general principles', 'Centralized vs Localized', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (46, 'v2.0', 'general principles', 'Centralized vs Localized', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (47, 'v2.0', 'general principles', 'Centralized vs Localized', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (48, 'v2.0', 'general principles', 'Centralized vs Localized', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (49, 'v2.0', 'elections & democratic design', 'Centralized vs Localized', 'national', 'uniform standards', 'ordinary', 'base', NULL),
+    (50, 'v2.0', 'energy infrastructure', 'Centralized vs Localized', 'national', 'central siting authority', 'cross-border externality', 'base', NULL),
+    (51, 'v2.0', 'disaster response', 'Centralized vs Localized', 'national', 'central command', 'emergency', 'base', NULL),
+    (52, 'v2.0', 'education finance', 'Centralized vs Localized', 'national', 'minimum service standard', 'persistent regional inequality', 'base', NULL),
+    (53, 'v2.0', 'education governance', 'Centralized vs Localized', 'state/regional', 'devolved authority', 'ordinary', 'base', NULL),
+    (54, 'v2.0', 'housing & land use', 'Centralized vs Localized', 'local', 'local zoning authority', 'ordinary; externality exception', 'base', NULL),
+    (55, 'v2.0', 'indigenous sovereignty & land', 'Centralized vs Localized', 'tribal/local', 'self-government', 'recognized jurisdiction', 'base', NULL),
+    (56, 'v2.0', 'fiscal federalism', 'Centralized vs Localized', 'state/regional', 'policy experimentation', 'ordinary', 'base', NULL),
+    (57, 'v2.0', 'general principles', 'Traditionalist vs Progressivist', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (58, 'v2.0', 'general principles', 'Traditionalist vs Progressivist', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (59, 'v2.0', 'general principles', 'Traditionalist vs Progressivist', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (60, 'v2.0', 'general principles', 'Traditionalist vs Progressivist', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (61, 'v2.0', 'general principles', 'Traditionalist vs Progressivist', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (62, 'v2.0', 'general principles', 'Traditionalist vs Progressivist', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (63, 'v2.0', 'language & assimilation', 'Traditionalist vs Progressivist', 'national/local schools', 'curriculum priority', 'ordinary', 'base', NULL),
+    (64, 'v2.0', 'heritage & public memory', 'Traditionalist vs Progressivist', 'local', 'preservation with contextualization', 'historical controversy', 'base', NULL),
+    (65, 'v2.0', 'family law', 'Traditionalist vs Progressivist', 'national/regional', 'divorce restriction', 'dependent children; safety exception', 'base', NULL),
+    (66, 'v2.0', 'religion & civic ritual', 'Traditionalist vs Progressivist', 'public institutions', 'tradition preservation', 'voluntary participation', 'base', NULL),
+    (67, 'v2.0', 'family & adoption', 'Traditionalist vs Progressivist', 'national/regional', 'equal eligibility', 'ordinary', 'base', NULL),
+    (68, 'v2.0', 'family law', 'Traditionalist vs Progressivist', 'national/regional', 'no-fault divorce', 'adult consent', 'base', NULL),
+    (69, 'v2.0', 'civic culture & religion', 'Traditionalist vs Progressivist', 'public institutions', 'inclusive redesign', 'ordinary', 'base', NULL),
+    (70, 'v2.0', 'education & family', 'Traditionalist vs Progressivist', 'public schools', 'curriculum inclusion', 'ordinary', 'base', NULL),
+    (71, 'v2.0', 'general principles', 'Particularist vs Universalist', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (72, 'v2.0', 'general principles', 'Particularist vs Universalist', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (73, 'v2.0', 'general principles', 'Particularist vs Universalist', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (74, 'v2.0', 'general principles', 'Particularist vs Universalist', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (75, 'v2.0', 'general principles', 'Particularist vs Universalist', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (76, 'v2.0', 'general principles', 'Particularist vs Universalist', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (77, 'v2.0', 'housing allocation', 'Particularist vs Universalist', 'local', 'residency preference', 'scarcity; equal-need comparison', 'base', NULL),
+    (78, 'v2.0', 'public employment', 'Particularist vs Universalist', 'national/local', 'service-based preference', 'ordinary', 'base', NULL),
+    (79, 'v2.0', 'mutual aid & social insurance', 'Particularist vs Universalist', 'local/community', 'contribution-based eligibility', 'scarcity; reciprocal contribution', 'base', NULL),
+    (80, 'v2.0', 'charity & diaspora', 'Particularist vs Universalist', 'civil society', 'group-priority giving', 'limited charitable resources', 'base', NULL),
+    (81, 'v2.0', 'immigration & asylum', 'Particularist vs Universalist', 'national', 'needs-based admission', 'scarcity', 'base', NULL),
+    (82, 'v2.0', 'global health', 'Particularist vs Universalist', 'national/international', 'needs-based allocation', 'surplus after domestic threshold', 'base', NULL),
+    (83, 'v2.0', 'equal treatment & public administration', 'Particularist vs Universalist', 'public institutions', 'uniform eligibility', 'ordinary', 'base', NULL),
+    (84, 'v2.0', 'foreign aid', 'Particularist vs Universalist', 'national/international', 'needs-based aid', 'scarcity', 'base', NULL),
+    (85, 'v2.0', 'general principles', 'Sovereigntist vs Integrationist', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (86, 'v2.0', 'general principles', 'Sovereigntist vs Integrationist', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (87, 'v2.0', 'general principles', 'Sovereigntist vs Integrationist', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (88, 'v2.0', 'general principles', 'Sovereigntist vs Integrationist', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (89, 'v2.0', 'general principles', 'Sovereigntist vs Integrationist', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (90, 'v2.0', 'general principles', 'Sovereigntist vs Integrationist', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (91, 'v2.0', 'currency & monetary integration', 'Sovereigntist vs Integrationist', 'national/international', 'retain monetary sovereignty', 'long-term institutional commitment', 'base', NULL),
+    (92, 'v2.0', 'trade & food safety', 'Sovereigntist vs Integrationist', 'national/international', 'reject external ruling', 'regulatory conflict', 'base', NULL),
+    (93, 'v2.0', 'foreign investment & security', 'Sovereigntist vs Integrationist', 'national', 'investment screening', 'strategic asset', 'base', NULL),
+    (94, 'v2.0', 'treaties & democratic consent', 'Sovereigntist vs Integrationist', 'national/international', 'treaty withdrawal', 'sustained opposition', 'base', NULL),
+    (95, 'v2.0', 'international taxation', 'Sovereigntist vs Integrationist', 'international', 'binding tax coordination', 'cross-border tax competition', 'base', NULL),
+    (96, 'v2.0', 'migration & regional governance', 'Sovereigntist vs Integrationist', 'international/regional', 'burden sharing', 'uneven arrivals', 'base', NULL),
+    (97, 'v2.0', 'trade & labor rights', 'Sovereigntist vs Integrationist', 'international', 'binding labor standards', 'cross-border production', 'base', NULL),
+    (98, 'v2.0', 'global health governance', 'Sovereigntist vs Integrationist', 'international', 'mandatory reporting', 'transnational emergency risk', 'base', NULL),
+    (99, 'v2.0', 'general principles', 'Tech-Cautious vs Tech-Accelerative', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (100, 'v2.0', 'general principles', 'Tech-Cautious vs Tech-Accelerative', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (101, 'v2.0', 'general principles', 'Tech-Cautious vs Tech-Accelerative', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (102, 'v2.0', 'general principles', 'Tech-Cautious vs Tech-Accelerative', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (103, 'v2.0', 'general principles', 'Tech-Cautious vs Tech-Accelerative', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (104, 'v2.0', 'general principles', 'Tech-Cautious vs Tech-Accelerative', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (105, 'v2.0', 'biotechnology & reproduction', 'Tech-Cautious vs Tech-Accelerative', 'national/international', 'moratorium', 'irreversible; intergenerational uncertainty', 'base', NULL),
+    (106, 'v2.0', 'infrastructure resilience & cybersecurity', 'Tech-Cautious vs Tech-Accelerative', 'national/private operators', 'redundancy mandate', 'low-probability high-impact risk', 'base', NULL),
+    (107, 'v2.0', 'surveillance technology', 'Tech-Cautious vs Tech-Accelerative', 'national/local', 'temporary prohibition', 'uncertain accuracy and abuse risk', 'base', NULL),
+    (108, 'v2.0', 'climate technology', 'Tech-Cautious vs Tech-Accelerative', 'international', 'precautionary authorization', 'cross-border; uncertain; potentially irreversible', 'base', NULL),
+    (109, 'v2.0', 'transport automation', 'Tech-Cautious vs Tech-Accelerative', 'local', 'technology deployment', 'validated safety threshold', 'base', NULL),
+    (110, 'v2.0', 'agriculture & biotechnology', 'Tech-Cautious vs Tech-Accelerative', 'national', 'technology-neutral approval', 'validated safety threshold', 'base', NULL),
+    (111, 'v2.0', 'energy technology', 'Tech-Cautious vs Tech-Accelerative', 'national/regional', 'technology deployment', 'regulated safety threshold', 'base', NULL),
+    (112, 'v2.0', 'healthcare AI', 'Tech-Cautious vs Tech-Accelerative', 'national/professional', 'regulated deployment', 'validated performance; human oversight', 'base', NULL),
+    (113, 'v2.0', 'general principles', 'Anthropocentric vs Ecocentric', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (114, 'v2.0', 'general principles', 'Anthropocentric vs Ecocentric', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (115, 'v2.0', 'general principles', 'Anthropocentric vs Ecocentric', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (116, 'v2.0', 'general principles', 'Anthropocentric vs Ecocentric', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (117, 'v2.0', 'general principles', 'Anthropocentric vs Ecocentric', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (118, 'v2.0', 'general principles', 'Anthropocentric vs Ecocentric', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (119, 'v2.0', 'energy & habitat', 'Anthropocentric vs Ecocentric', 'national/regional', 'infrastructure approval with mitigation', 'human climate benefit; disturbed habitat', 'base', NULL),
+    (120, 'v2.0', 'wildlife & agriculture', 'Anthropocentric vs Ecocentric', 'local/regional', 'lethal wildlife control', 'repeated losses; alternatives failed', 'base', NULL),
+    (121, 'v2.0', 'housing & ecological mitigation', 'Anthropocentric vs Ecocentric', 'local/regional', 'development with offset', 'degraded site; compensatory restoration', 'base', NULL),
+    (122, 'v2.0', 'climate adaptation & coasts', 'Anthropocentric vs Ecocentric', 'local/national', 'protective infrastructure', 'high population exposure', 'base', NULL),
+    (123, 'v2.0', 'animal welfare & agriculture', 'Anthropocentric vs Ecocentric', 'national', 'welfare regulation', 'price tradeoff', 'base', NULL),
+    (124, 'v2.0', 'mining & watersheds', 'Anthropocentric vs Ecocentric', 'national/regional', 'project prohibition', 'irreversible ecological loss', 'base', NULL),
+    (125, 'v2.0', 'ecological restoration & land use', 'Anthropocentric vs Ecocentric', 'local/regional', 'public restoration & land restriction', 'long-term restoration', 'base', NULL),
+    (126, 'v2.0', 'water resources', 'Anthropocentric vs Ecocentric', 'regional', 'withdrawal limit', 'irreversible depletion risk', 'base', NULL),
+    (127, 'v2.0', 'general principles', 'Moral Objectivist vs Moral Contextualist', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (128, 'v2.0', 'general principles', 'Moral Objectivist vs Moral Contextualist', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (129, 'v2.0', 'general principles', 'Moral Objectivist vs Moral Contextualist', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (130, 'v2.0', 'general principles', 'Moral Objectivist vs Moral Contextualist', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (131, 'v2.0', 'general principles', 'Moral Objectivist vs Moral Contextualist', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (132, 'v2.0', 'general principles', 'Moral Objectivist vs Moral Contextualist', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (133, 'v2.0', 'family ethics & human rights', 'Moral Objectivist vs Moral Contextualist', 'society/state', 'universal moral judgment', 'cultural approval', 'base', NULL),
+    (134, 'v2.0', 'security ethics', 'Moral Objectivist vs Moral Contextualist', 'state', 'absolute prohibition', 'majority support; claimed emergency', 'base', NULL),
+    (135, 'v2.0', 'war ethics', 'Moral Objectivist vs Moral Contextualist', 'state/military', 'universal prohibition', 'armed conflict', 'base', NULL),
+    (136, 'v2.0', 'labor ethics & human rights', 'Moral Objectivist vs Moral Contextualist', 'private/state', 'universal prohibition', 'legal or cultural acceptance', 'base', NULL),
+    (137, 'v2.0', 'end-of-life ethics', 'Moral Objectivist vs Moral Contextualist', 'society/state', 'context-sensitive policy', 'cultural variation', 'base', NULL),
+    (138, 'v2.0', 'family ethics', 'Moral Objectivist vs Moral Contextualist', 'family/society', 'contextual norm', 'cultural and family variation', 'base', NULL),
+    (139, 'v2.0', 'bioethics & reproduction', 'Moral Objectivist vs Moral Contextualist', 'state', 'permissive plural regulation', 'consent; uncertain harm', 'base', NULL),
+    (140, 'v2.0', 'ethics education', 'Moral Objectivist vs Moral Contextualist', 'public schools', 'plural curriculum', 'ordinary', 'base', NULL),
+    (141, 'v2.0', 'general principles', 'Moral Monist vs Value Pluralist', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (142, 'v2.0', 'general principles', 'Moral Monist vs Value Pluralist', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (143, 'v2.0', 'general principles', 'Moral Monist vs Value Pluralist', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (144, 'v2.0', 'general principles', 'Moral Monist vs Value Pluralist', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (145, 'v2.0', 'general principles', 'Moral Monist vs Value Pluralist', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (146, 'v2.0', 'general principles', 'Moral Monist vs Value Pluralist', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (147, 'v2.0', 'constitutional adjudication', 'Moral Monist vs Value Pluralist', 'judiciary', 'fixed priority rule', 'rights conflict', 'base', NULL),
+    (148, 'v2.0', 'healthcare ethics', 'Moral Monist vs Value Pluralist', 'health institutions', 'single-principle allocation', 'emergency; scarcity', 'base', NULL),
+    (149, 'v2.0', 'public ethics & law', 'Moral Monist vs Value Pluralist', 'state/judiciary', 'uniform moral standard', 'cross-domain consistency', 'base', NULL),
+    (150, 'v2.0', 'equality & religious liberty', 'Moral Monist vs Value Pluralist', 'state/judiciary', 'presumptive priority', 'rights conflict', 'base', NULL),
+    (151, 'v2.0', 'religious liberty & conscience', 'Moral Monist vs Value Pluralist', 'state/employer', 'case-specific exemption', 'limited third-party harm', 'base', NULL),
+    (152, 'v2.0', 'end-of-life ethics', 'Moral Monist vs Value Pluralist', 'state/health institutions', 'multiple legal options', 'adult competence', 'base', NULL),
+    (153, 'v2.0', 'land use & public values', 'Moral Monist vs Value Pluralist', 'local/regional', 'multi-criteria balancing', 'competing public values', 'base', NULL),
+    (154, 'v2.0', 'rights adjudication', 'Moral Monist vs Value Pluralist', 'judiciary', 'proportional balancing', 'rights conflict', 'base', NULL),
+    (155, 'v2.0', 'general principles', 'Gradualist vs Transformative', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (156, 'v2.0', 'general principles', 'Gradualist vs Transformative', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (157, 'v2.0', 'general principles', 'Gradualist vs Transformative', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (158, 'v2.0', 'general principles', 'Gradualist vs Transformative', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (159, 'v2.0', 'general principles', 'Gradualist vs Transformative', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (160, 'v2.0', 'general principles', 'Gradualist vs Transformative', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (161, 'v2.0', 'policy implementation', 'Gradualist vs Transformative', 'national/regional', 'pilot program', 'staged rollout', 'base', NULL),
+    (162, 'v2.0', 'climate policy strategy', 'Gradualist vs Transformative', 'legislature/movement', 'incremental compromise', 'partial but immediate gain', 'base', NULL),
+    (163, 'v2.0', 'criminal justice reform', 'Gradualist vs Transformative', 'national/local', 'incremental institutional reform', 'repairability uncertain', 'base', NULL),
+    (164, 'v2.0', 'whistleblowing & accountability', 'Gradualist vs Transformative', 'workplace/state', 'internal escalation first', 'channels available', 'base', NULL),
+    (165, 'v2.0', 'constitutional reform', 'Gradualist vs Transformative', 'national', 'system redesign', 'persistent institutional failure', 'base', NULL),
+    (166, 'v2.0', 'labor movement strategy', 'Gradualist vs Transformative', 'civil society', 'mass work stoppage', 'ordinary channels failed', 'base', NULL),
+    (167, 'v2.0', 'movement strategy', 'Gradualist vs Transformative', 'civil society', 'refuse compromise', 'strategic leverage', 'base', NULL),
+    (168, 'v2.0', 'public administration reform', 'Gradualist vs Transformative', 'national/local', 'institutional replacement', 'persistent legitimacy failure', 'base', NULL),
+    (169, 'v2.0', 'general principles', 'Trusting vs Skeptical', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (170, 'v2.0', 'general principles', 'Trusting vs Skeptical', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (171, 'v2.0', 'general principles', 'Trusting vs Skeptical', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (172, 'v2.0', 'general principles', 'Trusting vs Skeptical', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (173, 'v2.0', 'general principles', 'Trusting vs Skeptical', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (174, 'v2.0', 'general principles', 'Trusting vs Skeptical', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (175, 'v2.0', 'elections & institutional legitimacy', 'Trusting vs Skeptical', 'election authorities', 'accept audited result', 'completed audit', 'base', NULL),
+    (176, 'v2.0', 'science & evidence', 'Trusting vs Skeptical', 'research institutions/state', 'rely on convergent evidence', 'independent replication', 'base', NULL),
+    (177, 'v2.0', 'judiciary', 'Trusting vs Skeptical', 'courts/public', 'presumption of integrity', 'ordinary', 'base', NULL),
+    (178, 'v2.0', 'public health institutions', 'Trusting vs Skeptical', 'agency', 'conditional discretion', 'emergency; transparency', 'base', NULL),
+    (179, 'v2.0', 'regulation & transparency', 'Trusting vs Skeptical', 'regulatory agencies', 'mandatory disclosure', 'major rule', 'base', NULL),
+    (180, 'v2.0', 'health science & transparency', 'Trusting vs Skeptical', 'research sponsors/agencies', 'data access requirement', 'public recommendation', 'base', NULL),
+    (181, 'v2.0', 'corruption & revolving doors', 'Trusting vs Skeptical', 'government/industry', 'post-employment restriction', 'conflict-of-interest risk', 'base', NULL),
+    (182, 'v2.0', 'algorithmic accountability', 'Trusting vs Skeptical', 'public agencies', 'external audit', 'high-impact automated decisions', 'base', NULL),
+    (183, 'v2.0', 'general principles', 'Retributive vs Restorative', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (184, 'v2.0', 'general principles', 'Retributive vs Restorative', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (185, 'v2.0', 'general principles', 'Retributive vs Restorative', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (186, 'v2.0', 'general principles', 'Retributive vs Restorative', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (187, 'v2.0', 'general principles', 'Retributive vs Restorative', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (188, 'v2.0', 'general principles', 'Retributive vs Restorative', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (189, 'v2.0', 'professional discipline', 'Retributive vs Restorative', 'licensing body', 'punitive license revocation', 'restitution completed', 'base', NULL),
+    (190, 'v2.0', 'war crimes & transitional justice', 'Retributive vs Restorative', 'international/national courts', 'criminal prosecution', 'peace tradeoff', 'base', NULL),
+    (191, 'v2.0', 'violent crime', 'Retributive vs Restorative', 'courts', 'incarceration', 'repeat serious harm', 'base', NULL),
+    (192, 'v2.0', 'public corruption', 'Retributive vs Restorative', 'courts', 'incarceration', 'nonviolent serious offense', 'base', NULL),
+    (193, 'v2.0', 'juvenile justice', 'Retributive vs Restorative', 'courts/community', 'restorative sentence', 'serious violence; youth', 'base', NULL),
+    (194, 'v2.0', 'corporate & environmental justice', 'Retributive vs Restorative', 'regulators/courts', 'remediation & restitution', 'large-scale harm', 'base', NULL),
+    (195, 'v2.0', 'school discipline', 'Retributive vs Restorative', 'school/community', 'restorative process', 'serious interpersonal harm', 'base', NULL),
+    (196, 'v2.0', 'transitional justice', 'Retributive vs Restorative', 'national/international', 'conditional amnesty & truth process', 'post-conflict', 'base', NULL),
+    (197, 'v2.0', 'general principles', 'Majoritarian vs Constitutionalist', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (198, 'v2.0', 'general principles', 'Majoritarian vs Constitutionalist', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (199, 'v2.0', 'general principles', 'Majoritarian vs Constitutionalist', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (200, 'v2.0', 'general principles', 'Majoritarian vs Constitutionalist', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (201, 'v2.0', 'general principles', 'Majoritarian vs Constitutionalist', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (202, 'v2.0', 'general principles', 'Majoritarian vs Constitutionalist', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (203, 'v2.0', 'judicial review', 'Majoritarian vs Constitutionalist', 'legislature/judiciary', 'legislative supremacy', 'ordinary', 'base', NULL),
+    (204, 'v2.0', 'constitutional amendment', 'Majoritarian vs Constitutionalist', 'national electorate', 'majority amendment', 'two-election persistence', 'base', NULL),
+    (205, 'v2.0', 'referendum & judicial review', 'Majoritarian vs Constitutionalist', 'national electorate/judiciary', 'popular override', 'sustained public opposition', 'base', NULL),
+    (206, 'v2.0', 'election governance', 'Majoritarian vs Constitutionalist', 'legislature', 'ordinary-law control', 'incumbent-party risk', 'base', NULL),
+    (207, 'v2.0', 'minority rights & courts', 'Majoritarian vs Constitutionalist', 'judiciary', 'constitutional invalidation', 'popular law; minority burden', 'base', NULL),
+    (208, 'v2.0', 'emergency powers', 'Majoritarian vs Constitutionalist', 'legislature/judiciary', 'supermajority & review', 'emergency', 'base', NULL),
+    (209, 'v2.0', 'election governance', 'Majoritarian vs Constitutionalist', 'independent bodies/legislature', 'entrenchment', 'incumbent conflict', 'base', NULL),
+    (210, 'v2.0', 'constitutional amendment', 'Majoritarian vs Constitutionalist', 'national electorate/regions', 'supermajority or multi-stage consent', 'fundamental change', 'base', NULL),
+    (211, 'v2.0', 'general principles', 'Popular/Elected Judgment vs Expert Delegation', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (212, 'v2.0', 'general principles', 'Popular/Elected Judgment vs Expert Delegation', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (213, 'v2.0', 'general principles', 'Popular/Elected Judgment vs Expert Delegation', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (214, 'v2.0', 'general principles', 'Popular/Elected Judgment vs Expert Delegation', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (215, 'v2.0', 'general principles', 'Popular/Elected Judgment vs Expert Delegation', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (216, 'v2.0', 'general principles', 'Popular/Elected Judgment vs Expert Delegation', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (217, 'v2.0', 'technology governance', 'Popular/Elected Judgment vs Expert Delegation', 'legislature/commission', 'elected decision', 'value-laden technology choice', 'base', NULL),
+    (218, 'v2.0', 'land use governance', 'Popular/Elected Judgment vs Expert Delegation', 'local electorate/experts', 'democratic final authority', 'competing local values', 'base', NULL),
+    (219, 'v2.0', 'civil-military governance', 'Popular/Elected Judgment vs Expert Delegation', 'elected executive/legislature', 'civilian control', 'armed conflict', 'base', NULL),
+    (220, 'v2.0', 'education governance', 'Popular/Elected Judgment vs Expert Delegation', 'local elected board/experts', 'elected control', 'value-laden curriculum', 'base', NULL),
+    (221, 'v2.0', 'monetary policy', 'Popular/Elected Judgment vs Expert Delegation', 'independent central bank', 'expert delegation', 'macroeconomic uncertainty', 'base', NULL),
+    (222, 'v2.0', 'public health governance', 'Popular/Elected Judgment vs Expert Delegation', 'expert agency', 'expert delegation', 'technical risk assessment', 'base', NULL),
+    (223, 'v2.0', 'energy governance', 'Popular/Elected Judgment vs Expert Delegation', 'independent system operator', 'expert delegation', 'technical reliability risk', 'base', NULL),
+    (224, 'v2.0', 'environmental health regulation', 'Popular/Elected Judgment vs Expert Delegation', 'expert panel', 'expert standard setting', 'complex risk assessment', 'base', NULL),
+    (225, 'v2.0', 'general principles', 'Direct Democracy vs Representative Deliberation', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (226, 'v2.0', 'general principles', 'Direct Democracy vs Representative Deliberation', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (227, 'v2.0', 'general principles', 'Direct Democracy vs Representative Deliberation', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (228, 'v2.0', 'general principles', 'Direct Democracy vs Representative Deliberation', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (229, 'v2.0', 'general principles', 'Direct Democracy vs Representative Deliberation', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (230, 'v2.0', 'general principles', 'Direct Democracy vs Representative Deliberation', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (231, 'v2.0', 'ballot initiatives', 'Direct Democracy vs Representative Deliberation', 'electorate/legislature', 'direct initiative', 'ordinary', 'base', NULL),
+    (232, 'v2.0', 'recall elections', 'Direct Democracy vs Representative Deliberation', 'local electorate', 'recall vote', 'midterm accountability', 'base', NULL),
+    (233, 'v2.0', 'public finance', 'Direct Democracy vs Representative Deliberation', 'local/national electorate', 'debt referendum', 'long-term fiscal commitment', 'base', NULL),
+    (234, 'v2.0', 'participatory budgeting', 'Direct Democracy vs Representative Deliberation', 'local electorate', 'direct budget allocation', 'annual budgeting', 'base', NULL),
+    (235, 'v2.0', 'tax legislation', 'Direct Democracy vs Representative Deliberation', 'legislature', 'representative lawmaking', 'high complexity', 'base', NULL),
+    (236, 'v2.0', 'legislative negotiation', 'Direct Democracy vs Representative Deliberation', 'legislature', 'representative compromise', 'multi-issue bargaining', 'base', NULL),
+    (237, 'v2.0', 'representation', 'Direct Democracy vs Representative Deliberation', 'legislature', 'trustee representation', 'new evidence', 'base', NULL),
+    (238, 'v2.0', 'minority rights & democratic process', 'Direct Democracy vs Representative Deliberation', 'electorate/legislature', 'representative or constitutional mediation', 'vulnerable minority', 'base', NULL),
+    (239, 'v2.0', 'general principles', 'Dove vs Hawk', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (240, 'v2.0', 'general principles', 'Dove vs Hawk', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (241, 'v2.0', 'general principles', 'Dove vs Hawk', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (242, 'v2.0', 'general principles', 'Dove vs Hawk', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (243, 'v2.0', 'general principles', 'Dove vs Hawk', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (244, 'v2.0', 'general principles', 'Dove vs Hawk', 'general', 'normative principle', 'ordinary', 'base', NULL),
+    (245, 'v2.0', 'preventive war', 'Dove vs Hawk', 'national/international', 'reject preventive attack', 'uncertain future threat', 'base', NULL),
+    (246, 'v2.0', 'coercive diplomacy', 'Dove vs Hawk', 'national/international', 'force as last resort', 'non-imminent threat', 'base', NULL),
+    (247, 'v2.0', 'arms trade & alliances', 'Dove vs Hawk', 'national', 'suspend arms transfers', 'documented civilian harm', 'base', NULL),
+    (248, 'v2.0', 'conscription', 'Dove vs Hawk', 'national', 'limit compulsory service', 'direct threat threshold', 'base', NULL),
+    (249, 'v2.0', 'collective defense', 'Dove vs Hawk', 'international alliance', 'military defense', 'treaty commitment; invasion', 'base', NULL),
+    (250, 'v2.0', 'humanitarian intervention', 'Dove vs Hawk', 'national/international', 'limited strike', 'imminent atrocity; last resort', 'base', NULL),
+    (251, 'v2.0', 'nuclear deterrence', 'Dove vs Hawk', 'national/international', 'maintain deterrent', 'reciprocal possession', 'base', NULL),
+    (252, 'v2.0', 'cyber conflict', 'Dove vs Hawk', 'national/international', 'offensive retaliation', 'attributed major attack', 'base', NULL),
+    (253, 'v2.0', 'biometrics & private markets', 'Economic Coordination x Liberty & Public Order', 'private firms', 'permission/deregulation', 'consent; privacy tradeoff', 'collision', 'C1-C3-A'),
+    (254, 'v2.0', 'public security & business mandates', 'Economic Coordination x Liberty & Public Order', 'national/regional', 'surveillance mandate', 'cost and privacy tradeoff', 'collision', 'C1-C3-B'),
+    (255, 'v2.0', 'platform regulation & local power', 'Territorial Authority x Economic Coordination', 'local', 'local price regulation', 'service-exit risk', 'collision', 'C1-C4-A'),
+    (256, 'v2.0', 'public utilities & national preemption', 'Territorial Authority x Economic Coordination', 'national/local', 'national public-ownership mandate', 'local opposition', 'collision', 'C1-C4-B'),
+    (257, 'v2.0', 'international competition policy', 'Economic Coordination x Sovereignty Scope', 'international', 'binding competition rules', 'domestic industry tradeoff', 'collision', 'C1-C7-A'),
+    (258, 'v2.0', 'international industrial policy', 'Economic Coordination x Sovereignty Scope', 'international', 'coordinated public subsidy', 'strategic dependency', 'collision', 'C1-C7-B'),
+    (259, 'v2.0', 'charitable property & global need', 'Scope of Obligation x Distribution & Property', 'national/private donors', 'donor discretion with neutral tax treatment', 'cross-border giving', 'collision', 'C2-C6-A'),
+    (260, 'v2.0', 'charitable property & community preference', 'Distribution & Property x Scope of Obligation', 'private donors/educational institutions', 'donor-directed eligibility rule', 'equal need; membership distinction', 'collision', 'C2-C6-B'),
+    (261, 'v2.0', 'religious education & equality', 'Distribution & Property x Cultural Continuity', 'national/regional', 'funding condition', 'public subsidy; doctrinal conflict', 'collision', 'C2-C5-A'),
+    (262, 'v2.0', 'family benefits & traditional norms', 'Cultural Continuity x Distribution & Property', 'national', 'targeted cash benefit', 'household-status condition', 'collision', 'C2-C5-B'),
+    (263, 'v2.0', 'habitat protection & property liberty', 'Ecological Moral Standing x Liberty & Public Order', 'regional/local', 'development prohibition', 'critical corridor; mitigation offered', 'collision', 'C3-C9-A'),
+    (264, 'v2.0', 'food emergency & habitat conversion', 'Liberty & Public Order x Ecological Moral Standing', 'national/regional', 'compulsory land use', 'emergency; scarcity; habitat loss', 'collision', 'C3-C9-B'),
+    (265, 'v2.0', 'subnational diplomacy & climate', 'Sovereignty Scope x Territorial Authority', 'state/international', 'subnational compact', 'national objection', 'collision', 'C4-C7-A'),
+    (266, 'v2.0', 'international agreements & local autonomy', 'Sovereignty Scope x Territorial Authority', 'national/regional/international', 'regional opt-out', 'authority conflict', 'collision', 'C4-C7-B'),
+    (267, 'v2.0', 'reproductive technology & family norms', 'Cultural Continuity x Technology Orientation', 'national/private clinics', 'regulated permission', 'validated safety; cultural disruption', 'collision', 'C5-C8-A'),
+    (268, 'v2.0', 'AI systems & cultural bias', 'Technology Orientation x Cultural Continuity', 'national/private firms', 'deployment restriction', 'cultural bias; innovation cost', 'collision', 'C5-C8-B'),
+    (269, 'v2.0', 'asylum burden sharing', 'Sovereignty Scope x Scope of Obligation', 'international/national', 'binding allocation', 'scarcity; domestic opposition', 'collision', 'C6-C7-A'),
+    (270, 'v2.0', 'regional integration & citizen benefits', 'Scope of Obligation x Sovereignty Scope', 'national/international', 'integration with welfare reservation', 'membership distinction', 'collision', 'C6-C7-B'),
+    (271, 'v2.0', 'water technology & marine ecology', 'Ecological Moral Standing x Technology Orientation', 'national/local', 'technology deployment', 'water scarcity; ecological harm', 'collision', 'C8-C9-A'),
+    (272, 'v2.0', 'food technology & ecological impact', 'Ecological Moral Standing x Technology Orientation', 'national/private industry', 'technology deployment', 'agricultural disruption', 'collision', 'C8-C9-B'),
+    (273, 'v2.0', 'gene editing & moral limits', 'Technology Orientation x Moral Objectivity', 'national/international', 'prohibition', 'intergenerational; serious disease benefit', 'collision', 'C8-C10-A'),
+    (274, 'v2.0', 'human enhancement & cross-cultural consent', 'Moral Objectivity x Technology Orientation', 'international', 'precautionary pause', 'moral disagreement; uncertain governance', 'collision', 'C8-C10-B'),
+    (275, 'v2.0', 'environmental decision ethics', 'Value Structure x Ecological Moral Standing', 'national/local', 'multi-criteria balancing', 'competing public values', 'collision', 'C9-C11-A'),
+    (276, 'v2.0', 'environmental development & value pluralism', 'Ecological Moral Standing x Value Structure', 'national/local', 'contextual balancing with development priority', 'essential development; habitat loss', 'collision', 'C9-C11-B'),
+    (277, 'v2.0', 'civil disobedience & reform', 'Liberty & Public Order x Change Strategy', 'civil society/state', 'nonviolent occupation', 'lawful channels failed', 'collision', 'F1-C3'),
+    (278, 'v2.0', 'expert governance & accountability', 'Epistemic Authority x Institutional Confidence', 'regulatory agency', 'conditional delegation', 'transparency and audit', 'collision', 'F2-F5'),
+    (279, 'v2.0', 'sentencing & constitutional review', 'Democratic Constraint x Justice Style', 'judiciary/electorate', 'constitutional override', 'voter-approved mandate', 'collision', 'F3-F4'),
+    (280, 'v2.0', 'direct democracy & localism', 'Democratic Mediation x Territorial Authority', 'city/neighborhood', 'referendum override', 'nested jurisdictions', 'collision', 'F6-C4'),
+    (281, 'v2.0', 'collective defense & integration', 'Force & Peace x Sovereignty Scope', 'international alliance', 'binding defense commitment', 'future attack contingency', 'collision', 'F7-C7'),
+    (282, 'v2.0', 'legislative gradualism & mediation', 'Democratic Mediation x Change Strategy', 'national legislature/electorate', 'incremental representative legislation', 'broad reform demand', 'collision', 'F1-F6-A'),
+    (283, 'v2.0', 'anti-corruption transition & emergency powers', 'Change Strategy x Liberty & Public Order', 'national government/judiciary', 'temporary restraint & institutional restructuring', 'documented systemic corruption; judicial review', 'collision', 'F1-C3-B'),
+    (284, 'v2.0', 'local land use & direct democracy', 'Democratic Mediation x Territorial Authority', 'municipal electorate/national legislature', 'binding local referendum', 'major local project; national interest', 'collision', 'F6-C4-B'),
+    (285, 'v2.0', 'unilateral force & sovereignty', 'Sovereignty Scope x Force & Peace', 'national/international', 'limited military strike', 'imminent threat; no international authorization', 'collision', 'F7-C7-B'),
+    (286, 'v2.0', 'constitutional transformation & representation', 'Democratic Mediation x Change Strategy', 'national legislature', 'comprehensive legislative package', 'electoral mandate; systemic reform', 'collision', 'F1-F6-B'),
+    (287, 'v2.0', 'monetary policy & institutional trust', 'Institutional Confidence x Epistemic Authority', 'independent central bank/elected government', 'expert delegation', 'ordinary; inflation and employment tradeoff', 'collision', 'F2-F5-B'),
+    (288, 'v2.0', 'transitional justice & constitutional limits', 'Justice Style x Democratic Constraint', 'judiciary/electorate', 'constitutional invalidation of amnesty', 'serious state crimes; voter-approved amnesty', 'collision', 'F3-F4-B'),
+    (289, 'v2.0', 'healthcare ethics & moral hierarchy', 'Moral Objectivity x Value Structure', 'hospital ethics board', 'categorical decision rule', 'direct conflict among moral values', 'collision', 'C10-C11-A'),
+    (290, 'v2.0', 'public ethics & contingent moral tradition', 'Value Structure x Moral Objectivity', 'national/community institutions', 'single-framework public ethic', 'historical contingency; internal coherence', 'collision', 'C10-C11-B'),
+    (291, 'v2.0', 'institutional corruption & structural reform', 'Institutional Confidence x Change Strategy', 'national government/oversight bodies', 'rapid institutional replacement', 'documented repeated concealment', 'collision', 'F1-F2-A'),
+    (292, 'v2.0', 'institutional reform & skepticism', 'Change Strategy x Institutional Confidence', 'government/oversight bodies', 'incremental audited reform', 'low trust; continuity risks', 'collision', 'F1-F2-B'),
+    (293, 'v2.0', 'violent crime & sentencing', 'Liberty & Public Order x Justice Style', 'criminal courts', 'incapacitating sentence', 'repeat serious violence; rehabilitation possible', 'collision', 'F3-C3-A'),
+    (294, 'v2.0', 'violent crime & restorative supervision', 'Justice Style x Liberty & Public Order', 'criminal courts/community supervision', 'reduced custody plus restorative program', 'serious violence; evidence of lower recidivism', 'collision', 'F3-C3-B'),
+    (295, 'v2.0', 'administrative accountability & majority rule', 'Epistemic Authority x Democratic Constraint', 'legislature/expert agency/judiciary', 'legislative override', 'major policy disagreement', 'collision', 'F4-F5-A'),
+    (296, 'v2.0', 'emergency delegation & expert authority', 'Democratic Constraint x Epistemic Authority', 'legislature/expert agency/judiciary', 'temporary expert delegation without review', 'declared emergency; explicit sunset', 'collision', 'F4-F5-B'),
+    (297, 'v2.0', 'domestic prevention instead of military force', 'Force & Peace x Liberty & Public Order', 'national security institutions', 'expanded screening and surveillance', 'credible external threat; no overseas strike', 'collision', 'F7-C3-A'),
+    (298, 'v2.0', 'nonmilitary response & civil liberties', 'Liberty & Public Order x Force & Peace', 'national government/law enforcement', 'criminal investigation and diplomacy', 'attributed attack; continuing threat', 'collision', 'F7-C3-B'),
+    (299, 'v2.0', 'automation & market deployment', 'Technology Orientation x Economic Coordination', 'private firms/national regulator', 'regulated private deployment', 'validated safety; employment disruption', 'collision', 'C1-C8-A'),
+    (300, 'v2.0', 'public AI infrastructure', 'Technology Orientation x Economic Coordination', 'national government', 'public ownership and provision', 'high market concentration; strategic technology', 'collision', 'C1-C8-B');
 
 --
 -- Data for Name: roles; Type: TABLE DATA; Schema: public; Owner: -
@@ -1224,14 +1607,14 @@ INSERT INTO public.roles VALUES
 -- Name: question_axis_links_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.question_axis_links_id_seq', 513, true);
+SELECT pg_catalog.setval('public.question_axis_links_id_seq', COALESCE((SELECT MAX(id) FROM public.question_axis_links), 1), true);
 
 
 --
 -- Name: questions_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.questions_id_seq', 288, true);
+SELECT pg_catalog.setval('public.questions_id_seq', COALESCE((SELECT MAX(id) FROM public.questions), 1), true);
 
 
 --
@@ -1240,6 +1623,23 @@ SELECT pg_catalog.setval('public.questions_id_seq', 288, true);
 
 ALTER TABLE ONLY public.axes
     ADD CONSTRAINT axes_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: question_bank_versions question_bank_versions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.question_bank_versions
+    ADD CONSTRAINT question_bank_versions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: question_metadata question_metadata_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.question_metadata
+    ADD CONSTRAINT question_metadata_pkey PRIMARY KEY (question_id);
+
 
 
 --
@@ -1364,6 +1764,35 @@ CREATE INDEX idx_question_axis_links_question_id ON public.question_axis_links U
 --
 
 CREATE INDEX idx_question_axis_links_role ON public.question_axis_links USING btree (role);
+
+
+--
+-- Name: idx_question_metadata_domain; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_question_metadata_domain ON public.question_metadata USING btree (policy_domain);
+
+
+--
+-- Name: idx_question_metadata_family; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_question_metadata_family ON public.question_metadata USING btree (item_family);
+
+
+--
+-- Name: idx_question_metadata_collision_pair; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_question_metadata_collision_pair ON public.question_metadata USING btree (collision_pair) WHERE (collision_pair IS NOT NULL);
+
+
+--
+-- Name: idx_questions_bank_version; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_questions_bank_version ON public.questions USING btree (bank_version);
+
 
 
 --
@@ -1496,6 +1925,55 @@ ALTER TABLE ONLY public.question_axis_links
 
 
 --
+-- Name: questions questions_axis_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.questions
+    ADD CONSTRAINT questions_axis_id_fkey FOREIGN KEY (axis_id) REFERENCES public.axes(id);
+
+
+--
+-- Name: questions questions_bank_version_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.questions
+    ADD CONSTRAINT questions_bank_version_fkey FOREIGN KEY (bank_version) REFERENCES public.question_bank_versions(id);
+
+
+--
+-- Name: question_metadata question_metadata_question_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.question_metadata
+    ADD CONSTRAINT question_metadata_question_id_fkey FOREIGN KEY (question_id) REFERENCES public.questions(id) ON DELETE CASCADE;
+
+
+--
+-- Name: question_metadata question_metadata_bank_version_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.question_metadata
+    ADD CONSTRAINT question_metadata_bank_version_fkey FOREIGN KEY (bank_version) REFERENCES public.question_bank_versions(id);
+
+
+--
+-- Name: survey_responses survey_responses_bank_version_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.survey_responses
+    ADD CONSTRAINT survey_responses_bank_version_fkey FOREIGN KEY (bank_version) REFERENCES public.question_bank_versions(id);
+
+
+--
+-- Name: survey_results survey_results_bank_version_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.survey_results
+    ADD CONSTRAINT survey_results_bank_version_fkey FOREIGN KEY (bank_version) REFERENCES public.question_bank_versions(id);
+
+
+
+--
 -- Name: survey_responses survey_responses_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1544,6 +2022,42 @@ ALTER TABLE ONLY public.user_roles
 
 
 --
+-- Name: question_metadata Admins can manage question metadata; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Admins can manage question metadata" ON public.question_metadata USING ((EXISTS ( SELECT 1
+   FROM public.profiles
+  WHERE ((profiles.id = auth.uid()) AND (profiles.is_admin = true))))) WITH CHECK ((EXISTS ( SELECT 1
+   FROM public.profiles
+  WHERE ((profiles.id = auth.uid()) AND (profiles.is_admin = true)))));
+
+
+--
+-- Name: question_metadata Anyone can read question metadata; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Anyone can read question metadata" ON public.question_metadata FOR SELECT USING (true);
+
+
+--
+-- Name: question_bank_versions Admins can manage bank versions; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Admins can manage bank versions" ON public.question_bank_versions USING ((EXISTS ( SELECT 1
+   FROM public.profiles
+  WHERE ((profiles.id = auth.uid()) AND (profiles.is_admin = true))))) WITH CHECK ((EXISTS ( SELECT 1
+   FROM public.profiles
+  WHERE ((profiles.id = auth.uid()) AND (profiles.is_admin = true)))));
+
+
+--
+-- Name: question_bank_versions Anyone can read bank versions; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Anyone can read bank versions" ON public.question_bank_versions FOR SELECT USING (true);
+
+
+--
 -- Name: questions Admins can delete questions; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -1589,14 +2103,12 @@ CREATE POLICY "Admins can update questions" ON public.questions FOR UPDATE USING
 
 
 --
--- Note: profiles intentionally has NO admin SELECT/UPDATE policy. Any policy on
--- profiles that sub-selects profiles to check is_admin causes infinite recursion
--- (error 42P17), which also propagates to any table whose admin policy sub-selects
--- profiles (e.g. question_axis_links). Admin access to profiles uses the service
--- role key on the backend or JWT claims instead. See schema.sql and
--- supabase/migrations/011_*_profiles_policies_*.sql.
+-- NOTE: No admin SELECT policy on profiles. Any policy on profiles that
+-- sub-selects profiles recurses (Postgres error 42P17) and breaks unrelated
+-- reads through other admin policies (see migration
+-- 20260717000000_fix_profiles_recursion_in_fresh_install.sql). Admin access
+-- to profiles goes through the backend service-role key instead.
 --
-
 
 --
 -- Name: user_roles Admins can view all user roles; Type: POLICY; Schema: public; Owner: -
@@ -1744,6 +2256,18 @@ CREATE POLICY "Users can view their own roles" ON public.user_roles FOR SELECT U
 
 
 --
+-- Name: question_bank_versions; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.question_bank_versions ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: question_metadata; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.question_metadata ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: axes; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -1798,6 +2322,35 @@ ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
 
 
 -- =====================================================
+-- Install validation: fail loudly if the bank is incomplete or unbalanced.
+-- =====================================================
+DO $$
+DECLARE
+  v_count integer;
+BEGIN
+  SELECT count(*) INTO v_count FROM public.axes;
+  IF v_count <> 18 THEN RAISE EXCEPTION 'Expected 18 axes, found %', v_count; END IF;
+
+  SELECT count(*) INTO v_count FROM public.questions WHERE active = true;
+  IF v_count <> 300 THEN RAISE EXCEPTION 'Expected 300 active questions, found %', v_count; END IF;
+
+  SELECT count(*) INTO v_count FROM public.question_metadata WHERE item_family = 'collision';
+  IF v_count <> 48 THEN RAISE EXCEPTION 'Expected 48 collision scenarios, found %', v_count; END IF;
+
+  SELECT count(*) INTO v_count FROM public.collision_pair_coverage
+   WHERE scenario_count <> 2 OR same_sign_count <> 1 OR opposite_sign_count <> 1;
+  IF v_count <> 0 THEN RAISE EXCEPTION 'Collision pair mirroring validation failed for % pairs', v_count; END IF;
+
+  SELECT count(*) INTO v_count FROM public.axis_pole_balance_audit
+   WHERE negative_primary <> positive_primary
+      OR conceptual_negative <> conceptual_positive
+      OR applied_negative <> applied_positive
+      OR collision_negative <> collision_positive;
+  IF v_count <> 0 THEN RAISE EXCEPTION 'Axis pole balance validation failed for % axes', v_count; END IF;
+END $$;
+
+
+-- =====================================================
 -- Auth trigger (lives on auth.users, outside the public schema dump):
 -- auto-creates a profile row whenever a user signs up.
 -- =====================================================
@@ -1805,3 +2358,5 @@ DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+COMMIT;

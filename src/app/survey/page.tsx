@@ -16,17 +16,72 @@ const RESPONSE_OPTIONS = [
   { value: 2, label: 'Strongly Agree', short: 'SA', color: 'bg-green-600' },
 ]
 
+// The 300-question evaluation is meant to be completable across several
+// sittings, so progress is continuously saved on this device. The stored
+// sessionId also seeds the question shuffle, which keeps the presented
+// order stable across a resume.
+const DRAFT_KEY = 'polyaxis-survey-draft-v1'
+
+type SurveyDraft = {
+  sessionId: string
+  responses: Record<number, number>
+  currentIndex: number
+  savedAt: string
+}
+
+function loadDraft(): SurveyDraft | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = window.localStorage.getItem(DRAFT_KEY)
+    if (!raw) return null
+    const draft = JSON.parse(raw) as SurveyDraft
+    if (!draft || typeof draft.sessionId !== 'string' || typeof draft.responses !== 'object') {
+      return null
+    }
+    return draft
+  } catch {
+    return null
+  }
+}
+
+function clearDraft() {
+  try {
+    window.localStorage.removeItem(DRAFT_KEY)
+  } catch {
+    // storage unavailable - nothing to clear
+  }
+}
+
 export default function SurveyPage() {
   const router = useRouter()
   const { user } = useAuth()
-  // Generate session ID once on mount for deterministic question randomization
-  const [sessionId] = useState(() => nanoid(12))
+  // Restore an in-progress sitting if one exists; otherwise generate a
+  // session ID once on mount for deterministic question randomization
+  const [draft] = useState(loadDraft)
+  const [sessionId] = useState(() => draft?.sessionId ?? nanoid(12))
   const [questions, setQuestions] = useState<Question[]>([])
   const [loading, setLoading] = useState(true)
-  const [responses, setResponses] = useState<Record<number, number>>({})
-  const [currentIndex, setCurrentIndex] = useState(0)
+  const [responses, setResponses] = useState<Record<number, number>>(() => draft?.responses ?? {})
+  const [currentIndex, setCurrentIndex] = useState(() => draft?.currentIndex ?? 0)
+  const [resumed] = useState(() => !!draft && Object.keys(draft.responses).length > 0)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Persist progress after every answer so a reload or a later sitting
+  // picks up exactly where this one left off
+  useEffect(() => {
+    if (loading) return
+    try {
+      window.localStorage.setItem(DRAFT_KEY, JSON.stringify({
+        sessionId,
+        responses,
+        currentIndex,
+        savedAt: new Date().toISOString()
+      } satisfies SurveyDraft))
+    } catch {
+      // storage full/unavailable - the survey still works, just without resume
+    }
+  }, [sessionId, responses, currentIndex, loading])
 
   // Fetch questions from database and randomize order per session
   useEffect(() => {
@@ -39,6 +94,7 @@ export default function SurveyPage() {
       // spacing items so no two consecutive questions share an axis
       const shuffled = seededShuffleSpaced(data, sessionId, q => q.axis_id)
       setQuestions(shuffled)
+      setCurrentIndex(idx => Math.min(idx, Math.max(shuffled.length - 1, 0)))
       setLoading(false)
     }
     loadQuestions()
@@ -81,7 +137,13 @@ export default function SurveyPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ responses }),
+        body: JSON.stringify({
+          responses,
+          // The order questions were actually presented in, for
+          // randomization analysis and reproducibility
+          question_order: questions.map(q => q.id),
+          bank_version: questions[0]?.bank_version
+        }),
       })
 
       if (!response.ok) {
@@ -91,6 +153,9 @@ export default function SurveyPage() {
 
       const payload = await response.json()
       const resultSessionId = payload.sessionId || sessionId
+
+      // Submission succeeded: this sitting is finished
+      clearDraft()
 
       // Navigate to results
       router.push(`/results/${resultSessionId}`)
@@ -132,6 +197,14 @@ export default function SurveyPage() {
         <div className="text-center mb-6">
           <h1 className="text-2xl font-bold text-gray-800">Polyaxis Evaluation</h1>
           <p className="text-gray-600">Answer honestly — there are no right or wrong answers.</p>
+          <p className="text-gray-400 text-sm mt-1">
+            Progress is saved on this device, so you can finish in more than one sitting.
+          </p>
+          {resumed && (
+            <p className="text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 inline-block mt-2">
+              Welcome back — your earlier answers were restored.
+            </p>
+          )}
         </div>
 
         {/* Progress Bar */}

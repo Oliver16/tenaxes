@@ -218,19 +218,35 @@ export function StatCard({
 
 function getShortAxisName(name: string): string {
   const map: Record<string, string> = {
+    'Economic Coordination': 'Econ Coord.',
+    'Distribution & Property': 'Distribution',
+    'Liberty & Public Order': 'Liberty/Order',
+    'Territorial Authority': 'Territory',
+    'Cultural Continuity': 'Culture',
+    'Scope of Obligation': 'Obligation',
+    'Sovereignty Scope': 'Sovereignty',
+    'Technology Orientation': 'Technology',
+    'Ecological Moral Standing': 'Ecology',
+    'Moral Objectivity': 'Moral Object.',
+    'Value Structure': 'Value Struct.',
+    'Change Strategy': 'Change Style',
+    'Institutional Confidence': 'Inst. Confid.',
+    'Justice Style': 'Justice Style',
+    'Democratic Constraint': 'Dem. Constraint',
+    'Epistemic Authority': 'Epist. Auth.',
+    'Democratic Mediation': 'Dem. Mediation',
+    'Force & Peace': 'Force & Peace',
+    // v1 bank names, kept for historical results
     'Economic Control': 'Econ Control',
     'Economic Equality': 'Econ Equality',
     'Coercive Power': 'Coercive Power',
     'Where Power Sits': 'Power Locus',
     'Cultural Orientation': 'Culture',
     'Group Boundaries': 'Group Bounds',
-    'Sovereignty Scope': 'Sovereignty',
     'Technology Stance': 'Technology',
     "Nature's Moral Weight": 'Nature',
-    'Moral Foundation': 'Moral Found.',
-    'Change Strategy': 'Change Style',
-    'Institutional Trust': 'Inst. Trust',
-    'Justice Style': 'Justice Style'
+    'Moral Epistemology': 'Moral Epist.',
+    'Institutional Trust': 'Inst. Trust'
   }
   return map[name] || name
 }
