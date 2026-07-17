@@ -1,4 +1,5 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js'
+import { createBrowserClient } from '@supabase/ssr'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from './database.types'
 
 let _supabase: SupabaseClient<Database> | null = null
@@ -19,13 +20,9 @@ function getSupabase(): SupabaseClient<Database> {
     throw new Error('NEXT_PUBLIC_SUPABASE_ANON_KEY is required')
   }
 
-  _supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true
-    }
-  })
+  // The SSR browser client persists the session in cookies, allowing Next.js
+  // route handlers and middleware to authenticate the same signed-in user.
+  _supabase = createBrowserClient<Database>(supabaseUrl, supabaseAnonKey)
 
   return _supabase
 }
