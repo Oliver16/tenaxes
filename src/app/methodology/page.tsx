@@ -21,7 +21,7 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 
 export default async function MethodologyPage() {
   const distribution = await getBankDistribution()
-  const totalQuestions = distribution?.totals.total ?? 300
+  const totalQuestions = distribution?.totals.total ?? 350
   return (
     <main className="min-h-screen bg-gray-50">
       <div className="max-w-3xl mx-auto px-4 py-16">

@@ -6,7 +6,7 @@ export const revalidate = 3600
 
 export default async function Home() {
   const distribution = await getBankDistribution()
-  const totalQuestions = distribution?.totals.total ?? 300
+  const totalQuestions = distribution?.totals.total ?? 350
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800">
       {/* Hero Section */}
@@ -31,7 +31,7 @@ export default async function Home() {
           >
             Start the Evaluation →
           </Link>
-          <p className="text-slate-400 text-sm mt-4">~40 minutes • No account required • Worth it</p>
+          <p className="text-slate-400 text-sm mt-4">~45 minutes • No account required • Worth it</p>
           <p className="text-slate-500 text-sm mt-2">
             <Link href="/methodology" className="underline hover:text-slate-300">
               Read the methodology

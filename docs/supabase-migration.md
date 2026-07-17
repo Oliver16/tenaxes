@@ -8,8 +8,8 @@ project is paused or expiring) and moving existing data across.
 > `axes` table it never creates, three files fight over
 > `question_axis_links`, and the historical link migration contains a
 > duplicate-key bug. `supabase/fresh_install.sql` replaces all of that:
-> the current file installs the v2.1 comprehensive bank
-> (18 constructs, 300 questions, 348 links, 48 collision scenarios,
+> the current file installs the v2.2 comprehensive bank
+> (18 constructs, 350 questions, 398 links, 48 collision scenarios,
 > semantic coverage metadata) and carries built-in validation DO blocks
 > that abort the transaction if any count or pole-balance invariant
 > fails.
@@ -27,8 +27,19 @@ Open **SQL Editor**, paste the entire contents of
 
 Do **not** also run `schema.sql`, the seed files, or the migrations —
 `fresh_install.sql` contains the complete current state (tables, RLS
-policies, functions, triggers, views, all 18 constructs, all 300 questions,
-and all 348 question-axis links).
+policies, functions, triggers, views, all 18 constructs, all 350 questions,
+and all 398 question-axis links).
+
+### Upgrading a live v2.1 database to v2.2
+
+Run `supabase/migrations/20260717140000_v2_2_controversy_expansion.sql`
+once in the SQL Editor (requires the v2.1 migration to have run first).
+It carries the 300 v2.1 questions forward as v2.2 rows, appends the 50
+controversy-stress items (database IDs 901-950), duplicates all links
+and metadata, deactivates earlier banks without deleting them, and
+switches defaults to v2.2. The transaction validates its own counts and
+aborts on any mismatch. Afterwards run
+`supabase/v2_2_post_install_checks.sql` to verify.
 
 ### Upgrading a live v2.0 database to v2.1
 
@@ -133,18 +144,18 @@ time for `NEXT_PUBLIC_*`).
 Run in the new project's SQL Editor — every row must say `t`:
 
 ```sql
-SELECT 'questions'   AS chk, count(*) = 300 AS ok FROM questions WHERE active
-UNION ALL SELECT 'split 108/192',
+SELECT 'questions'   AS chk, count(*) = 350 AS ok FROM questions WHERE active
+UNION ALL SELECT 'split 108/242',
   count(*) FILTER (WHERE question_type='conceptual') = 108 AND
-  count(*) FILTER (WHERE question_type='applied')   = 192 FROM questions WHERE active
+  count(*) FILTER (WHERE question_type='applied')   = 242 FROM questions WHERE active
 UNION ALL SELECT 'axes',          count(*) = 18  FROM axes
-UNION ALL SELECT 'links',         count(*) = 348 FROM question_axis_links
+UNION ALL SELECT 'links',         count(*) = 398 FROM question_axis_links
 UNION ALL SELECT 'link roles',    count(DISTINCT role) = 2 FROM question_axis_links
 UNION ALL SELECT 'collisions',    count(*) = 48 FROM question_axis_links WHERE role='tradeoff'
 UNION ALL SELECT 'C10 split',     bool_and(name = 'Moral Objectivity') FROM axes WHERE id='C10'
 UNION ALL SELECT 'C11 present',   count(*) = 1 FROM axes WHERE id='C11'
 UNION ALL SELECT 'F7 force',      bool_and(name = 'Force & Peace') FROM axes WHERE id='F7'
-UNION ALL SELECT 'metadata',      count(*) = 300 FROM question_metadata
+UNION ALL SELECT 'metadata',      count(*) = 350 FROM question_metadata
 UNION ALL SELECT 'views',         count(*) = 18 FROM axis_weight_audit
 UNION ALL SELECT 'auth trigger',  count(*) = 1 FROM pg_trigger WHERE tgname='on_auth_user_created'
 UNION ALL SELECT 'no recursive profiles policy',
@@ -152,7 +163,7 @@ UNION ALL SELECT 'no recursive profiles policy',
   WHERE schemaname='public' AND tablename='profiles' AND qual ILIKE '%FROM profiles%';
 ```
 
-Then smoke-test the app: `/survey` should load 300 questions, a
+Then smoke-test the app: `/survey` should load 350 questions, a
 submission should produce a results page with tensions and archetypes,
 and `/admin/validation` should render (after making your account admin:
 `UPDATE profiles SET is_admin = true WHERE email = '<you>';`).
