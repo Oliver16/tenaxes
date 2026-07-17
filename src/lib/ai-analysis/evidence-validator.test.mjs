@@ -36,6 +36,16 @@ test('schema-constrained analysis rejects unknown output fields', () => {
   assert.equal(parsed.success, false)
 })
 
+test('historical schema remains readable while generation rejects a cutoff headline', () => {
+  const analysis = makeAnalysis()
+  analysis.headline = 'A market- and property-oriented, culturally traditional, sovereignist profile with constitutional constraints and strong willingness to make bounded exceptions for infrastructure, security, and high-'
+  assert.equal(personalizedAnalysisSchema.safeParse(analysis).success, true)
+
+  const result = validateAnalysisEvidence(analysis, makeInput({ questions: [makeEvidence({ id: 1 })] }))
+  assert.equal(result.valid, false)
+  assert.ok(result.errors.some(error => error.startsWith('headline:')))
+})
+
 test('rejects likely hypocrisy based on one item', () => {
   const questions = [makeEvidence({ id: 1, questionType: 'conceptual' })]
   const result = validateAnalysisEvidence(

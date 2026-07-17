@@ -9,6 +9,7 @@ test('UI status copy distinguishes pending, capped, invalid-provider, and unavai
   assert.match(aiAnalysisStatusMessage(429), /generation limit/i)
   assert.match(aiAnalysisStatusMessage(502), /safely validated/i)
   assert.match(aiAnalysisStatusMessage(503), /temporarily unavailable/i)
+  assert.match(aiAnalysisStatusMessage(503), /^Deeper Analysis/)
 })
 
 test('provider failures refresh attempt allowance while request-validation failures do not', () => {

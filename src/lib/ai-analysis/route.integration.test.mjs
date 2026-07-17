@@ -17,6 +17,8 @@ const state = {
   beforePendingInsert: null
 }
 
+const truncatedHeadline = 'A market- and property-oriented, culturally traditional, sovereignist profile with constitutional constraints and strong willingness to make bounded exceptions for infrastructure, security, and high-'
+
 class TestProviderError extends Error {
   constructor(code, message, invalidOutput, attempt) {
     super(message)
@@ -222,7 +224,11 @@ mock.module(new URL('./load-ai-analysis-context.ts', base), {
   }
 })
 mock.module(new URL('./evidence-validator.ts', base), {
-  namedExports: { validateAnalysisEvidence: () => ({ valid: true, errors: [] }) }
+  namedExports: {
+    validateAnalysisEvidence: analysis => analysis.headline === truncatedHeadline
+      ? { valid: false, errors: ['headline: must be a complete standalone phrase'] }
+      : { valid: true, errors: [] }
+  }
 })
 mock.module(new URL('./hash.ts', base), { namedExports: { hashAnalysisInput: () => state.hash } })
 mock.module(new URL('./config.ts', base), {
@@ -256,6 +262,9 @@ mock.module(new URL('./providers/index.ts', base), {
         }
         const analysis = makeAnalysis()
         analysis.analysis_stage = stage
+        if (state.providerMode === 'incomplete-headline-once' && state.providerCalls === 1) {
+          analysis.headline = truncatedHeadline
+        }
         return { analysis, ...attempt(`request-${state.providerCalls}`) }
       }
     }),
@@ -399,6 +408,15 @@ test('Next route orchestrates success, cache, repair, pending, caps, and parent 
     assert.equal(state.providerCalls, 2)
     assert.equal(state.rows[0].input_tokens, 13)
     assert.equal(state.rows[0].output_tokens, 24)
+  })
+
+  await t.test('an incomplete headline is repaired before it is persisted', async () => {
+    reset('hash-headline-repair')
+    state.providerMode = 'incomplete-headline-once'
+    const response = await POST(request({ action: 'generate' }), { params: { sessionId: 'session-1' } })
+    assert.equal(response.status, 201)
+    assert.equal(state.providerCalls, 2)
+    assert.equal(state.rows[0].analysis_json.headline, 'Synthetic analysis')
   })
 
   await t.test('provider timeout fails the reservation safely and remains retryable', async () => {

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, type FormEvent } from 'react'
+import { DEEPER_ANALYSIS_LABEL } from './copy'
 
 export function AIAnalysisConsent({
   onGenerate,
@@ -31,7 +32,7 @@ export function AIAnalysisConsent({
       <div className="border-b border-violet-100 bg-gradient-to-br from-violet-50 to-blue-50 p-6">
         <p className="text-xs font-semibold uppercase tracking-wide text-violet-700">Optional analysis</p>
         <h2 className="mt-1 text-2xl font-bold text-gray-900">
-          {purpose === 'refresh' ? 'Generate a current analysis' : 'AI-assisted interpretation'}
+          {purpose === 'refresh' ? 'Generate a current analysis' : DEEPER_ANALYSIS_LABEL}
         </h2>
         <p className="mt-3 max-w-3xl text-sm leading-relaxed text-gray-700">
           {purpose === 'refresh'

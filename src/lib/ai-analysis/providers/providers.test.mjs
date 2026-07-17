@@ -32,6 +32,7 @@ test('OpenAI adapter sends strict stored-off structured output and captures usag
   assert.equal(calls[0].body.tools, undefined)
   assert.equal(calls[0].body.text.format.type, 'json_schema')
   assert.equal(calls[0].body.text.format.strict, true)
+  assert.match(calls[0].body.text.format.schema.properties.headline.description, /complete standalone headline.*180 characters/i)
   assert.ok(calls[0].options.signal instanceof AbortSignal)
 })
 

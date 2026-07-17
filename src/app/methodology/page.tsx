@@ -86,7 +86,7 @@ export default async function MethodologyPage() {
               <a className="block hover:text-blue-700" href="#scoring">4. Scoring</a>
               <a className="block hover:text-blue-700" href="#tensions">5. Value tensions</a>
               <a className="block hover:text-blue-700" href="#archetypes">6. Archetypes</a>
-              {aiAnalysisEnabled && <a className="block hover:text-blue-700" href="#ai-analysis">7. Optional AI analysis</a>}
+              {aiAnalysisEnabled && <a className="block hover:text-blue-700" href="#ai-analysis">7. Deeper Analysis</a>}
               <a className="block hover:text-blue-700" href="#validation">{aiAnalysisEnabled ? '8' : '7'}. Validation</a>
               <a className="block hover:text-blue-700" href="#limits">{aiAnalysisEnabled ? '9' : '8'}. Limits & privacy</a>
             </div>
