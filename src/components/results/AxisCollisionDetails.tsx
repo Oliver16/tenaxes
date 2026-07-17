@@ -1,20 +1,36 @@
 import { TensionScore } from '@/lib/database.types'
+import { type CollisionPairSummary } from '@/lib/tension-analyzer'
 
 interface AxisCollisionDetailsProps {
   axisId: string
   axisName: string
+  pairs: CollisionPairSummary[]
   tensions: TensionScore[]
 }
 
+const CLASSIFICATION_STYLE: Record<CollisionPairSummary['classification'], string> = {
+  aligned: 'bg-green-100 text-green-900 border border-green-300',
+  cross_pressured: 'bg-amber-100 text-amber-900 border border-amber-300',
+  inconclusive: 'bg-gray-100 text-gray-700 border border-gray-300'
+}
+
+/**
+ * Compact per-axis view of the collision pairs this axis participates in.
+ * Pair-level (never per-probe): each pair carries two mirrored scenarios
+ * that test different pole combinations, so the honest per-axis summary
+ * is whether the value at stake survived both framings.
+ */
 export function AxisCollisionDetails({
   axisId,
   axisName,
+  pairs,
   tensions
 }: AxisCollisionDetailsProps) {
 
-  // Tensions involving this axis, best-evidenced first
-  const relevant = tensions
-    .filter(t => t.axis_a === axisId || t.axis_b === axisId)
+  const byKey = new Map(tensions.map(t => [t.pair_key, t]))
+
+  const relevant = pairs
+    .filter(p => (p.axis_a === axisId || p.axis_b === axisId) && p.probes_answered > 0)
     .slice(0, 3)
 
   if (relevant.length === 0) return null
@@ -26,42 +42,47 @@ export function AxisCollisionDetails({
       </h4>
 
       <div className="space-y-3">
-        {relevant.map((tension) => {
-          const thisSideIsA = tension.side_a.axis_id === axisId
-          const thisSide = thisSideIsA ? tension.side_a : tension.side_b
-          const otherSide = thisSideIsA ? tension.side_b : tension.side_a
-          const thisWins = thisSideIsA ? tension.wins_a : tension.wins_b
-          const otherWins = thisSideIsA ? tension.wins_b : tension.wins_a
+        {relevant.map(pair => {
+          const probes = pair.probe_keys
+            .map(k => byKey.get(k))
+            .filter((t): t is TensionScore => !!t)
+          const others = probes.map(t => {
+            const shared = pair.shared_pole
+            const side = t.side_a.axis_id === shared.axis_id && t.side_a.pole === shared.pole
+              ? t.side_b : t.side_a
+            return side.label
+          })
+          const anyContradiction = probes.some(t => t.ideals.contradicts_ideals)
+
+          const badgeText =
+            pair.classification === 'aligned'
+              ? (pair.direction > 0 ? 'consistently protected' : 'consistently traded away')
+              : pair.classification === 'cross_pressured'
+              ? 'cross-pressured'
+              : 'inconclusive'
 
           const summary =
-            tension.classification === 'context_dependent'
-              ? `You weigh these case-by-case (${thisWins}–${otherWins} across scenarios)`
-              : tension.classification === 'balanced'
-              ? 'No clear pattern in your answers'
-              : thisWins >= otherWins
-              ? `You chose ${thisSide.label} in ${thisWins} of ${tension.answered_count} scenarios`
-              : `You chose ${otherSide.label} in ${otherWins} of ${tension.answered_count} scenarios`
-
-          const strengthColors: Record<TensionScore['preference_strength'], string> = {
-            'very strong': 'bg-red-500 text-white',
-            'strong': 'bg-orange-500 text-white',
-            'moderate': 'bg-yellow-500 text-black',
-            'weak': 'bg-blue-500 text-white'
-          }
+            pair.classification === 'aligned'
+              ? pair.direction > 0
+                ? `${pair.shared_pole.label} survived both framings (vs ${others.join(' and ')}).`
+                : `${pair.shared_pole.label} lost under both framings (vs ${others.join(' and ')}).`
+              : pair.classification === 'cross_pressured'
+              ? `${pair.shared_pole.label} won under one framing and lost under the other — the framing decided.`
+              : `Not enough decisive answers to read a pattern.`
 
           return (
-            <div key={tension.pair_key} className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg">
+            <div key={pair.pair_id} className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg">
               <div className="flex-1">
                 <div className="flex items-baseline gap-2 flex-wrap">
                   <span className="text-sm font-medium">
-                    {thisSide.label} vs {otherSide.label}
+                    At stake: {pair.shared_pole.label}
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    ({tension.answered_count} scenario{tension.answered_count !== 1 ? 's' : ''})
+                    ({pair.probes_answered} of {pair.probe_keys.length} probes answered)
                   </span>
-                  {tension.ideals.contradicts_ideals && (
+                  {anyContradiction && (
                     <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300">
-                      clashes with ideals
+                      a choice ran against stated ideals
                     </span>
                   )}
                 </div>
@@ -70,8 +91,8 @@ export function AxisCollisionDetails({
                 </p>
               </div>
 
-              <div className={`px-2 py-1 rounded text-xs font-medium ${strengthColors[tension.preference_strength]}`}>
-                {tension.preference_strength}
+              <div className={`px-2 py-1 rounded text-xs font-medium whitespace-nowrap ${CLASSIFICATION_STYLE[pair.classification]}`}>
+                {badgeText}
               </div>
             </div>
           )

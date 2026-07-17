@@ -35,9 +35,10 @@ export type BankDistribution = {
 
 export async function getBankDistribution(): Promise<BankDistribution | null> {
   try {
-    const [questionsRes, linksRes] = await Promise.all([
+    const [questionsRes, linksRes, axesRes] = await Promise.all([
       supabase.from('questions').select('id, axis_id, question_type').eq('active', true),
-      supabase.from('question_axis_links').select('question_id, axis_id, role, axis_key')
+      supabase.from('question_axis_links').select('question_id, axis_id, role, axis_key'),
+      supabase.from('axes').select('id, name, pole_negative, pole_positive, family').order('id')
     ])
 
     if (questionsRes.error || !questionsRes.data || questionsRes.data.length === 0) return null
@@ -54,19 +55,41 @@ export async function getBankDistribution(): Promise<BankDistribution | null> {
       else bucket.conceptual++
     }
 
-    const axes: AxisDistribution[] = Object.values(AXES).map(axis => {
-      const bucket = byAxis[axis.id] ?? { conceptual: 0, applied: 0 }
-      return {
-        id: axis.id,
-        name: axis.name,
-        pole_negative: axis.pole_negative,
-        pole_positive: axis.pole_positive,
-        isFacet: !!(axis as { is_facet?: boolean }).is_facet,
-        conceptual: bucket.conceptual,
-        applied: bucket.applied,
-        total: bucket.conceptual + bucket.applied
-      }
-    })
+    // The database's axes table is authoritative (names, poles, and the
+    // core/facet split), so the chart always shows the bank the questions
+    // actually belong to; the static registry is only a fallback for
+    // databases predating the axes.family column.
+    const dbAxes = (axesRes.data ?? []) as {
+      id: string; name: string; pole_negative: string | null
+      pole_positive: string | null; family: string | null
+    }[]
+    const axisRows = dbAxes.length > 0
+      ? dbAxes.map(a => ({
+          id: a.id,
+          name: a.name,
+          pole_negative: a.pole_negative ?? '',
+          pole_positive: a.pole_positive ?? '',
+          isFacet: a.family === 'facet'
+        }))
+      : Object.values(AXES).map(axis => ({
+          id: axis.id,
+          name: axis.name,
+          pole_negative: axis.pole_negative,
+          pole_positive: axis.pole_positive,
+          isFacet: !!(axis as { is_facet?: boolean }).is_facet
+        }))
+
+    const axes: AxisDistribution[] = axisRows
+      .sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }))
+      .map(axis => {
+        const bucket = byAxis[axis.id] ?? { conceptual: 0, applied: 0 }
+        return {
+          ...axis,
+          conceptual: bucket.conceptual,
+          applied: bucket.applied,
+          total: bucket.conceptual + bucket.applied
+        }
+      })
 
     // Tension coverage: tradeoff-tagged questions, grouped the way the
     // analyzer groups them (unordered axis pair x pole signature).
