@@ -41,7 +41,26 @@ In your Supabase dashboard:
    - Go to **Project Settings > Auth**
    - Configure your SMTP server
 
-### Step 3: Configure Environment Variables
+### Step 3: Configure Auth URLs (required — fixes magic links pointing at localhost)
+
+Supabase only honors the `emailRedirectTo` the app sends if that URL is on the
+project's redirect allow-list. If it isn't, the magic-link email **silently
+falls back to the project's Site URL**, which defaults to
+`http://localhost:3000` — so links in the email send users to localhost.
+
+In your Supabase dashboard, go to **Authentication > URL Configuration** and set:
+
+1. **Site URL**: your production URL (e.g. `https://your-domain.com`)
+2. **Redirect URLs** — add every origin the app runs on:
+   - `https://your-domain.com/**`
+   - `https://*-your-vercel-team.vercel.app/**` (Vercel preview deployments)
+   - `http://localhost:3000/**` (local development)
+
+The `/**` suffix allows redirects to any path on that origin, which the app
+uses to return users to the exact page they requested the link from (e.g.
+their results page, so the result is auto-linked after sign-in).
+
+### Step 4: Configure Environment Variables
 
 Ensure these environment variables are set in your `.env.local`:
 
