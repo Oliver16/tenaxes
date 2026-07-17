@@ -228,6 +228,7 @@ mock.module(new URL('./hash.ts', base), { namedExports: { hashAnalysisInput: () 
 mock.module(new URL('./config.ts', base), {
   namedExports: {
     AI_ANALYSIS_SCHEMA_VERSION: '1',
+    analysisAttemptTimeoutMs: () => 1000,
     analysisPromptVersion: () => 'v1',
     analysisTimeoutMs: () => 1000,
     contextMaxChars: () => 2000,
@@ -247,6 +248,9 @@ mock.module(new URL('./providers/index.ts', base), {
     createAnalysisProvider: () => ({
       async generate(_input, stage) {
         state.providerCalls += 1
+        if (state.providerMode === 'timeout') {
+          throw new TestProviderError('timeout', 'Provider request timed out', undefined, attempt(null, null, null))
+        }
         if (state.providerMode === 'malformed-once' && state.providerCalls === 1) {
           throw new TestProviderError('malformed_output', 'Malformed first response', { bad: true }, attempt('bad', 3, 4))
         }
@@ -282,6 +286,10 @@ function request(body) {
 
 test('Next route orchestrates success, cache, repair, pending, caps, and parent ownership', async t => {
   mock.method(console, 'info', () => {})
+
+  await t.test('route reserves five minutes for a large request and bounded repair attempt', () => {
+    assert.equal(routeModule.maxDuration ?? routeHandlers.maxDuration, 300)
+  })
 
   await t.test('disabled GET never loads or generates', async () => {
     reset('disabled')
@@ -391,6 +399,20 @@ test('Next route orchestrates success, cache, repair, pending, caps, and parent 
     assert.equal(state.providerCalls, 2)
     assert.equal(state.rows[0].input_tokens, 13)
     assert.equal(state.rows[0].output_tokens, 24)
+  })
+
+  await t.test('provider timeout fails the reservation safely and remains retryable', async () => {
+    reset('hash-timeout')
+    state.providerMode = 'timeout'
+    const response = await POST(request({ action: 'generate' }), { params: { sessionId: 'session-1' } })
+    assert.equal(response.status, 503)
+    const payload = await response.json()
+    assert.equal(payload.error, 'AI analysis generation failed. You can retry.')
+    assert.equal(state.providerCalls, 1)
+    assert.equal(state.rows.length, 1)
+    assert.equal(state.rows[0].status, 'failed')
+    assert.equal(state.rows[0].error_code, 'timeout')
+    assert.equal(state.rows.some(row => row.status === 'pending'), false)
   })
 
   await t.test('a refinement parent owned by another session is rejected', async () => {

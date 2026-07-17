@@ -5,6 +5,10 @@ import { OpenAIAnalysisProvider } from './openai.ts'
 import { AnthropicAnalysisProvider } from './anthropic.ts'
 import { AnalysisProviderError, summarizeProviderAttempts } from './provider.ts'
 import { configuredModel } from './index.ts'
+import {
+  ANALYSIS_FINALIZATION_RESERVE_MS, ANALYSIS_ROUTE_MAX_DURATION_MS,
+  analysisAttemptTimeoutMs, analysisTimeoutMs, DEFAULT_ANALYSIS_TIMEOUT_MS, MAX_ANALYSIS_TIMEOUT_MS
+} from '../config.ts'
 import { makeAnalysis, makeInput } from '../__tests__/helpers.mjs'
 
 const input = makeInput({ questions: [] })
@@ -67,9 +71,37 @@ test('provider adapters use the validated timeout configuration', async () => {
   try {
     const provider = new OpenAIAnalysisProvider({ apiKey: 'test', model: 'openai-test', client })
     await provider.generate(input, 'provisional')
-    assert.equal(observedTimeout, 60000)
+    assert.equal(observedTimeout, DEFAULT_ANALYSIS_TIMEOUT_MS)
   } finally {
     timeoutMock.mock.restore()
+    restoreEnvironment('AI_ANALYSIS_TIMEOUT_MS', before)
+  }
+})
+
+test('analysis timeout gives a large request four minutes while preserving route finalization time', () => {
+  const before = process.env.AI_ANALYSIS_TIMEOUT_MS
+  try {
+    delete process.env.AI_ANALYSIS_TIMEOUT_MS
+    assert.equal(analysisTimeoutMs(), 240000)
+    assert.equal(analysisAttemptTimeoutMs(0), MAX_ANALYSIS_TIMEOUT_MS)
+    assert.ok(
+      MAX_ANALYSIS_TIMEOUT_MS + ANALYSIS_FINALIZATION_RESERVE_MS <= ANALYSIS_ROUTE_MAX_DURATION_MS
+    )
+    assert.equal(analysisAttemptTimeoutMs(200000), 70000)
+    assert.throws(
+      () => analysisAttemptTimeoutMs(ANALYSIS_ROUTE_MAX_DURATION_MS),
+      error => error instanceof AnalysisProviderError && error.code === 'timeout'
+    )
+
+    process.env.AI_ANALYSIS_TIMEOUT_MS = '45000'
+    assert.equal(analysisTimeoutMs(), 45000)
+
+    process.env.AI_ANALYSIS_TIMEOUT_MS = '999999'
+    assert.equal(analysisTimeoutMs(), MAX_ANALYSIS_TIMEOUT_MS)
+
+    process.env.AI_ANALYSIS_TIMEOUT_MS = 'invalid'
+    assert.equal(analysisTimeoutMs(), DEFAULT_ANALYSIS_TIMEOUT_MS)
+  } finally {
     restoreEnvironment('AI_ANALYSIS_TIMEOUT_MS', before)
   }
 })

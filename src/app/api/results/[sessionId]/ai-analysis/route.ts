@@ -7,7 +7,7 @@ import {
   disabledAIAnalysisResponse, publicAnalysisMeta, remainingGenerationAllowance
 } from '@/lib/ai-analysis/api-policy'
 import {
-  AI_ANALYSIS_SCHEMA_VERSION, analysisPromptVersion, analysisTimeoutMs,
+  AI_ANALYSIS_SCHEMA_VERSION, analysisAttemptTimeoutMs, analysisPromptVersion, analysisTimeoutMs,
   generationAttemptLimit, generationLimit
 } from '@/lib/ai-analysis/config'
 import { validateAnalysisEvidence } from '@/lib/ai-analysis/evidence-validator'
@@ -25,6 +25,9 @@ import type { GetAIAnalysisResponse, PersonalizedAnalysis } from '@/lib/ai-analy
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
+// A 102k-token evidence payload can need several minutes. Repair attempts use
+// only the remaining budget so final status persistence retains its reserve.
+export const maxDuration = 300
 
 type AnalysisRow = {
   id: string; session_id: string; parent_analysis_id: string | null; stage: 'provisional' | 'refined'
@@ -190,8 +193,9 @@ export async function POST(request: NextRequest, { params }: { params: { session
     const provider = createAnalysisProvider()
     const generate = async (repair?: { invalidOutput: unknown; errors: string[] }) => {
       try {
+        const attemptTimeoutMs = analysisAttemptTimeoutMs(Date.now() - started)
         const result = await provider.generate(input, body.action === 'refine' ? 'refined' : 'provisional', {
-          priorAnalysis, signal: AbortSignal.timeout(analysisTimeoutMs()), repair
+          priorAnalysis, signal: AbortSignal.timeout(attemptTimeoutMs), repair
         })
         providerAttempts.push(result)
         return result
