@@ -72,15 +72,23 @@ export default async function ConsistencyPage({
       <section className="bg-white rounded-xl shadow-lg p-6">
         <h1 className="text-2xl font-bold text-gray-800 mb-2">Ideals vs. practice</h1>
         <p className="text-gray-500 text-sm">
-          This result doesn&apos;t contain enough directional evidence across both registers for a
-          reliable overall alignment rating. At least 12 dimensions need adequate conceptual and
-          applied coverage; profiles that remain almost entirely neutral are left unrated.
+          An overall alignment rating needs at least 12 dimensions with 50% answered coverage in
+          both the conceptual and applied registers. This result does not meet that evidence
+          threshold, so the overall rating is withheld.
         </p>
       </section>
     )
   }
 
-  const { rating, band, gapCount, conceptualFlavors, appliedFlavors, sameTopArchetype } = consistency
+  const {
+    rating,
+    band,
+    gapCount,
+    lowDirectionalSignal,
+    conceptualFlavors,
+    appliedFlavors,
+    sameTopArchetype
+  } = consistency
   const contradictions = tensionScores.filter(t => t.ideals.contradicts_ideals).length
   // axisComparisons arrive sorted largest gap first
   const topGaps = axisComparisons.slice(0, 3).filter(c => c.difference >= 0.25)
@@ -134,6 +142,14 @@ export default async function ConsistencyPage({
           </div>
 
           <p className="text-sm text-gray-600 mb-3">{band.blurb}</p>
+
+          {lowDirectionalSignal && (
+            <p className="text-sm text-blue-800 bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
+              Both profiles cluster near the midpoint. This alignment score describes how similar
+              those two aggregate profiles are; it does not imply unusually strong or certain
+              convictions.
+            </p>
+          )}
 
           <ul className="text-xs text-gray-500 space-y-1">
             <li>

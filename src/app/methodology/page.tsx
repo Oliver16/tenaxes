@@ -190,8 +190,9 @@ export default async function MethodologyPage() {
               It converts their root-mean-square gap to a 0&ndash;100 scale, where identical profiles score 100 and a complete pole reversal everywhere
               scores 0. Squaring each gap before averaging gives a large local divergence more influence, so it cannot vanish among many small
               differences. A single 0.50 gap caps the result below &ldquo;Highly aligned,&rdquo; while a 0.75 gap caps it below &ldquo;Broadly aligned.&rdquo;
-              The overall rating is withheld unless at least 12 dimensions have 50% coverage in both registers, and near-neutral profiles are
-              left unrated because proximity to zero is not evidence of a stable alignment.
+              The overall rating is withheld unless at least 12 dimensions have 50% coverage in both registers. Near-midpoint profiles are still
+              rated because moderation or counterbalancing convictions are valid results; they receive a note clarifying that high alignment means
+              the two aggregate profiles are similar, not that either profile is strongly directional.
             </p>
           </section>
 

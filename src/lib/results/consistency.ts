@@ -54,6 +54,7 @@ export interface ConsistencySummary {
   meanGap: number
   rootMeanSquareGap: number
   directionalSignal: number
+  lowDirectionalSignal: boolean
   gapCount: number
   gaps: { axis_id: string; name: string; gap: number }[]
   conceptualFlavors: FlavorMatch[]
@@ -71,8 +72,7 @@ export interface ConsistencyEvidence {
 
 const MIN_SHARED_DIMENSIONS = 12
 const MIN_REGISTER_COVERAGE = 0.5
-const MIN_DIRECTIONAL_SIGNAL = 0.3
-const LARGE_GAP_SIGNAL_OVERRIDE = 0.75
+const LOW_DIRECTIONAL_SIGNAL = 0.3
 
 export function computeConsistency(
   conceptualScores: RegisterScore[],
@@ -104,16 +104,25 @@ export function computeConsistency(
     }))
   if (gaps.length < MIN_SHARED_DIMENSIONS) return null
 
+  const conceptualDirectionalSignal = Math.sqrt(
+    gaps.reduce((sum, gap) => sum + gap.conceptualScore ** 2, 0) / gaps.length
+  )
+  const appliedDirectionalSignal = Math.sqrt(
+    gaps.reduce((sum, gap) => sum + gap.appliedScore ** 2, 0) / gaps.length
+  )
   const directionalSignal = Math.sqrt(
-    gaps.reduce(
-      (sum, gap) => sum + (gap.conceptualScore ** 2 + gap.appliedScore ** 2) / 2,
-      0
-    ) / gaps.length
+    (conceptualDirectionalSignal ** 2 + appliedDirectionalSignal ** 2) / 2
   )
   const largestGap = Math.max(...gaps.map(gap => gap.gap))
-  if (directionalSignal < MIN_DIRECTIONAL_SIGNAL && largestGap < LARGE_GAP_SIGNAL_OVERRIDE) {
-    return null
-  }
+  // Directional intensity is descriptive, not an evidence gate. A fully
+  // answered centrist or internally balanced profile is still a real
+  // profile, and its principles/practice distance remains well-defined.
+  // Consumers should explain that a high score between two near-midpoint
+  // profiles means similar aggregates, not unusually strong conviction.
+  const lowDirectionalSignal = (
+    conceptualDirectionalSignal < LOW_DIRECTIONAL_SIGNAL &&
+    appliedDirectionalSignal < LOW_DIRECTIONAL_SIGNAL
+  )
 
   const meanGap = gaps.reduce((sum, g) => sum + g.gap, 0) / gaps.length
   const rootMeanSquareGap = Math.sqrt(
@@ -138,6 +147,7 @@ export function computeConsistency(
     meanGap,
     rootMeanSquareGap,
     directionalSignal,
+    lowDirectionalSignal,
     gapCount: gaps.length,
     gaps: gaps
       .map(({ axis_id, name, gap }) => ({ axis_id, name, gap }))

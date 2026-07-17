@@ -97,13 +97,12 @@ test('axis matching is independent of input order', () => {
   assert.equal(result?.rating, 100)
 })
 
-test('sparse and near-neutral profiles are left unrated', () => {
+test('sparse profiles are left unrated', () => {
   const directional = scores(AXIS_IDS.map(() => 0.6))
   const lowCoverage = {
     conceptualCoverage: fullCoverage(0.49),
     appliedCoverage: fullCoverage()
   }
-  const neutral = scores(AXIS_IDS.map(() => 0))
 
   assert.equal(computeConsistency(directional, directional, lowCoverage), null)
   assert.equal(computeConsistency(
@@ -112,7 +111,51 @@ test('sparse and near-neutral profiles are left unrated', () => {
     ADEQUATE_EVIDENCE
   ), null)
   assert.equal(computeConsistency(directional, directional, {}), null)
-  assert.equal(computeConsistency(neutral, neutral, ADEQUATE_EVIDENCE), null)
+})
+
+test('fully covered neutral profiles are rated with a low-directional caveat', () => {
+  const neutral = scores(AXIS_IDS.map(() => 0))
+  const nearMidpoint = scores(AXIS_IDS.map(() => 0.29))
+  const directional = scores(AXIS_IDS.map(() => 0.31))
+  const asymmetric = computeConsistency(
+    scores(AXIS_IDS.map(() => 0.42)),
+    neutral,
+    ADEQUATE_EVIDENCE
+  )
+  const nearMidpointGap = computeConsistency(
+    scores(AXIS_IDS.map(() => 0.1)),
+    scores(AXIS_IDS.map(() => -0.1)),
+    ADEQUATE_EVIDENCE
+  )
+
+  const neutralResult = computeConsistency(neutral, neutral, ADEQUATE_EVIDENCE)
+  const nearMidpointResult = computeConsistency(nearMidpoint, nearMidpoint, ADEQUATE_EVIDENCE)
+  const directionalResult = computeConsistency(directional, directional, ADEQUATE_EVIDENCE)
+
+  assert.equal(neutralResult?.rating, 100)
+  assert.equal(neutralResult?.band.label, 'Highly aligned')
+  assert.equal(neutralResult?.lowDirectionalSignal, true)
+  assert.equal(nearMidpointResult?.rating, 100)
+  assert.equal(nearMidpointResult?.lowDirectionalSignal, true)
+  assert.equal(nearMidpointGap?.rating, 90)
+  assert.equal(nearMidpointGap?.lowDirectionalSignal, true)
+  assert.equal(directionalResult?.lowDirectionalSignal, false)
+  assert.equal(asymmetric?.lowDirectionalSignal, false)
+})
+
+test('exactly 12 dimensions at 50% register coverage remain eligible', () => {
+  const profile = scores(AXIS_IDS.map(() => 0))
+  const thresholdCoverage = AXIS_IDS.map((axis_id, index) => ({
+    axis_id,
+    coverage: index < 12 ? 0.5 : 0.49
+  }))
+  const result = computeConsistency(profile, profile, {
+    conceptualCoverage: thresholdCoverage,
+    appliedCoverage: thresholdCoverage
+  })
+
+  assert.equal(result?.gapCount, 12)
+  assert.equal(result?.rating, 100)
 })
 
 test('a complete reversal on every dimension scores 0', () => {

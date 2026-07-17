@@ -115,6 +115,13 @@ export function ResultsProfileHero({
         ))}
       </div>
 
+      {consistency?.lowDirectionalSignal && (
+        <p className="text-xs text-blue-700 mt-3">
+          Both principles and practical choices sit near the midpoint. The alignment score measures
+          how close those profiles are to each other, not how strongly held the positions are.
+        </p>
+      )}
+
       {notSureCount > 0 && (
         <p className="text-xs text-gray-400 mt-3">
           {notSureCount} &ldquo;not sure&rdquo; answer{notSureCount !== 1 ? 's' : ''} — recorded but
