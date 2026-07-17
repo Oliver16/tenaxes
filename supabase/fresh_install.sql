@@ -1532,12 +1532,13 @@ CREATE POLICY "Admins can update questions" ON public.questions FOR UPDATE USING
 
 
 --
--- Name: profiles Admins can view all profiles; Type: POLICY; Schema: public; Owner: -
+-- Note: profiles intentionally has NO admin SELECT/UPDATE policy. Any policy on
+-- profiles that sub-selects profiles to check is_admin causes infinite recursion
+-- (error 42P17), which also propagates to any table whose admin policy sub-selects
+-- profiles (e.g. question_axis_links). Admin access to profiles uses the service
+-- role key on the backend or JWT claims instead. See schema.sql and
+-- supabase/migrations/011_*_profiles_policies_*.sql.
 --
-
-CREATE POLICY "Admins can view all profiles" ON public.profiles FOR SELECT USING ((EXISTS ( SELECT 1
-   FROM public.profiles p
-  WHERE ((p.id = auth.uid()) AND (p.is_admin = true)))));
 
 
 --
