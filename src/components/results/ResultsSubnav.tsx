@@ -11,9 +11,18 @@ const TABS = [
   { slug: 'types', label: 'Political types' }
 ] as const
 
-export function ResultsSubnav({ sessionId }: { sessionId: string }) {
+const AI_TAB = { slug: 'analysis', label: 'AI analysis' } as const
+
+export function ResultsSubnav({
+  sessionId,
+  showAIAnalysis = false
+}: {
+  sessionId: string
+  showAIAnalysis?: boolean
+}) {
   const pathname = usePathname()
   const base = `/results/${sessionId}`
+  const tabs = showAIAnalysis ? [...TABS, AI_TAB] : TABS
 
   const isActive = (slug: string) => {
     if (slug === '') return pathname === base
@@ -23,7 +32,7 @@ export function ResultsSubnav({ sessionId }: { sessionId: string }) {
   return (
     <nav aria-label="Result sections" className="-mx-4 px-4 overflow-x-auto">
       <ul className="flex gap-1 border-b border-gray-200 min-w-max">
-        {TABS.map(tab => {
+        {tabs.map(tab => {
           const active = isActive(tab.slug)
           return (
             <li key={tab.slug}>

@@ -332,6 +332,99 @@ export interface Database {
         }
         Relationships: []
       }
+      result_ai_analyses: {
+        Row: {
+          id: string
+          session_id: string
+          parent_analysis_id: string | null
+          user_id: string | null
+          stage: string
+          status: string
+          provider: string
+          model: string
+          prompt_version: string
+          schema_version: string
+          bank_version: string | null
+          input_hash: string
+          context_json: Json
+          deterministic_signals: Json
+          analysis_json: Json | null
+          error_code: string | null
+          error_message: string | null
+          input_tokens: number | null
+          output_tokens: number | null
+          latency_ms: number | null
+          provider_request_id: string | null
+          created_at: string
+          completed_at: string | null
+        }
+        Insert: {
+          id?: string
+          session_id: string
+          parent_analysis_id?: string | null
+          user_id?: string | null
+          stage: string
+          status: string
+          provider: string
+          model: string
+          prompt_version: string
+          schema_version: string
+          bank_version?: string | null
+          input_hash: string
+          context_json?: Json
+          deterministic_signals?: Json
+          analysis_json?: Json | null
+          error_code?: string | null
+          error_message?: string | null
+          input_tokens?: number | null
+          output_tokens?: number | null
+          latency_ms?: number | null
+          provider_request_id?: string | null
+          created_at?: string
+          completed_at?: string | null
+        }
+        Update: {
+          id?: string
+          session_id?: string
+          parent_analysis_id?: string | null
+          user_id?: string | null
+          stage?: string
+          status?: string
+          provider?: string
+          model?: string
+          prompt_version?: string
+          schema_version?: string
+          bank_version?: string | null
+          input_hash?: string
+          context_json?: Json
+          deterministic_signals?: Json
+          analysis_json?: Json | null
+          error_code?: string | null
+          error_message?: string | null
+          input_tokens?: number | null
+          output_tokens?: number | null
+          latency_ms?: number | null
+          provider_request_id?: string | null
+          created_at?: string
+          completed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "result_ai_analyses_parent_analysis_id_fkey"
+            columns: ["parent_analysis_id"]
+            isOneToOne: false
+            referencedRelation: "result_ai_analyses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "result_ai_analyses_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "survey_results"
+            referencedColumns: ["session_id"]
+          }
+        ]
+      }
       survey_results: {
         Row: {
           id: string

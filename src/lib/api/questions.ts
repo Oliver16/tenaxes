@@ -10,7 +10,7 @@ import { QuestionWithLinks } from '@/lib/database.types'
  * questions are included in that mode).
  */
 export async function fetchQuestionsWithLinks(
-  options?: { bankVersion?: string | null }
+  options?: { bankVersion?: string | null; questionIds?: number[] }
 ): Promise<QuestionWithLinks[]> {
   const supabase = createClient()
 
@@ -31,6 +31,10 @@ export async function fetchQuestionsWithLinks(
 
   if (options?.bankVersion) {
     query = query.eq('bank_version', options.bankVersion)
+  } else if (options?.questionIds && options.questionIds.length > 0) {
+    // Legacy results may predate bank_version. Their stored response keys
+    // are the pin: include those exact (possibly inactive) question rows.
+    query = query.in('id', options.questionIds)
   } else {
     query = query.eq('active', true)
   }

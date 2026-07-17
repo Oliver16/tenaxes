@@ -36,15 +36,12 @@ export type QuestionInput = {
 
 // Fetch all questions grouped by axis
 export async function fetchAllQuestions(): Promise<Record<string, Question[]>> {
-  const { data, error } = await supabase
-    .from('questions')
-    .select('*')
-    .order('display_order', { ascending: true })
-
-  if (error) {
-    console.error('Error fetching questions:', error)
+  const response = await fetch('/api/admin/questions')
+  if (!response.ok) {
+    console.error('Error fetching questions:', await response.text())
     return {}
   }
+  const data = await response.json()
 
   // Group by axis
   const grouped: Record<string, Question[]> = {}
@@ -107,106 +104,57 @@ export async function fetchQuestionsByAxis(axisId: string): Promise<Question[]> 
 
 // Create a new question
 export async function createQuestion(input: QuestionInput): Promise<Question | null> {
-  // Get max display_order for this axis if not provided
-  let displayOrder = input.display_order
-  if (displayOrder === undefined) {
-    const { data: existing } = await supabase
-      .from('questions')
-      .select('display_order')
-      .eq('axis_id', input.axis_id)
-      .order('display_order', { ascending: false })
-      .limit(1)
-
-    displayOrder = existing && existing.length > 0 ? (existing as any)[0].display_order + 1 : 1
-  }
-
-  const { data, error } = await supabase
-    .from('questions')
-    .insert({
-      axis_id: input.axis_id,
-      key: input.key,
-      text: input.text,
-      educational_content: input.educational_content,
-      display_order: displayOrder,
-      active: input.active ?? true,
-      weight: input.weight ?? 1.0,
-      question_type: input.question_type ?? 'conceptual'
-    } as any)
-    .select()
-    .single()
-
-  if (error) {
-    console.error('Error creating question:', error)
+  const response = await fetch('/api/admin/questions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input)
+  })
+  if (!response.ok) {
+    console.error('Error creating question:', await response.text())
     return null
   }
-
-  return data ? normalizeQuestion(data) : null
+  return normalizeQuestion(await response.json())
 }
 
 // Update an existing question
 export async function updateQuestion(id: number, updates: Partial<QuestionInput>): Promise<Question | null> {
-  const { data, error } = await (supabase
-    .from('questions') as any)
-    .update(updates)
-    .eq('id', id)
-    .select()
-    .single()
-
-  if (error) {
-    console.error('Error updating question:', error)
+  const response = await fetch('/api/admin/questions', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, updates })
+  })
+  if (!response.ok) {
+    console.error('Error updating question:', await response.text())
     return null
   }
-
-  return data ? normalizeQuestion(data) : null
+  return normalizeQuestion(await response.json())
 }
 
 // Delete a question
 export async function deleteQuestion(id: number): Promise<boolean> {
-  const { error } = await supabase
-    .from('questions')
-    .delete()
-    .eq('id', id)
-
-  if (error) {
-    console.error('Error deleting question:', error)
-    return false
-  }
-
-  return true
+  const response = await fetch('/api/admin/questions', {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id })
+  })
+  if (!response.ok) console.error('Error deleting question:', await response.text())
+  return response.ok
 }
 
 // Toggle question active status
 export async function toggleQuestionActive(id: number, active: boolean): Promise<boolean> {
-  const { error } = await (supabase
-    .from('questions') as any)
-    .update({ active })
-    .eq('id', id)
-
-  if (error) {
-    console.error('Error toggling question:', error)
-    return false
-  }
-
-  return true
+  return !!(await updateQuestion(id, { active }))
 }
 
 // Reorder questions within an axis
 export async function reorderQuestions(axisId: string, questionIds: number[]): Promise<boolean> {
-  // Update each question's display_order
-  const updates = questionIds.map((id, index) =>
-    (supabase
-      .from('questions') as any)
-      .update({ display_order: index + 1 })
-      .eq('id', id)
-  )
-
-  try {
-    await Promise.all(updates)
-    return true
-  } catch (error) {
-    console.error('Error reordering questions:', error)
-    return false
-  }
+  const response = await fetch('/api/admin/questions', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ questionIds })
+  })
+  if (!response.ok) console.error('Error reordering questions:', await response.text())
+  return response.ok
 }
 
 // Get axis metadata

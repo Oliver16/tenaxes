@@ -44,12 +44,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      setLoading(true)
       setSession(session)
       setUser(session?.user ?? null)
       if (session?.user) {
+        setProfile(null)
+        setRoles([])
         fetchProfile(session.user.id)
       } else {
         setProfile(null)
+        setRoles([])
         setLoading(false)
       }
     })
@@ -59,18 +63,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchProfile = async (userId: string) => {
     try {
-      // Fetch profile
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single()
+      const [{ data, error }, userRoles] = await Promise.all([
+        supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
+        getUserRoles(userId)
+      ])
 
       if (error) throw error
-      setProfile(data)
-
-      // Fetch roles
-      const userRoles = await getUserRoles(userId)
+      setProfile(data || null)
       setRoles(userRoles)
     } catch (error) {
       console.error('Error fetching profile:', error)

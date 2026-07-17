@@ -10,8 +10,9 @@ A Next.js application with Supabase backend for a 350-item political orientation
 - **48 Collision Scenarios**: 24 mirrored axis pairs that price one value against another
 - **Rich Visualizations**: Radar charts, axis scales, flavor bar charts
 - **Admin Analytics Dashboard**: Response trends, population averages, popular types
-- **Anonymous**: No login, no PII collection
+- **Anonymous survey**: No login is required; optional AI context is disclosed and consented to separately
 - **Shareable Results**: Unique URL for each completion
+- **Optional AI-assisted interpretation**: Consent-based, cached, evidence-linked analysis of commitments, center scores, tensions, possible hypocrisy, low salience, and knowledge gaps
 
 ---
 
@@ -21,10 +22,11 @@ A Next.js application with Supabase backend for a 350-item political orientation
 
 1. Go to [supabase.com](https://supabase.com) and create a new project
 2. Once created, go to **SQL Editor**
-3. Paste the contents of `supabase/fresh_install.sql` and run it once — this installs the complete current state (schema, policies, 18 constructs, 350 questions, all links, and semantic coverage metadata). Do not run `schema.sql`/seeds/migrations separately for a new project; see `docs/supabase-migration.md` for details and for migrating data from an old project.
+3. Paste the contents of `supabase/fresh_install.sql` and run it once — this installs the complete current state (schema, policies, 18 constructs, 350 questions, all links, semantic coverage metadata, and the private AI analysis cache). Do not run `schema.sql`/seeds/migrations separately for a new project; see `docs/supabase-migration.md` for details and for migrating data from an old project.
 4. Go to **Settings → API** and copy:
    - Project URL
    - `anon` public key
+   - `service_role` key (server-only; required for AI analysis and admin routes)
 
 ### 2. Deploy to Vercel
 
@@ -42,6 +44,7 @@ vercel
 # Set environment variables
 vercel env add NEXT_PUBLIC_SUPABASE_URL
 vercel env add NEXT_PUBLIC_SUPABASE_ANON_KEY
+vercel env add SUPABASE_SERVICE_ROLE_KEY
 
 # Redeploy with env vars
 vercel --prod
@@ -54,7 +57,26 @@ Create `.env.local` for local development:
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
+
+# Optional; remains unavailable unless explicitly enabled and configured.
+AI_ANALYSIS_ENABLED=false
+AI_ANALYSIS_PROVIDER=openai
+AI_ANALYSIS_PROMPT_VERSION=v1
+OPENAI_API_KEY=
+OPENAI_ANALYSIS_MODEL=
+ANTHROPIC_API_KEY=
+ANTHROPIC_ANALYSIS_MODEL=
+AI_ANALYSIS_MAX_REGENERATIONS=3
+AI_ANALYSIS_CONTEXT_MAX_CHARS=2000
+RUN_LIVE_AI_EVALS=false
 ```
+
+Set exactly one selected provider's key/model pair, then change
+`AI_ANALYSIS_ENABLED` to `true`. Provider keys and the Supabase service role are
+server-only and must never use a `NEXT_PUBLIC_` prefix. See
+[`docs/ai-analysis.md`](docs/ai-analysis.md) for architecture, safety,
+thresholds, caching, and evaluation.
 
 ---
 
@@ -65,6 +87,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
 | `/` | Landing page with feature overview |
 | `/survey` | 350-question questionnaire (108 conceptual + 242 applied), resumable across sittings |
 | `/results/[sessionId]` | Individual results with visualizations |
+| `/results/[sessionId]/analysis` | Optional candid AI-assisted interpretation and refinement |
 | `/admin` | Analytics dashboard |
 | `/admin/questions` | Question management (add/edit/delete) |
 
@@ -206,6 +229,15 @@ After running `schema.sql`, seed the default questions:
 | top_flavors | JSONB | Top 5 matching archetypes |
 | created_at | TIMESTAMPTZ | Calculation timestamp |
 
+### `result_ai_analyses`
+
+Stores versioned provisional/refined structured reports, their deterministic
+signals, cache identity, provider provenance, token/latency metadata, and safe
+failure status. It references the bank-pinned result by `session_id`. RLS is
+enabled with no browser policies; generation and retrieval are service-role
+server operations. Existing v2.2 databases add it with
+`supabase/migrations/20260717180000_add_result_ai_analysis.sql`.
+
 ---
 
 ## Content provenance
@@ -346,11 +378,12 @@ export async function POST(request: Request) {
 
 ## Privacy
 
-- No accounts or authentication
-- No PII collected
-- Session IDs are random 12-character strings
-- IP addresses not logged (Supabase default)
-- Results shareable only via direct URL
+- The survey can be completed anonymously; session IDs are random 12-character strings and results are shareable only by direct URL.
+- AI analysis is optional, requires explicit consent, and never changes deterministic scores.
+- Bank-pinned answers and optional context are sent only to the configured AI provider after consent. Do not enter identifying details in the context field.
+- Provider payloads exclude session ID, user ID, email, IP, and auth claims; OpenAI request storage is disabled.
+- Provider keys, raw stored context, and the Supabase service role are never exposed to the browser. The AI table has no direct client read/write policy.
+- Application logs must not contain full prompts, raw answer maps, provider output, or user context.
 
 ---
 
