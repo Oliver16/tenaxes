@@ -168,6 +168,7 @@ export default async function ResultsPage({
                 <AxisCollisionDetails
                   axisId={axis.axis_id}
                   axisName={axis.name}
+                  pairs={collisionPairs}
                   tensions={tensionScores}
                 />
               </div>
@@ -192,6 +193,7 @@ export default async function ResultsPage({
                 <AxisCollisionDetails
                   axisId={axis.axis_id}
                   axisName={axis.name}
+                  pairs={collisionPairs}
                   tensions={tensionScores}
                 />
               </div>
