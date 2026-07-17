@@ -110,15 +110,18 @@ export default async function ResultsPage({
     .map(axis => {
       const conceptual = conceptualByAxis[axis.axis_id] ?? 0
       const applied = appliedByAxis[axis.axis_id] ?? 0
-      // Scores are in [-1, 1], so raw difference is in [0, 2]; normalize to [0, 1]
-      const normalizedDiff = Math.abs(conceptual - applied) / 2
+      // Scores are in [-1, 1] and the bars/labels below render them on a
+      // 1.0 = 100% basis, so the gap is expressed on that same scale:
+      // e.g. 0.80 vs 0.60 => 0.20 => "20%". A full opposite-pole flip
+      // (e.g. +0.8 vs -0.8) can therefore exceed 100%.
+      const diff = Math.abs(conceptual - applied)
 
       return {
         axis_id: axis.axis_id,
         name: axis.name,
         conceptual_score: conceptual,
         applied_score: applied,
-        difference: normalizedDiff,
+        difference: diff,
         pole_negative: axis.pole_negative,
         pole_positive: axis.pole_positive
       }
@@ -209,7 +212,7 @@ export default async function ResultsPage({
 
             <div className="space-y-4">
               {axisComparisons.slice(0, 5).map((comparison) => {
-                const showWarning = comparison.difference > 0.3
+                const showWarning = comparison.difference > 0.6
                 return (
                   <div key={comparison.axis_id} className={`p-4 rounded-lg border ${showWarning ? 'bg-amber-50 border-amber-200' : 'bg-gray-50 border-gray-200'}`}>
                     <div className="flex justify-between items-start mb-3">
@@ -286,7 +289,7 @@ export default async function ResultsPage({
               })}
             </div>
 
-            {axisComparisons.every(c => c.difference < 0.2) && (
+            {axisComparisons.every(c => c.difference < 0.4) && (
               <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
                 <p className="text-sm text-green-800">
                   ✓ Your responses show strong consistency between conceptual beliefs and practical application across all axes.
