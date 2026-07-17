@@ -1,5 +1,10 @@
 # Question Bank & Tension Methodology Audit
 
+> **Round 5** lives in its own document: see
+> `question-content-audit.md` (2026-07-17) for the content-level audit —
+> question ordering/adjacency, near-duplicate items, template reuse,
+> topical concentration, per-axis depth, and key-balance drift.
+
 > **Implementation status:** the P0/P1 fixes (and the P2 link
 > corrections) are implemented on this branch — see
 > `supabase/migrations/20260716120000_fix_tension_links.sql`,
