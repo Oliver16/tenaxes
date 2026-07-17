@@ -32,16 +32,33 @@ export type QuestionInput = {
   active?: boolean
   weight?: number
   question_type?: 'conceptual' | 'applied'
+  bank_version?: string
+}
+
+export type QuestionBankVersion = {
+  id: string
+  name: string
+  question_count: number
+  created_at: string
+}
+
+export type AdminQuestionBank = {
+  grouped: Record<string, Question[]>
+  questions: Question[]
+  bankVersion: string
+  versions: QuestionBankVersion[]
 }
 
 // Fetch all questions grouped by axis
-export async function fetchAllQuestions(): Promise<Record<string, Question[]>> {
-  const response = await fetch('/api/admin/questions')
+export async function fetchAllQuestions(bankVersion?: string): Promise<AdminQuestionBank> {
+  const query = bankVersion ? `?bankVersion=${encodeURIComponent(bankVersion)}` : ''
+  const response = await fetch(`/api/admin/questions${query}`, { cache: 'no-store' })
   if (!response.ok) {
-    console.error('Error fetching questions:', await response.text())
-    return {}
+    const body = await response.json().catch(() => ({}))
+    throw new Error(body.error || 'Failed to fetch questions')
   }
-  const data = await response.json()
+  const payload = await response.json()
+  const data = payload.questions || []
 
   // Group by axis
   const grouped: Record<string, Question[]> = {}
@@ -55,7 +72,13 @@ export async function fetchAllQuestions(): Promise<Record<string, Question[]>> {
     }
   })
 
-  return grouped
+  const questions = data.map(normalizeQuestion)
+  return {
+    grouped,
+    questions,
+    bankVersion: payload.bankVersion,
+    versions: payload.versions || []
+  }
 }
 
 // Fetch active questions for survey

@@ -1,48 +1,48 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import type { Question, QuestionInput } from '@/lib/questions'
+
+type AxisOption = {
+  id: string
+  name: string
+  pole_negative: string
+  pole_positive: string
+}
 
 type Props = {
   question?: Question | null
-  axisId: string
-  axisName: string
-  poleNegative: string
-  polePositive: string
+  initialAxisId: string
+  axes: AxisOption[]
   onSave: (input: QuestionInput) => Promise<void>
   onCancel: () => void
 }
 
-export function QuestionEditor({
-  question,
-  axisId,
-  axisName,
-  poleNegative,
-  polePositive,
-  onSave,
-  onCancel
-}: Props) {
+export function QuestionEditor({ question, initialAxisId, axes, onSave, onCancel }: Props) {
+  const [axisId, setAxisId] = useState(question?.axis_id || initialAxisId)
   const [text, setText] = useState(question?.text || '')
   const [educationalContent, setEducationalContent] = useState(question?.educational_content || '')
   const [key, setKey] = useState<1 | -1>(question?.key || 1)
   const [questionType, setQuestionType] = useState<'conceptual' | 'applied'>(question?.question_type || 'conceptual')
   const [weight, setWeight] = useState(question?.weight ?? 1)
+  const [active, setActive] = useState(question?.active ?? true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const axis = axes.find(option => option.id === axisId) || axes[0]
   const isEdit = !!question
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    if (!text.trim()) {
-      setError('Question text is required')
-      return
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault()
+    setError(null)
+
+    if (!axisId) return setError('Choose an axis')
+    if (!text.trim()) return setError('Question text is required')
+    if (!Number.isFinite(weight) || weight < 0.01 || weight > 10) {
+      return setError('Weight must be between 0.01 and 10')
     }
 
     setSaving(true)
-    setError(null)
-
     try {
       await onSave({
         axis_id: axisId,
@@ -51,158 +51,159 @@ export function QuestionEditor({
         educational_content: educationalContent.trim() || undefined,
         display_order: question?.display_order,
         question_type: questionType,
-        weight
+        weight,
+        active
       })
-    } catch (err) {
-      setError('Failed to save question')
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Failed to save question')
+    } finally {
       setSaving(false)
     }
   }
 
   return (
-    <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-      <h3 className="font-medium text-gray-800 mb-4">
-        {isEdit ? 'Edit Question' : 'Add New Question'}
-      </h3>
-      
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Question Text */}
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="flex items-start justify-between gap-4 border-b border-gray-200 pb-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Question Text
-          </label>
-          <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-800"
-            rows={3}
-            placeholder="Enter the question statement..."
-          />
-        </div>
-
-        {/* Educational Content */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Educational Content
-          </label>
-          <p className="text-xs text-gray-500 mb-2">
-            Optional: Add examples, context, or explanations to help users understand the question (1-2 paragraphs max)
+          <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">
+            {isEdit ? `Question #${question.id}` : 'New question'}
           </p>
-          <textarea
-            value={educationalContent}
-            onChange={(e) => setEducationalContent(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-800"
-            rows={4}
-            placeholder="Example: This question explores the balance between individual liberty and collective action. Consider how different societies prioritize personal freedom versus community obligations..."
+          <h2 className="mt-1 text-2xl font-bold text-gray-900">
+            {isEdit ? 'Edit question' : 'Add to question bank'}
+          </h2>
+        </div>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+          aria-label="Close editor"
+        >
+          <span aria-hidden="true" className="text-2xl leading-none">&times;</span>
+        </button>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label className="block text-sm font-medium text-gray-700">
+          Axis
+          <select
+            value={axisId}
+            onChange={event => setAxisId(event.target.value)}
+            className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+          >
+            {axes.map(option => (
+              <option key={option.id} value={option.id}>{option.id} — {option.name}</option>
+            ))}
+          </select>
+        </label>
+
+        <label className="block text-sm font-medium text-gray-700">
+          Question type
+          <select
+            value={questionType}
+            onChange={event => setQuestionType(event.target.value as 'conceptual' | 'applied')}
+            className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+          >
+            <option value="conceptual">Conceptual principle</option>
+            <option value="applied">Applied scenario</option>
+          </select>
+        </label>
+      </div>
+
+      <label className="block text-sm font-medium text-gray-700">
+        Question text
+        <textarea
+          value={text}
+          onChange={event => setText(event.target.value)}
+          rows={5}
+          maxLength={2000}
+          autoFocus
+          className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-3 text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+          placeholder="Write one clear statement for respondents to rate…"
+        />
+        <span className="mt-1 block text-right text-xs text-gray-400">{text.length}/2000</span>
+      </label>
+
+      <label className="block text-sm font-medium text-gray-700">
+        Clarifying context <span className="font-normal text-gray-400">(optional)</span>
+        <textarea
+          value={educationalContent}
+          onChange={event => setEducationalContent(event.target.value)}
+          rows={4}
+          maxLength={5000}
+          className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-3 text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+          placeholder="State assumptions or define technical terms without arguing for an answer."
+        />
+      </label>
+
+      {axis && (
+        <fieldset>
+          <legend className="text-sm font-medium text-gray-700">Agreement points toward</legend>
+          <div className="mt-2 grid gap-3 sm:grid-cols-2">
+            {([
+              { value: -1 as const, label: axis.pole_negative, color: 'red' },
+              { value: 1 as const, label: axis.pole_positive, color: 'green' }
+            ]).map(option => (
+              <label
+                key={option.value}
+                className={`cursor-pointer rounded-xl border-2 p-4 transition ${
+                  key === option.value
+                    ? option.color === 'red' ? 'border-red-500 bg-red-50' : 'border-green-500 bg-green-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="key"
+                  value={option.value}
+                  checked={key === option.value}
+                  onChange={() => setKey(option.value)}
+                  className="sr-only"
+                />
+                <span className="block text-sm font-semibold text-gray-900">{option.label}</span>
+                <span className="mt-1 block text-xs text-gray-500">Scoring key {option.value > 0 ? '+1' : '-1'}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      )}
+
+      <div className="grid items-end gap-4 rounded-xl bg-gray-50 p-4 sm:grid-cols-2">
+        <label className="block text-sm font-medium text-gray-700">
+          Scoring weight
+          <input
+            type="number"
+            min="0.01"
+            max="10"
+            step="0.05"
+            value={weight}
+            onChange={event => setWeight(Number(event.target.value))}
+            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2.5 text-gray-900"
           />
-        </div>
+        </label>
+        <label className="flex cursor-pointer items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3">
+          <span>
+            <span className="block text-sm font-medium text-gray-800">Active in survey</span>
+            <span className="block text-xs text-gray-500">Inactive questions remain in historical results.</span>
+          </span>
+          <input
+            type="checkbox"
+            checked={active}
+            onChange={event => setActive(event.target.checked)}
+            className="h-5 w-5 rounded border-gray-300 text-blue-600"
+          />
+        </label>
+      </div>
 
-        {/* Revised bank metadata */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div>
-            <label htmlFor="question-type" className="block text-sm font-medium text-gray-700 mb-1">
-              Question Type
-            </label>
-            <select
-              id="question-type"
-              value={questionType}
-              onChange={(event) => setQuestionType(event.target.value as 'conceptual' | 'applied')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-800"
-            >
-              <option value="conceptual">Conceptual</option>
-              <option value="applied">Applied / scenario</option>
-            </select>
-          </div>
-          <div>
-            <label htmlFor="question-weight" className="block text-sm font-medium text-gray-700 mb-1">
-              Scoring Weight
-            </label>
-            <input
-              id="question-weight"
-              type="number"
-              min="0.01"
-              max="10"
-              step="0.05"
-              value={weight}
-              onChange={(event) => setWeight(Number(event.target.value))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-800"
-            />
-          </div>
-        </div>
+      {error && <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
 
-        {/* Key (Which pole does agreement push toward) */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Agreement Direction
-          </label>
-          <p className="text-xs text-gray-500 mb-2">
-            When someone agrees with this statement, which pole does it indicate?
-          </p>
-          <div className="flex gap-3">
-            <label className={`flex-1 p-3 rounded-lg border-2 cursor-pointer transition-all ${
-              key === -1 
-                ? 'border-red-500 bg-red-50' 
-                : 'border-gray-200 hover:border-gray-300'
-            }`}>
-              <input
-                type="radio"
-                name="key"
-                value={-1}
-                checked={key === -1}
-                onChange={() => setKey(-1)}
-                className="sr-only"
-              />
-              <div className="text-center">
-                <span className="block font-medium text-red-700">← {poleNegative}</span>
-                <span className="text-xs text-gray-500">Key: -1</span>
-              </div>
-            </label>
-            
-            <label className={`flex-1 p-3 rounded-lg border-2 cursor-pointer transition-all ${
-              key === 1 
-                ? 'border-green-500 bg-green-50' 
-                : 'border-gray-200 hover:border-gray-300'
-            }`}>
-              <input
-                type="radio"
-                name="key"
-                value={1}
-                checked={key === 1}
-                onChange={() => setKey(1)}
-                className="sr-only"
-              />
-              <div className="text-center">
-                <span className="block font-medium text-green-700">{polePositive} →</span>
-                <span className="text-xs text-gray-500">Key: +1</span>
-              </div>
-            </label>
-          </div>
-        </div>
-
-        {/* Error */}
-        {error && (
-          <p className="text-sm text-red-600">{error}</p>
-        )}
-
-        {/* Actions */}
-        <div className="flex justify-end gap-2 pt-2">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="px-4 py-2 text-gray-600 hover:text-gray-800"
-            disabled={saving}
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-            disabled={saving}
-          >
-            {saving ? 'Saving...' : (isEdit ? 'Update' : 'Add Question')}
-          </button>
-        </div>
-      </form>
-    </div>
+      <div className="flex justify-end gap-3 border-t border-gray-200 pt-4">
+        <button type="button" onClick={onCancel} disabled={saving} className="rounded-lg px-4 py-2.5 font-medium text-gray-600 hover:bg-gray-100">
+          Cancel
+        </button>
+        <button type="submit" disabled={saving} className="rounded-lg bg-blue-600 px-5 py-2.5 font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
+          {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Add question'}
+        </button>
+      </div>
+    </form>
   )
 }

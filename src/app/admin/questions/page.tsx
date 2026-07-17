@@ -1,421 +1,290 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import {
-  fetchAllQuestions,
   createQuestion,
-  updateQuestion,
   deleteQuestion,
-  toggleQuestionActive,
-  reorderQuestions,
+  fetchAllQuestions,
   getAllAxes,
+  reorderQuestions,
+  toggleQuestionActive,
+  updateQuestion,
   type Question,
+  type QuestionBankVersion,
   type QuestionInput
 } from '@/lib/questions'
 import { QuestionEditor } from '@/components/admin/QuestionEditor'
 import { QuestionList } from '@/components/admin/QuestionList'
 
-type AxisInfo = {
-  id: string
-  name: string
-  pole_negative: string
-  pole_positive: string
-  isCore: boolean
-  isFacet: boolean
-}
+type TypeFilter = 'all' | 'conceptual' | 'applied'
+type StatusFilter = 'all' | 'active' | 'inactive'
 
 export default function QuestionsAdminPage() {
   const { user, isAdmin, loading: authLoading } = useAuth()
   const router = useRouter()
-  const [questions, setQuestions] = useState<Record<string, Question[]>>({})
-  const [loading, setLoading] = useState(true)
-  const [selectedAxis, setSelectedAxis] = useState<string | null>(null)
+  const axes = useMemo(() => getAllAxes(), [])
+  const axisNames = useMemo(() => Object.fromEntries(axes.map(axis => [axis.id, axis.name])), [axes])
+
+  const [questions, setQuestions] = useState<Question[]>([])
+  const [versions, setVersions] = useState<QuestionBankVersion[]>([])
+  const [bankVersion, setBankVersion] = useState('')
+  const [selectedAxis, setSelectedAxis] = useState('all')
+  const [query, setQuery] = useState('')
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null)
   const [isAdding, setIsAdding] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [message, setMessage] = useState<string | null>(null)
 
-  const axes = getAllAxes()
-  const coreAxes = axes.filter(a => a.isCore)
-  const facetAxes = axes.filter(a => a.isFacet)
-
-  // Redirect non-admin users
   useEffect(() => {
-    if (!authLoading && (!user || !isAdmin)) {
-      router.push('/')
-    }
+    if (!authLoading && (!user || !isAdmin)) router.replace('/')
   }, [user, isAdmin, authLoading, router])
 
-  const loadQuestions = useCallback(async () => {
+  const loadQuestions = useCallback(async (requestedVersion?: string) => {
     if (!user || !isAdmin) return
     setLoading(true)
-    const data = await fetchAllQuestions()
-    setQuestions(data)
-    setLoading(false)
+    setError(null)
+    try {
+      const bank = await fetchAllQuestions(requestedVersion)
+      setQuestions(bank.questions)
+      setVersions(bank.versions)
+      setBankVersion(bank.bankVersion)
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Failed to load question bank')
+    } finally {
+      setLoading(false)
+    }
   }, [user, isAdmin])
 
   useEffect(() => {
-    loadQuestions()
-  }, [loadQuestions])
+    if (user && isAdmin) void loadQuestions()
+  }, [user, isAdmin, loadQuestions])
 
-  const showMessage = (type: 'success' | 'error', text: string) => {
-    setMessage({ type, text })
-    setTimeout(() => setMessage(null), 3000)
+  const flash = (text: string) => {
+    setMessage(text)
+    window.setTimeout(() => setMessage(null), 3500)
+  }
+
+  const filteredQuestions = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase()
+    return questions.filter(question => {
+      if (selectedAxis !== 'all' && question.axis_id !== selectedAxis) return false
+      if (typeFilter !== 'all' && question.question_type !== typeFilter) return false
+      if (statusFilter === 'active' && !question.active) return false
+      if (statusFilter === 'inactive' && question.active) return false
+      if (!normalizedQuery) return true
+      return String(question.id) === normalizedQuery
+        || question.text.toLowerCase().includes(normalizedQuery)
+        || (question.educational_content || '').toLowerCase().includes(normalizedQuery)
+    })
+  }, [questions, query, selectedAxis, statusFilter, typeFilter])
+
+  const selectedAxisInfo = axes.find(axis => axis.id === selectedAxis)
+  const axisQuestions = selectedAxis === 'all' ? [] : questions.filter(question => question.axis_id === selectedAxis)
+  const activeAxisQuestions = axisQuestions.filter(question => question.active)
+  const canReorder = selectedAxis !== 'all' && !query && typeFilter === 'all' && statusFilter === 'active'
+  const selectedVersion = versions.find(version => version.id === bankVersion)
+  const activeCount = questions.filter(question => question.active).length
+  const inactiveCount = questions.length - activeCount
+  const conceptualCount = questions.filter(question => question.question_type === 'conceptual').length
+  const appliedCount = questions.length - conceptualCount
+
+  const closeEditor = () => {
+    setEditingQuestion(null)
+    setIsAdding(false)
   }
 
   const handleSave = async (input: QuestionInput) => {
-    setSaving(true)
-    try {
-      if (editingQuestion) {
-        const updated = await updateQuestion(editingQuestion.id, input)
-        if (updated) {
-          showMessage('success', 'Question updated successfully')
-          setEditingQuestion(null)
-          await loadQuestions()
-        } else {
-          showMessage('error', 'Failed to update question')
-        }
-      } else {
-        const created = await createQuestion(input)
-        if (created) {
-          showMessage('success', 'Question added successfully')
-          setIsAdding(false)
-          await loadQuestions()
-        } else {
-          showMessage('error', 'Failed to add question')
-        }
-      }
-    } catch (err) {
-      showMessage('error', 'An error occurred')
+    if (editingQuestion) {
+      const updated = await updateQuestion(editingQuestion.id, input)
+      if (!updated) throw new Error('The question could not be updated')
+      flash(`Question #${editingQuestion.id} updated`)
+    } else {
+      const created = await createQuestion({ ...input, bank_version: bankVersion })
+      if (!created) throw new Error('The question could not be created')
+      flash(`Question #${created.id} added`)
+      setSelectedAxis(created.axis_id)
     }
-    setSaving(false)
+    closeEditor()
+    await loadQuestions(bankVersion)
   }
 
   const handleDelete = async (id: number) => {
-    const success = await deleteQuestion(id)
-    if (success) {
-      showMessage('success', 'Question deleted')
-      await loadQuestions()
-    } else {
-      showMessage('error', 'Failed to delete question')
-    }
+    if (await deleteQuestion(id)) {
+      flash(`Question #${id} deleted`)
+      await loadQuestions(bankVersion)
+    } else setError(`Question #${id} could not be deleted`)
   }
 
   const handleToggleActive = async (id: number, active: boolean) => {
-    const success = await toggleQuestionActive(id, active)
-    if (success) {
-      showMessage('success', active ? 'Question activated' : 'Question deactivated')
-      await loadQuestions()
-    } else {
-      showMessage('error', 'Failed to update question')
-    }
+    if (await toggleQuestionActive(id, active)) {
+      flash(`Question #${id} ${active ? 'activated' : 'deactivated'}`)
+      await loadQuestions(bankVersion)
+    } else setError(`Question #${id} could not be updated`)
   }
 
-  const handleMoveUp = async (id: number) => {
-    if (!selectedAxis) return
-    const axisQuestions = questions[selectedAxis]?.filter(q => q.active) || []
-    const index = axisQuestions.findIndex(q => q.id === id)
-    if (index <= 0) return
-
-    const reordered = axisQuestions.map(question => question.id)
-    ;[reordered[index - 1], reordered[index]] = [reordered[index], reordered[index - 1]]
-    if (await reorderQuestions(selectedAxis, reordered)) await loadQuestions()
-    else showMessage('error', 'Failed to reorder questions')
+  const moveQuestion = async (id: number, direction: -1 | 1) => {
+    if (selectedAxis === 'all') return
+    const index = activeAxisQuestions.findIndex(question => question.id === id)
+    const target = index + direction
+    if (index < 0 || target < 0 || target >= activeAxisQuestions.length) return
+    const reordered = activeAxisQuestions.map(question => question.id)
+    ;[reordered[index], reordered[target]] = [reordered[target], reordered[index]]
+    if (await reorderQuestions(selectedAxis, reordered)) await loadQuestions(bankVersion)
+    else setError('Question order could not be saved')
   }
 
-  const handleMoveDown = async (id: number) => {
-    if (!selectedAxis) return
-    const axisQuestions = questions[selectedAxis]?.filter(q => q.active) || []
-    const index = axisQuestions.findIndex(q => q.id === id)
-    if (index < 0 || index >= axisQuestions.length - 1) return
-
-    const reordered = axisQuestions.map(question => question.id)
-    ;[reordered[index], reordered[index + 1]] = [reordered[index + 1], reordered[index]]
-    if (await reorderQuestions(selectedAxis, reordered)) await loadQuestions()
-    else showMessage('error', 'Failed to reorder questions')
-  }
-
-  // Prevent rendering for non-admin users
-  if (authLoading || !user || !isAdmin) {
-    return null
-  }
-
-  const selectedAxisInfo = axes.find(a => a.id === selectedAxis)
-  const selectedQuestions = selectedAxis ? questions[selectedAxis] || [] : []
-  const activeCount = selectedQuestions.filter(q => q.active).length
-  const totalQuestions = Object.values(questions).flat().filter(q => q.active).length
+  if (authLoading || !user || !isAdmin) return null
 
   return (
-    <main className="min-h-screen bg-gray-100 py-8 px-4">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-6">
+    <main className="min-h-screen bg-slate-100 px-4 py-8">
+      <div className="mx-auto max-w-[1500px]">
+        <header className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-800">Question Manager</h1>
-            <p className="text-gray-500">Add, edit, and organize survey questions</p>
+            <div className="flex items-center gap-3">
+              <h1 className="text-3xl font-bold text-gray-900">Question bank</h1>
+              {bankVersion && <span className="rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-blue-700">{bankVersion}</span>}
+            </div>
+            <p className="mt-1 text-gray-500">Search, review, and edit the complete versioned survey instrument.</p>
           </div>
-          <div className="flex gap-3">
-            <Link
-              href="/admin"
-              className="px-4 py-2 text-gray-600 hover:text-gray-800"
-            >
-              ← Analytics
-            </Link>
-            <Link
-              href="/"
-              className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-sm"
-            >
-              Back to Survey
-            </Link>
+          <div className="flex flex-wrap items-center gap-3">
+            <Link href="/admin" className="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 hover:bg-white">← Analytics</Link>
+            <button type="button" onClick={() => setIsAdding(true)} className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700">+ Add question</button>
           </div>
-        </div>
+        </header>
 
-        {/* Message Toast */}
-        {message && (
-          <div className={`mb-4 p-4 rounded-lg ${
-            message.type === 'success' 
-              ? 'bg-green-50 border border-green-200 text-green-700' 
-              : 'bg-red-50 border border-red-200 text-red-700'
-          }`}>
-            {message.text}
+        {(message || error) && (
+          <div className={`mb-5 flex items-center justify-between rounded-xl border px-4 py-3 text-sm ${error ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>
+            <span>{error || message}</span>
+            <button type="button" onClick={() => { setError(null); setMessage(null) }} aria-label="Dismiss message" className="text-lg">×</button>
           </div>
         )}
 
-        {/* Stats Bar */}
-        <div className="bg-white rounded-xl shadow p-4 mb-6">
-          <div className="flex items-center justify-between">
-            <div className="flex gap-6">
-              <div>
-                <span className="text-2xl font-bold text-gray-800">{totalQuestions}</span>
-                <span className="text-gray-500 ml-2">Active Questions</span>
-              </div>
-              <div className="border-l pl-6">
-                <span className="text-2xl font-bold text-blue-600">{coreAxes.length}</span>
-                <span className="text-gray-500 ml-2">Core Axes</span>
-              </div>
-              <div className="border-l pl-6">
-                <span className="text-2xl font-bold text-purple-600">{facetAxes.length}</span>
-                <span className="text-gray-500 ml-2">Facets</span>
-              </div>
-            </div>
-            {selectedAxis && (
-              <div className="text-right">
-                <span className="text-sm text-gray-500">Selected axis:</span>
-                <span className="ml-2 font-medium text-gray-800">{activeCount} questions</span>
-              </div>
-            )}
-          </div>
-        </div>
+        <section className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          <Stat label="Loaded" value={questions.length} detail={selectedVersion ? `Expected ${selectedVersion.question_count}` : 'Current bank'} warning={!!selectedVersion && questions.length !== selectedVersion.question_count} />
+          <Stat label="Active" value={activeCount} detail={`${inactiveCount} inactive`} />
+          <Stat label="Conceptual" value={conceptualCount} detail={`${appliedCount} applied`} />
+          <Stat label="Axes" value={axes.length} detail="11 core · 7 facets" />
+          <label className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+            <span className="block text-xs font-semibold uppercase tracking-wide text-gray-400">Bank version</span>
+            <select
+              value={bankVersion}
+              onChange={event => void loadQuestions(event.target.value)}
+              disabled={loading}
+              className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-800"
+            >
+              {versions.map(version => <option key={version.id} value={version.id}>{version.id} · {version.question_count} questions</option>)}
+            </select>
+          </label>
+        </section>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Axis Selector Sidebar */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-xl shadow p-4 sticky top-4">
-              <h2 className="font-bold text-gray-800 mb-4">Core Axes</h2>
-              <div className="space-y-1 mb-6">
-                {coreAxes.map(axis => {
-                  const count = questions[axis.id]?.filter(q => q.active).length || 0
-                  return (
-                    <button
-                      key={axis.id}
-                      onClick={() => {
-                        setSelectedAxis(axis.id)
-                        setIsAdding(false)
-                        setEditingQuestion(null)
-                      }}
-                      className={`w-full text-left px-3 py-2 rounded-lg transition-all ${
-                        selectedAxis === axis.id
-                          ? 'bg-blue-100 text-blue-800 border border-blue-300'
-                          : 'hover:bg-gray-100 text-gray-700'
-                      }`}
-                    >
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium">{axis.name}</span>
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${
-                          count >= 8 
-                            ? 'bg-green-100 text-green-700' 
-                            : count >= 4 
-                            ? 'bg-yellow-100 text-yellow-700'
-                            : 'bg-red-100 text-red-700'
-                        }`}>
-                          {count}
-                        </span>
-                      </div>
-                      <div className="text-xs text-gray-500 mt-1 flex justify-between">
-                        <span>{axis.pole_negative}</span>
-                        <span>↔</span>
-                        <span>{axis.pole_positive}</span>
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
-
-              <h2 className="font-bold text-gray-800 mb-4">Style Facets</h2>
-              <div className="space-y-1">
-                {facetAxes.map(axis => {
-                  const count = questions[axis.id]?.filter(q => q.active).length || 0
-                  return (
-                    <button
-                      key={axis.id}
-                      onClick={() => {
-                        setSelectedAxis(axis.id)
-                        setIsAdding(false)
-                        setEditingQuestion(null)
-                      }}
-                      className={`w-full text-left px-3 py-2 rounded-lg transition-all ${
-                        selectedAxis === axis.id
-                          ? 'bg-purple-100 text-purple-800 border border-purple-300'
-                          : 'hover:bg-gray-100 text-gray-700'
-                      }`}
-                    >
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium">{axis.name}</span>
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${
-                          count >= 6 
-                            ? 'bg-green-100 text-green-700' 
-                            : count >= 3 
-                            ? 'bg-yellow-100 text-yellow-700'
-                            : 'bg-red-100 text-red-700'
-                        }`}>
-                          {count}
-                        </span>
-                      </div>
-                      <div className="text-xs text-gray-500 mt-1 flex justify-between">
-                        <span>{axis.pole_negative}</span>
-                        <span>↔</span>
-                        <span>{axis.pole_positive}</span>
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          </div>
-
-          {/* Question Editor Panel */}
-          <div className="lg:col-span-2">
-            {loading ? (
-              <div className="bg-white rounded-xl shadow p-8 text-center">
-                <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
-                <p className="text-gray-500">Loading questions...</p>
-              </div>
-            ) : !selectedAxis ? (
-              <div className="bg-white rounded-xl shadow p-8 text-center">
-                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l4-4 4 4m0 6l-4 4-4-4" />
-                  </svg>
-                </div>
-                <h3 className="text-lg font-medium text-gray-800 mb-2">Select an Axis</h3>
-                <p className="text-gray-500">Choose a core axis or facet from the left to view and edit its questions.</p>
-              </div>
-            ) : (
-              <div className="bg-white rounded-xl shadow p-6">
-                {/* Axis Header */}
-                <div className="flex justify-between items-start mb-6 pb-4 border-b">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                        selectedAxisInfo?.isFacet 
-                          ? 'bg-purple-100 text-purple-700' 
-                          : 'bg-blue-100 text-blue-700'
-                      }`}>
-                        {selectedAxisInfo?.isFacet ? 'Facet' : 'Core'}
-                      </span>
-                      <h2 className="text-xl font-bold text-gray-800">{selectedAxisInfo?.name}</h2>
+        <div className="grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
+          <aside className="self-start rounded-xl border border-gray-200 bg-white p-3 shadow-sm lg:sticky lg:top-4">
+            <button type="button" onClick={() => setSelectedAxis('all')} className={`mb-2 flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm font-semibold ${selectedAxis === 'all' ? 'bg-gray-900 text-white' : 'text-gray-700 hover:bg-gray-100'}`}>
+              <span>All questions</span><span>{questions.length}</span>
+            </button>
+            <div className="max-h-[70vh] space-y-1 overflow-y-auto pr-1">
+              {axes.map(axis => {
+                const items = questions.filter(question => question.axis_id === axis.id)
+                const active = items.filter(question => question.active).length
+                return (
+                  <button key={axis.id} type="button" onClick={() => setSelectedAxis(axis.id)} className={`w-full rounded-lg px-3 py-2 text-left ${selectedAxis === axis.id ? 'bg-blue-50 ring-1 ring-blue-200' : 'hover:bg-gray-50'}`}>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="truncate text-sm font-medium text-gray-800"><span className="mr-1 font-mono text-xs text-gray-400">{axis.id}</span>{axis.name}</span>
+                      <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">{active}/{items.length}</span>
                     </div>
-                    <div className="flex items-center gap-4 mt-2 text-sm">
-                      <span className="text-red-600 font-medium">← {selectedAxisInfo?.pole_negative}</span>
-                      <span className="text-gray-400">to</span>
-                      <span className="text-green-600 font-medium">{selectedAxisInfo?.pole_positive} →</span>
-                    </div>
-                  </div>
-                  
-                  {!isAdding && !editingQuestion && (
-                    <button
-                      onClick={() => setIsAdding(true)}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
-                    >
-                      <span>+</span>
-                      <span>Add Question</span>
-                    </button>
-                  )}
+                  </button>
+                )
+              })}
+            </div>
+          </aside>
+
+          <section className="min-w-0 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+            <div className="mb-5 space-y-4 border-b border-gray-200 pb-5">
+              <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">{selectedAxisInfo ? `${selectedAxisInfo.id} · ${selectedAxisInfo.name}` : 'All questions'}</h2>
+                  <p className="mt-1 text-sm text-gray-500">{filteredQuestions.length} matching {filteredQuestions.length === 1 ? 'question' : 'questions'}{canReorder ? ' · arrows change order within this axis' : ''}</p>
                 </div>
-
-                {/* Editor Form */}
-                {(isAdding || editingQuestion) && selectedAxisInfo && (
-                  <div className="mb-6">
-                    <QuestionEditor
-                      question={editingQuestion}
-                      axisId={selectedAxis}
-                      axisName={selectedAxisInfo.name}
-                      poleNegative={selectedAxisInfo.pole_negative}
-                      polePositive={selectedAxisInfo.pole_positive}
-                      onSave={handleSave}
-                      onCancel={() => {
-                        setIsAdding(false)
-                        setEditingQuestion(null)
-                      }}
-                    />
-                  </div>
-                )}
-
-                {/* Question List */}
                 {selectedAxisInfo && (
-                  <QuestionList
-                    questions={selectedQuestions}
-                    poleNegative={selectedAxisInfo.pole_negative}
-                    polePositive={selectedAxisInfo.pole_positive}
-                    onEdit={(q) => {
-                      setEditingQuestion(q)
-                      setIsAdding(false)
-                    }}
-                    onDelete={handleDelete}
-                    onToggleActive={handleToggleActive}
-                    onMoveUp={handleMoveUp}
-                    onMoveDown={handleMoveDown}
-                  />
-                )}
-
-                {/* Balance Indicator */}
-                <div className="mt-6 pt-4 border-t">
-                  <h4 className="text-sm font-medium text-gray-600 mb-2">Question Balance</h4>
-                  <div className="flex gap-4">
-                    <div className="flex items-center gap-2">
-                      <span className="w-3 h-3 bg-red-400 rounded"></span>
-                      <span className="text-sm text-gray-600">
-                        {selectedQuestions.filter(q => q.active && q.key === -1).length} toward {selectedAxisInfo?.pole_negative}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="w-3 h-3 bg-green-400 rounded"></span>
-                      <span className="text-sm text-gray-600">
-                        {selectedQuestions.filter(q => q.active && q.key === 1).length} toward {selectedAxisInfo?.pole_positive}
-                      </span>
-                    </div>
+                  <div className="text-sm text-gray-500">
+                    <span className="font-medium text-red-600">{selectedAxisInfo.pole_negative}</span>
+                    <span className="mx-2">↔</span>
+                    <span className="font-medium text-green-600">{selectedAxisInfo.pole_positive}</span>
                   </div>
-                  {(() => {
-                    const negCount = selectedQuestions.filter(q => q.active && q.key === -1).length
-                    const posCount = selectedQuestions.filter(q => q.active && q.key === 1).length
-                    const isBalanced = Math.abs(negCount - posCount) <= 1
-                    return (
-                      <p className={`text-xs mt-2 ${isBalanced ? 'text-green-600' : 'text-orange-600'}`}>
-                        {isBalanced 
-                          ? '✓ Questions are balanced' 
-                          : '⚠ Consider balancing the number of questions for each pole'}
-                      </p>
-                    )
-                  })()}
-                </div>
+                )}
+              </div>
+
+              <div className="grid gap-3 xl:grid-cols-[minmax(260px,1fr)_180px_150px]">
+                <label className="relative block">
+                  <span className="sr-only">Search questions</span>
+                  <input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search text, context, or exact question ID…" className="w-full rounded-lg border border-gray-300 py-2.5 pl-10 pr-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200" />
+                  <span className="pointer-events-none absolute left-3 top-2.5 text-gray-400">⌕</span>
+                </label>
+                <select value={typeFilter} onChange={event => setTypeFilter(event.target.value as TypeFilter)} className="rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-700">
+                  <option value="all">All question types</option><option value="conceptual">Conceptual</option><option value="applied">Applied</option>
+                </select>
+                <select value={statusFilter} onChange={event => setStatusFilter(event.target.value as StatusFilter)} className="rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-700">
+                  <option value="all">All statuses</option><option value="active">Active</option><option value="inactive">Inactive</option>
+                </select>
+              </div>
+            </div>
+
+            {loading ? (
+              <div className="py-20 text-center text-gray-500"><div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />Loading complete bank…</div>
+            ) : (
+              <QuestionList
+                questions={filteredQuestions}
+                axisNames={axisNames}
+                canReorder={canReorder}
+                onEdit={question => setEditingQuestion(question)}
+                onDelete={id => void handleDelete(id)}
+                onToggleActive={(id, active) => void handleToggleActive(id, active)}
+                onMoveUp={id => void moveQuestion(id, -1)}
+                onMoveDown={id => void moveQuestion(id, 1)}
+              />
+            )}
+
+            {selectedAxisInfo && axisQuestions.length > 0 && (
+              <div className="mt-6 flex flex-wrap gap-4 rounded-xl bg-gray-50 px-4 py-3 text-sm text-gray-600">
+                <span><strong>{activeAxisQuestions.filter(question => question.key === -1).length}</strong> toward {selectedAxisInfo.pole_negative}</span>
+                <span><strong>{activeAxisQuestions.filter(question => question.key === 1).length}</strong> toward {selectedAxisInfo.pole_positive}</span>
+                <span><strong>{axisQuestions.filter(question => !question.active).length}</strong> inactive</span>
               </div>
             )}
-          </div>
+          </section>
         </div>
       </div>
+
+      {(editingQuestion || isAdding) && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-gray-950/60 p-4 backdrop-blur-sm sm:p-8">
+          <div className="mx-auto max-w-3xl rounded-2xl bg-white p-5 shadow-2xl sm:p-7">
+            <QuestionEditor
+              key={editingQuestion?.id ?? `new-${selectedAxis}`}
+              question={editingQuestion}
+              initialAxisId={selectedAxis === 'all' ? axes[0].id : selectedAxis}
+              axes={axes}
+              onSave={handleSave}
+              onCancel={closeEditor}
+            />
+          </div>
+        </div>
+      )}
     </main>
+  )
+}
+
+function Stat({ label, value, detail, warning = false }: { label: string; value: number; detail: string; warning?: boolean }) {
+  return (
+    <div className={`rounded-xl border bg-white p-4 shadow-sm ${warning ? 'border-amber-300' : 'border-gray-200'}`}>
+      <span className="block text-xs font-semibold uppercase tracking-wide text-gray-400">{label}</span>
+      <span className="mt-1 block text-2xl font-bold text-gray-900">{value}</span>
+      <span className={`mt-1 block text-xs ${warning ? 'font-semibold text-amber-700' : 'text-gray-500'}`}>{detail}</span>
+    </div>
   )
 }
