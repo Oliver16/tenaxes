@@ -6,6 +6,18 @@ export interface ProviderGenerateOptions {
   signal?: AbortSignal
 }
 
+export interface ProviderAttemptMetadata {
+  inputTokens: number | null
+  outputTokens: number | null
+  latencyMs: number
+  providerRequestId: string | null
+}
+
+export interface ProviderGeneration extends ProviderAttemptMetadata {
+  analysis: PersonalizedAnalysis
+  model: string
+}
+
 export interface AnalysisProvider {
   provider: 'openai' | 'anthropic'
   model: string
@@ -13,24 +25,30 @@ export interface AnalysisProvider {
     input: PersonalizedAnalysisInput,
     stage: 'provisional' | 'refined',
     options?: ProviderGenerateOptions
-  ): Promise<{
-    analysis: PersonalizedAnalysis
-    model: string
-    inputTokens: number | null
-    outputTokens: number | null
-    latencyMs: number
-    providerRequestId: string | null
-  }>
+  ): Promise<ProviderGeneration>
 }
 
 export class AnalysisProviderError extends Error {
   constructor(
     public readonly code: 'configuration' | 'timeout' | 'malformed_output' | 'provider_failure',
     message: string,
-    public readonly invalidOutput?: unknown
+    public readonly invalidOutput?: unknown,
+    public readonly attempt?: ProviderAttemptMetadata
   ) {
     super(message)
     this.name = 'AnalysisProviderError'
+  }
+}
+
+export function summarizeProviderAttempts(attempts: ReadonlyArray<ProviderAttemptMetadata>): ProviderAttemptMetadata {
+  const inputTokens = attempts.flatMap(attempt => attempt.inputTokens === null ? [] : [attempt.inputTokens])
+  const outputTokens = attempts.flatMap(attempt => attempt.outputTokens === null ? [] : [attempt.outputTokens])
+  const requestIds = [...new Set(attempts.flatMap(attempt => attempt.providerRequestId ? [attempt.providerRequestId] : []))]
+  return {
+    inputTokens: inputTokens.length > 0 ? inputTokens.reduce((total, value) => total + value, 0) : null,
+    outputTokens: outputTokens.length > 0 ? outputTokens.reduce((total, value) => total + value, 0) : null,
+    latencyMs: attempts.reduce((total, attempt) => total + Math.max(0, attempt.latencyMs), 0),
+    providerRequestId: requestIds.length > 0 ? requestIds.join(',') : null
   }
 }
 

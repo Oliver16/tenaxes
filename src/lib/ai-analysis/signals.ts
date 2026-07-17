@@ -28,6 +28,7 @@ export const SIGNAL_THRESHOLDS = {
   centerUncertainNotSureRate: 0.25,
   contextualGap: 0.30,
   domainOpposition: 0.35,
+  domainOppositionMinNumeric: 2,
   domainExceptionMinAxisScore: 0.40,
   domainExceptionMinItems: 2,
   avoidanceMinControversyNumeric: 4,
@@ -172,15 +173,18 @@ function coverageConfidence(coverage: AxisCoverage | undefined): Confidence {
 }
 
 function hasOpposingDomains(items: AIQuestionEvidence[]): boolean {
-  const domains = new Map<string, { positive: number; negative: number }>()
+  const domains = new Map<string, { positive: number; negative: number; numeric: number }>()
   for (const item of items) {
     if (!item.policy_domain || item.response === null || item.response === 0) continue
-    const bucket = domains.get(item.policy_domain) ?? { positive: 0, negative: 0 }
+    const bucket = domains.get(item.policy_domain) ?? { positive: 0, negative: 0, numeric: 0 }
     if (item.contribution_direction === 'positive_pole') bucket.positive += item.contribution_strength
     if (item.contribution_direction === 'negative_pole') bucket.negative += item.contribution_strength
+    bucket.numeric += 1
     domains.set(item.policy_domain, bucket)
   }
-  const leans = [...domains.values()].map(d => ratio(d.positive - d.negative, d.positive + d.negative))
+  const leans = [...domains.values()]
+    .filter(domain => domain.numeric >= SIGNAL_THRESHOLDS.domainOppositionMinNumeric)
+    .map(domain => ratio(domain.positive - domain.negative, domain.positive + domain.negative))
   return leans.some(v => v >= SIGNAL_THRESHOLDS.domainOpposition) && leans.some(v => v <= -SIGNAL_THRESHOLDS.domainOpposition)
 }
 
@@ -218,12 +222,30 @@ export function buildCandidateTensions(args: {
         : `The authoritative collision analysis is cross-pressured across ${pair.probes_answered} answered probes.`
     })
   }
-  for (const center of args.centers.filter(c => c.shape === 'counterbalanced_center')) {
+  for (const center of args.centers.filter(c => c.shape !== 'not_center')) {
     candidates.push({
       candidate_id: `center:${center.axis_id}`, source: 'axis_counterbalance', axis_ids: [center.axis_id],
+      question_ids: center.question_ids, pair_ids: [],
+      deterministic_strength: center.shape === 'uncertain_center'
+        ? center.not_sure_rate
+        : center.shape === 'low_intensity_center' ? 1 - center.mean_intensity : center.mean_intensity,
+      coverage_confidence: center.coverage_confidence,
+      factual_summary: center.shape === 'counterbalanced_center'
+        ? 'A near-center score is produced by strong contributions toward both poles, not low intensity.'
+        : `The deterministic center-shape classification for ${center.axis_id} is ${center.shape}.`
+    })
+  }
+  for (const center of args.centers.filter(c =>
+    c.shape !== 'counterbalanced_center' &&
+    c.mean_intensity >= SIGNAL_THRESHOLDS.centerMinCounterbalancedIntensity &&
+    c.negative_share >= SIGNAL_THRESHOLDS.centerMinPoleShare &&
+    c.positive_share >= SIGNAL_THRESHOLDS.centerMinPoleShare
+  )) {
+    candidates.push({
+      candidate_id: `counterbalance:${center.axis_id}`, source: 'axis_counterbalance', axis_ids: [center.axis_id],
       question_ids: center.question_ids, pair_ids: [], deterministic_strength: center.mean_intensity,
       coverage_confidence: center.coverage_confidence,
-      factual_summary: 'A near-center score is produced by strong contributions toward both poles, not low intensity.'
+      factual_summary: 'High-intensity answers pull toward both poles within this axis even though its net score is not classified as a counterbalanced center.'
     })
   }
   for (const topic of args.topicSignals.filter(t => ['apparent_low_salience', 'possible_knowledge_gap'].includes(t.classification))) {
@@ -244,7 +266,10 @@ export function buildCandidateTensions(args: {
       candidate_id: 'profile:selectively_engaged', source: 'topic_engagement', axis_ids: [],
       question_ids: [...new Set(relevant.flatMap(signal => signal.supporting_question_ids))], pair_ids: [],
       factual_summary: 'At least two topics are strongly engaged and at least two others meet low-salience or possible-knowledge-gap thresholds.',
-      deterministic_strength: 0.8, coverage_confidence: 'high'
+      deterministic_strength: 0.8,
+      coverage_confidence: relevant.every(signal => signal.confidence === 'high')
+        ? 'high'
+        : relevant.some(signal => signal.confidence === 'low') ? 'low' : 'medium'
     })
   }
   buildDomainExceptionCandidates(args.evidence, args.axisScores ?? {}).forEach(candidate => candidates.push(candidate))
@@ -255,15 +280,21 @@ export function buildCandidateTensions(args: {
 function buildDomainExceptionCandidates(
   evidence: AIQuestionEvidence[], axisScores: Record<string, number>
 ): CandidateTension[] {
-  const grouped = new Map<string, AIQuestionEvidence[]>()
+  const grouped = new Map<string, { label: string; items: AIQuestionEvidence[] }>()
   for (const item of evidence) {
     if (!item.policy_domain || typeof item.response !== 'number' || item.response === 0) continue
-    const key = `${item.primary_axis_id}\u0000${item.policy_domain}`
-    grouped.set(key, [...(grouped.get(key) ?? []), item])
+    addDomainGroup(grouped, `${item.primary_axis_id}\u0000domain:${item.policy_domain}`, item.policy_domain, item)
+    for (const token of domainThemeTokens(item.policy_domain)) {
+      addDomainGroup(grouped, `${item.primary_axis_id}\u0000theme:${token}`, `${token} theme`, item)
+    }
   }
   const output: CandidateTension[] = []
-  for (const [key, items] of grouped) {
-    const [axisId, domain] = key.split('\u0000')
+  const emittedQuestionSets = new Set<string>()
+  for (const [key, group] of grouped) {
+    const [axisId] = key.split('\u0000')
+    const items = [...new Map(group.items.map(item => [item.question_id, item])).values()]
+    const evidenceKey = `${axisId}:${items.map(item => item.question_id).sort((a, b) => a - b).join(',')}`
+    if (emittedQuestionSets.has(evidenceKey)) continue
     const axisScore = axisScores[axisId]
     if (Math.abs(axisScore ?? 0) < SIGNAL_THRESHOLDS.domainExceptionMinAxisScore || items.length < SIGNAL_THRESHOLDS.domainExceptionMinItems) continue
     const signed = items.reduce((sum, item) => sum + (
@@ -273,15 +304,39 @@ function buildDomainExceptionCandidates(
     const strength = items.reduce((sum, item) => sum + item.contribution_strength, 0)
     const domainLean = strength > 0 ? signed / strength : 0
     if (Math.sign(domainLean) === Math.sign(axisScore) || Math.abs(domainLean) < SIGNAL_THRESHOLDS.domainOpposition) continue
+    const latentConflicts = new Set(items.map(item => item.latent_conflict).filter(Boolean))
+    const conceptualSupport = evidence.filter(item =>
+      item.primary_axis_id === axisId && item.question_type === 'conceptual' &&
+      typeof item.response === 'number' && item.response !== 0 &&
+      !!item.latent_conflict && latentConflicts.has(item.latent_conflict) &&
+      (item.contribution_direction === 'positive_pole' ? 1 : item.contribution_direction === 'negative_pole' ? -1 : 0) === Math.sign(domainLean)
+    )
+    const citedItems = [...new Map([...items, ...conceptualSupport].map(item => [item.question_id, item])).values()]
+    emittedQuestionSets.add(evidenceKey)
     output.push({
-      candidate_id: `domain:${axisId}:${domain}`, source: 'domain_exception', axis_ids: [axisId],
-      question_ids: items.map(item => item.question_id), pair_ids: [],
-      factual_summary: `${domain} answers lean ${domainLean > 0 ? 'positive' : 'negative'} while the authoritative overall ${axisId} score leans the opposite way. This is an exception candidate, not a moral classification.`,
+      candidate_id: `domain:${axisId}:${group.label}`, source: 'domain_exception', axis_ids: [axisId],
+      question_ids: citedItems.map(item => item.question_id), pair_ids: [],
+      factual_summary: `Related ${group.label} answers lean ${domainLean > 0 ? 'positive' : 'negative'} while the authoritative overall ${axisId} score leans the opposite way. This is an exception candidate, not a moral classification.`,
       deterministic_strength: clamp(Math.abs(domainLean - axisScore) / 2),
       coverage_confidence: items.length >= 4 ? 'high' : 'medium'
     })
   }
   return output
+}
+
+function addDomainGroup(
+  groups: Map<string, { label: string; items: AIQuestionEvidence[] }>,
+  key: string, label: string, item: AIQuestionEvidence
+) {
+  const group = groups.get(key) ?? { label, items: [] }
+  group.items.push(item)
+  groups.set(key, group)
+}
+
+function domainThemeTokens(domain: string): string[] {
+  const stop = new Set(['and', 'general', 'principles', 'policy', 'policies', 'other'])
+  return [...new Set(domain.toLowerCase().match(/[a-z0-9]+/g) ?? [])]
+    .filter(token => token.length >= 4 && !stop.has(token))
 }
 
 function buildAvoidanceCandidates(

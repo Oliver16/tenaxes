@@ -282,7 +282,7 @@ CREATE TABLE public.questions (
 -- Name: TABLE questions; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.questions IS 'Comprehensive Polyaxis bank: 300 questions across 18 constructs, including 48 deliberate collision scenarios.';
+COMMENT ON TABLE public.questions IS 'Comprehensive Polyaxis v2.2 bank: 350 questions across 18 constructs, including deliberate collision scenarios.';
 
 
 --

@@ -6,19 +6,20 @@ import type { PersonalizedAnalysis } from '@/lib/ai-analysis/types'
 type Clarification = PersonalizedAnalysis['clarifying_questions'][number]
 
 const MAX_ANSWER_LENGTH = 1000
-const MAX_CONTEXT_LENGTH = 2000
 
 export function ClarificationForm({
   questions,
   submitting,
   canGenerate,
   remainingGenerations,
+  contextMaxLength,
   onRefine
 }: {
   questions: Clarification[]
   submitting: boolean
   canGenerate: boolean
   remainingGenerations: number
+  contextMaxLength: number
   onRefine: (values: {
     generalContext: string
     clarificationAnswers: Array<{ clarification_id: string; answer: string }>
@@ -27,6 +28,7 @@ export function ClarificationForm({
   const visibleQuestions = questions.slice(0, 5)
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [generalContext, setGeneralContext] = useState('')
+  const [acknowledged, setAcknowledged] = useState(false)
 
   const answered = useMemo(
     () => visibleQuestions
@@ -41,7 +43,7 @@ export function ClarificationForm({
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!hasInput || submitting || !canGenerate) return
+    if (!hasInput || !acknowledged || submitting || !canGenerate) return
     void onRefine({
       generalContext: generalContext.trim(),
       clarificationAnswers: answered
@@ -60,6 +62,20 @@ export function ClarificationForm({
       </div>
 
       <div className="mt-5 space-y-5">
+        <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm leading-relaxed text-blue-950">
+          <input
+            type="checkbox"
+            checked={acknowledged}
+            onChange={event => setAcknowledged(event.target.checked)}
+            disabled={submitting || !canGenerate}
+            className="mt-0.5 h-4 w-4 rounded border-blue-300 text-violet-700 focus:ring-violet-500"
+          />
+          <span>
+            I understand that any optional context and clarification answers retained with this saved analysis,
+            plus my additions below, will be sent again to the configured AI provider. Retained text is not displayed here.
+          </span>
+        </label>
+
         {visibleQuestions.map((question, index) => {
           const value = answers[question.clarification_id] ?? ''
           const inputId = `clarification-${question.clarification_id}`
@@ -84,7 +100,7 @@ export function ClarificationForm({
                 placeholder="Optional response"
                 className="mt-3 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-100 disabled:bg-gray-100"
               />
-              <p className="mt-1 text-right text-xs tabular-nums text-gray-400" aria-live="polite">
+              <p className="mt-1 text-right text-xs tabular-nums text-gray-500" aria-live="polite">
                 {value.length}/{MAX_ANSWER_LENGTH}
               </p>
             </div>
@@ -99,7 +115,7 @@ export function ClarificationForm({
             id="refinement-general-context"
             value={generalContext}
             onChange={event => setGeneralContext(event.target.value)}
-            maxLength={MAX_CONTEXT_LENGTH}
+            maxLength={contextMaxLength}
             rows={3}
             disabled={submitting || !canGenerate}
             placeholder="Add a factual assumption or general rule that the questionnaire could not capture."
@@ -107,7 +123,7 @@ export function ClarificationForm({
           />
           <div className="mt-1 flex items-start justify-between gap-3 text-xs text-gray-500">
             <span>Avoid names and identifying details. This context may be reflected indirectly in the report.</span>
-            <span className="shrink-0 tabular-nums" aria-live="polite">{generalContext.length}/{MAX_CONTEXT_LENGTH}</span>
+            <span className="shrink-0 tabular-nums" aria-live="polite">{generalContext.length}/{contextMaxLength}</span>
           </div>
         </div>
       </div>
@@ -115,7 +131,7 @@ export function ClarificationForm({
       <div className="mt-5 flex flex-wrap items-center gap-3">
         <button
           type="submit"
-          disabled={!hasInput || submitting || !canGenerate}
+          disabled={!hasInput || !acknowledged || submitting || !canGenerate}
           className="rounded-lg bg-violet-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-800 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-gray-300"
         >
           {submitting ? 'Refining analysis\u2026' : 'Refine the analysis with this context'}

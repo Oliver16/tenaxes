@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import type { Ref } from 'react'
 import { ClarificationForm } from './ClarificationForm'
 import { EngagementTopicCard } from './EngagementTopicCard'
 import { EvidenceReferences } from './EvidenceReferences'
@@ -82,7 +83,10 @@ export function AIAnalysisReport({
   cached,
   canGenerate,
   remainingGenerations,
+  contextMaxLength,
   refining,
+  allowRefinement,
+  headingRef,
   onRefine
 }: {
   analysis: PersonalizedAnalysis
@@ -95,7 +99,10 @@ export function AIAnalysisReport({
   cached: boolean
   canGenerate: boolean
   remainingGenerations: number
+  contextMaxLength: number
   refining: boolean
+  allowRefinement: boolean
+  headingRef?: Ref<HTMLHeadingElement>
   onRefine: (values: {
     generalContext: string
     clarificationAnswers: Array<{ clarification_id: string; answer: string }>
@@ -122,7 +129,13 @@ export function AIAnalysisReport({
                   </span>
                 )}
               </div>
-              <h1 className="mt-3 text-2xl font-bold leading-tight text-gray-950 md:text-3xl">{analysis.headline}</h1>
+              <h2
+                ref={headingRef}
+                tabIndex={-1}
+                className="mt-3 text-2xl font-bold leading-tight text-gray-950 outline-none md:text-3xl"
+              >
+                {analysis.headline}
+              </h2>
               <p className="mt-4 text-base leading-relaxed text-gray-700">{analysis.executive_summary}</p>
             </div>
 
@@ -179,7 +192,7 @@ export function AIAnalysisReport({
                 <p className="mt-2 text-sm leading-relaxed text-gray-700">{commitment.analysis}</p>
                 <details className="mt-3 group">
                   <summary className="cursor-pointer list-none text-xs font-semibold text-blue-700">
-                    Review evidence <span className="group-open:hidden">&rsaquo;</span>
+                    Review evidence <span className="group-open:hidden" aria-hidden="true">&rsaquo;</span>
                   </summary>
                   <div className="mt-3">
                     <EvidenceReferences
@@ -222,7 +235,7 @@ export function AIAnalysisReport({
                 <p className="mt-2 text-sm leading-relaxed text-gray-700">{center.analysis}</p>
                 <details className="mt-3 group">
                   <summary className="cursor-pointer list-none text-xs font-semibold text-blue-700">
-                    Review evidence <span className="group-open:hidden">&rsaquo;</span>
+                    Review evidence <span className="group-open:hidden" aria-hidden="true">&rsaquo;</span>
                   </summary>
                   <div className="mt-3">
                     <EvidenceReferences
@@ -294,7 +307,7 @@ export function AIAnalysisReport({
                   </dl>
                   <details className="mt-3 group">
                     <summary className="cursor-pointer list-none text-xs font-semibold text-blue-700">
-                      Review evidence <span className="group-open:hidden">&rsaquo;</span>
+                      Review evidence <span className="group-open:hidden" aria-hidden="true">&rsaquo;</span>
                     </summary>
                     <div className="mt-3">
                       <EvidenceReferences
@@ -354,7 +367,7 @@ export function AIAnalysisReport({
                 <p className="mt-2 text-sm leading-relaxed text-gray-700">{blindSpot.analysis}</p>
                 <details className="mt-3 group">
                   <summary className="cursor-pointer list-none text-xs font-semibold text-blue-700">
-                    Review evidence <span className="group-open:hidden">&rsaquo;</span>
+                    Review evidence <span className="group-open:hidden" aria-hidden="true">&rsaquo;</span>
                   </summary>
                   <div className="mt-3">
                     <EvidenceReferences sessionId={sessionId} questionIds={blindSpot.question_ids} evidence={evidence} />
@@ -368,14 +381,17 @@ export function AIAnalysisReport({
         )}
       </section>
 
-      <ClarificationForm
-        key={record.id}
-        questions={analysis.clarifying_questions}
-        submitting={refining}
-        canGenerate={canGenerate}
-        remainingGenerations={remainingGenerations}
-        onRefine={onRefine}
-      />
+      {allowRefinement && (
+        <ClarificationForm
+          key={record.id}
+          questions={analysis.clarifying_questions}
+          submitting={refining}
+          canGenerate={canGenerate}
+          remainingGenerations={remainingGenerations}
+          contextMaxLength={contextMaxLength}
+          onRefine={onRefine}
+        />
+      )}
 
       <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
         <SectionHeading number={8} title="Reflection questions" />

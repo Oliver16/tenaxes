@@ -1,4 +1,4 @@
-import type { AnalysisRecordMeta, GetAIAnalysisResponse } from './types'
+import type { AnalysisRecordMeta, GetAIAnalysisResponse, PersonalizedAnalysis } from './types'
 
 export type GenerationGate =
   | { kind: 'cached'; provider_call_required: false }
@@ -19,6 +19,18 @@ export function decideGeneration(input: {
 
 export function remainingGenerationsFromCount(completed: number, limit: number): number {
   return Math.max(0, limit - Math.max(0, completed))
+}
+
+export function remainingGenerationAllowance(
+  completed: number,
+  completedLimit: number,
+  attempts: number,
+  attemptLimit: number
+): number {
+  return Math.min(
+    remainingGenerationsFromCount(completed, completedLimit),
+    remainingGenerationsFromCount(attempts, attemptLimit)
+  )
 }
 
 export function clarificationAnswersBelongToParent(
@@ -58,6 +70,22 @@ export function disabledAIAnalysisResponse(): GetAIAnalysisResponse {
     enabled: false,
     analysis: null,
     record: null,
+    stale: false,
+    can_generate: false,
+    remaining_generations: 0
+  }
+}
+
+export function conservativeCachedAIAnalysisResponse(
+  row: Parameters<typeof publicAnalysisMeta>[0],
+  analysis: PersonalizedAnalysis
+): GetAIAnalysisResponse {
+  const record = publicAnalysisMeta(row)
+  return {
+    enabled: true,
+    analysis,
+    record,
+    versions: [{ analysis, record }],
     stale: false,
     can_generate: false,
     remaining_generations: 0

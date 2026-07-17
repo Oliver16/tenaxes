@@ -26,7 +26,11 @@ export async function loadAIAnalysisContext(sessionId: string): Promise<{
     let query = supabaseAdmin.from('question_metadata').select('*').in('question_id', questionIds)
     if (resultAnalysis.bankVersion) query = query.eq('bank_version', resultAnalysis.bankVersion)
     const response = await query
-    if (!response.error) metadata = (response.data ?? []) as Metadata[]
+    // Missing metadata rows are legitimate for older banks, but a query
+    // failure must not silently erase domain/topic signals and cache a
+    // degraded generic interpretation.
+    if (response.error) throw new Error('AI analysis question metadata could not be loaded')
+    metadata = (response.data ?? []) as Metadata[]
   }
   const metadataById = new Map(metadata.map(m => [m.question_id, m]))
   const axesById = new Map(resultAnalysis.axes.map(a => [a.id, a]))

@@ -3,10 +3,13 @@ import { createHash } from 'node:crypto'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { buildPersonalizedAnalysisInput } from '@/lib/ai-analysis/build-context'
 import {
-  clarificationAnswersBelongToParent, decideGeneration, disabledAIAnalysisResponse,
-  publicAnalysisMeta, remainingGenerationsFromCount
+  clarificationAnswersBelongToParent, conservativeCachedAIAnalysisResponse, decideGeneration,
+  disabledAIAnalysisResponse, publicAnalysisMeta, remainingGenerationAllowance
 } from '@/lib/ai-analysis/api-policy'
-import { AI_ANALYSIS_SCHEMA_VERSION, analysisPromptVersion, analysisTimeoutMs, generationLimit } from '@/lib/ai-analysis/config'
+import {
+  AI_ANALYSIS_SCHEMA_VERSION, analysisPromptVersion, analysisTimeoutMs,
+  generationAttemptLimit, generationLimit
+} from '@/lib/ai-analysis/config'
 import { validateAnalysisEvidence } from '@/lib/ai-analysis/evidence-validator'
 import { hashAnalysisInput } from '@/lib/ai-analysis/hash'
 import { loadAIAnalysisContext } from '@/lib/ai-analysis/load-ai-analysis-context'
@@ -15,7 +18,8 @@ import {
   mergeClarificationAnswers, mergeGeneralContext, validateGenerateRequest, RequestValidationError
 } from '@/lib/ai-analysis/request'
 import {
-  AnalysisProviderError, configuredModel, configuredProviderName, createAnalysisProvider, isAIAnalysisEnabled
+  AnalysisProviderError, configuredModel, configuredProviderName, createAnalysisProvider, isAIAnalysisEnabled,
+  summarizeProviderAttempts, type ProviderAttemptMetadata
 } from '@/lib/ai-analysis/providers'
 import type { GetAIAnalysisResponse, PersonalizedAnalysis } from '@/lib/ai-analysis/types'
 
@@ -69,6 +73,7 @@ export async function POST(request: NextRequest, { params }: { params: { session
   }
 
   let pendingId: string | null = null
+  const providerAttempts: ProviderAttemptMetadata[] = []
   const started = Date.now()
   try {
     const config = currentConfig()
@@ -116,19 +121,14 @@ export async function POST(request: NextRequest, { params }: { params: { session
     })
     const currentResultFingerprint = resultFingerprint(input)
 
-    const cachedResult = await (supabaseAdmin.from('result_ai_analyses') as any)
-      .select('*').eq('session_id', params.sessionId).eq('input_hash', inputHash)
-      .eq('provider', config.provider).eq('model', config.model).eq('prompt_version', config.promptVersion)
-      .eq('schema_version', AI_ANALYSIS_SCHEMA_VERSION).eq('status', 'completed').maybeSingle()
-    if (cachedResult.error) throw new Error('cache_read_failed')
-    const cached = cachedResult.data as AnalysisRow | null
+    const cached = await findExactCachedAnalysis(params.sessionId, inputHash, config)
     if (decideGeneration({
       has_cached_analysis: !!cached, has_pending_analysis: false, remaining_generations: 0
     }).kind === 'cached') {
-      const response = await buildReadResponse(
-        params.sessionId, source.resultAnalysis.bankVersion, config, cached!.id, currentResultFingerprint
-      )
-      return NextResponse.json({ ...response, cached: true }, { status: 200 })
+      return NextResponse.json(await cachedReadPayload(
+        cached!, params.sessionId, source.resultAnalysis.bankVersion,
+        config, currentResultFingerprint, inputHash
+      ), { status: 200 })
     }
 
     await expireAbandonedPending(params.sessionId)
@@ -167,20 +167,47 @@ export async function POST(request: NextRequest, { params }: { params: { session
     }
     pendingId = insert.data.id as string
 
+    // The partial pending index serializes claims only while the earlier row
+    // is pending. If this insert waited until an earlier claim completed or
+    // failed, recheck under our newly acquired pending reservation before
+    // creating a provider client. No later claim can pass while this row is
+    // pending, so these reads close both duplicate-cache and stale-cap races.
+    const supersedingCache = await findExactCachedAnalysis(params.sessionId, inputHash, config)
+    if (supersedingCache) {
+      await releaseUnusedPendingClaim(pendingId)
+      pendingId = null
+      return NextResponse.json(await cachedReadPayload(
+        supersedingCache, params.sessionId, source.resultAnalysis.bankVersion,
+        config, currentResultFingerprint, inputHash
+      ), { status: 200 })
+    }
+    if (await remainingGenerations(params.sessionId) <= 0) {
+      await releaseUnusedPendingClaim(pendingId)
+      pendingId = null
+      return NextResponse.json({ error: 'Generation limit reached. Try again later.' }, { status: 429 })
+    }
+
     const provider = createAnalysisProvider()
+    const generate = async (repair?: { invalidOutput: unknown; errors: string[] }) => {
+      try {
+        const result = await provider.generate(input, body.action === 'refine' ? 'refined' : 'provisional', {
+          priorAnalysis, signal: AbortSignal.timeout(analysisTimeoutMs()), repair
+        })
+        providerAttempts.push(result)
+        return result
+      } catch (error) {
+        if (error instanceof AnalysisProviderError && error.attempt) providerAttempts.push(error.attempt)
+        throw error
+      }
+    }
     let generation
     let repairUsed = false
     try {
-      generation = await provider.generate(input, body.action === 'refine' ? 'refined' : 'provisional', {
-        priorAnalysis, signal: AbortSignal.timeout(analysisTimeoutMs())
-      })
+      generation = await generate()
     } catch (error) {
       if (!(error instanceof AnalysisProviderError) || error.code !== 'malformed_output') throw error
       repairUsed = true
-      generation = await provider.generate(input, body.action === 'refine' ? 'refined' : 'provisional', {
-        priorAnalysis, signal: AbortSignal.timeout(analysisTimeoutMs()),
-        repair: { invalidOutput: error.invalidOutput ?? null, errors: [error.message] }
-      })
+      generation = await generate({ invalidOutput: error.invalidOutput ?? null, errors: [error.message] })
     }
     let evidenceCheck = validateAnalysisEvidence(generation.analysis, input)
     if (generation.analysis.analysis_stage !== (body.action === 'refine' ? 'refined' : 'provisional')) {
@@ -190,10 +217,7 @@ export async function POST(request: NextRequest, { params }: { params: { session
       if (repairUsed) throw new AnalysisProviderError('malformed_output', 'Provider repair failed evidence validation')
       const firstInvalid = generation.analysis
       repairUsed = true
-      generation = await provider.generate(input, body.action === 'refine' ? 'refined' : 'provisional', {
-        priorAnalysis, signal: AbortSignal.timeout(analysisTimeoutMs()),
-        repair: { invalidOutput: firstInvalid, errors: evidenceCheck.errors }
-      })
+      generation = await generate({ invalidOutput: firstInvalid, errors: evidenceCheck.errors })
       evidenceCheck = validateAnalysisEvidence(generation.analysis, input)
       if (generation.analysis.analysis_stage !== (body.action === 'refine' ? 'refined' : 'provisional')) {
         evidenceCheck.errors.push('analysis_stage does not match the requested stage'); evidenceCheck.valid = false
@@ -202,13 +226,14 @@ export async function POST(request: NextRequest, { params }: { params: { session
     }
 
     const completedAt = new Date().toISOString()
+    const usage = summarizeProviderAttempts(providerAttempts)
     const update = await (supabaseAdmin.from('result_ai_analyses') as any).update({
       status: 'completed', analysis_json: generation.analysis, error_code: null, error_message: null,
-      input_tokens: generation.inputTokens, output_tokens: generation.outputTokens,
-      latency_ms: generation.latencyMs, provider_request_id: generation.providerRequestId,
+      input_tokens: usage.inputTokens, output_tokens: usage.outputTokens,
+      latency_ms: usage.latencyMs, provider_request_id: usage.providerRequestId,
       completed_at: completedAt
-    }).eq('id', pendingId).eq('status', 'pending')
-    if (update.error) throw new Error('completion_update_failed')
+    }).eq('id', pendingId).eq('status', 'pending').select('id').maybeSingle()
+    if (update.error || !update.data) throw new Error('completion_update_failed')
 
     safeLog('generation', params.sessionId, {
       success: true, provider: config.provider, model: config.model,
@@ -220,7 +245,10 @@ export async function POST(request: NextRequest, { params }: { params: { session
     return NextResponse.json({ ...response, cached: false }, { status: 201 })
   } catch (error) {
     const code = error instanceof AnalysisProviderError ? error.code : 'internal_failure'
-    if (pendingId) await markFailed(pendingId, code)
+    if (pendingId) {
+      const usage = providerAttempts.length > 0 ? summarizeProviderAttempts(providerAttempts) : undefined
+      await markFailed(pendingId, code, usage)
+    }
     safeLog(code, params.sessionId, { success: false, latency_ms: Date.now() - started })
     if (error instanceof RequestValidationError) {
       return NextResponse.json({ error: error.message }, { status: 400 })
@@ -237,6 +265,40 @@ export async function POST(request: NextRequest, { params }: { params: { session
 
 function currentConfig() {
   return { provider: configuredProviderName(), model: configuredModel(), promptVersion: analysisPromptVersion() }
+}
+
+async function findExactCachedAnalysis(
+  sessionId: string,
+  inputHash: string,
+  config: ReturnType<typeof currentConfig>
+): Promise<AnalysisRow | null> {
+  const result = await (supabaseAdmin.from('result_ai_analyses') as any)
+    .select('*').eq('session_id', sessionId).eq('input_hash', inputHash)
+    .eq('provider', config.provider).eq('model', config.model).eq('prompt_version', config.promptVersion)
+    .eq('schema_version', AI_ANALYSIS_SCHEMA_VERSION).eq('status', 'completed').maybeSingle()
+  if (result.error) throw new Error('cache_read_failed')
+  return result.data as AnalysisRow | null
+}
+
+async function cachedReadPayload(
+  cached: AnalysisRow,
+  sessionId: string,
+  bankVersion: string | null,
+  config: ReturnType<typeof currentConfig>,
+  fingerprint: string,
+  inputHash: string
+) {
+  const parsedCached = personalizedAnalysisSchema.safeParse(cached.analysis_json)
+  if (!parsedCached.success) throw new Error('cached_analysis_invalid')
+  try {
+    const response = await buildReadResponse(sessionId, bankVersion, config, cached.id, fingerprint)
+    return { ...response, cached: true }
+  } catch {
+    safeLog('cached_status_read_failure', sessionId, {
+      success: true, input_hash_prefix: inputHash.slice(0, 12)
+    })
+    return { ...conservativeCachedAIAnalysisResponse(cached, parsedCached.data), cached: true }
+  }
 }
 
 async function buildReadResponse(
@@ -315,11 +377,19 @@ function resultFingerprint(input: ReturnType<typeof buildPersonalizedAnalysisInp
 
 async function remainingGenerations(sessionId: string): Promise<number> {
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
-  const result = await (supabaseAdmin.from('result_ai_analyses') as any)
-    .select('id', { count: 'exact', head: true }).eq('session_id', sessionId)
-    .eq('status', 'completed').gte('completed_at', since)
-  if (result.error) throw new Error('generation_limit_read_failed')
-  return remainingGenerationsFromCount(result.count ?? 0, generationLimit())
+  const [completedResult, attemptResult] = await Promise.all([
+    (supabaseAdmin.from('result_ai_analyses') as any)
+      .select('id', { count: 'exact', head: true }).eq('session_id', sessionId)
+      .eq('status', 'completed').gte('completed_at', since),
+    (supabaseAdmin.from('result_ai_analyses') as any)
+      .select('id', { count: 'exact', head: true }).eq('session_id', sessionId)
+      .in('status', ['completed', 'failed']).gte('created_at', since)
+  ])
+  if (completedResult.error || attemptResult.error) throw new Error('generation_limit_read_failed')
+  return remainingGenerationAllowance(
+    completedResult.count ?? 0, generationLimit(),
+    attemptResult.count ?? 0, generationAttemptLimit()
+  )
 }
 
 async function expireAbandonedPending(sessionId: string) {
@@ -330,10 +400,24 @@ async function expireAbandonedPending(sessionId: string) {
   if (result.error) throw new Error('pending_expiration_failed')
 }
 
-async function markFailed(id: string, code: string) {
-  await (supabaseAdmin.from('result_ai_analyses') as any).update({
+async function markFailed(id: string, code: string, usage?: ProviderAttemptMetadata) {
+  const fields: Record<string, unknown> = {
     status: 'failed', error_code: code, error_message: 'AI analysis generation failed'
-  }).eq('id', id).eq('status', 'pending')
+  }
+  if (usage) {
+    fields.input_tokens = usage.inputTokens
+    fields.output_tokens = usage.outputTokens
+    fields.latency_ms = usage.latencyMs
+    fields.provider_request_id = usage.providerRequestId
+  }
+  await (supabaseAdmin.from('result_ai_analyses') as any).update(fields)
+    .eq('id', id).eq('status', 'pending')
+}
+
+async function releaseUnusedPendingClaim(id: string) {
+  const result = await (supabaseAdmin.from('result_ai_analyses') as any)
+    .delete().eq('id', id).eq('status', 'pending')
+  if (result.error) throw new Error('pending_release_failed')
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {

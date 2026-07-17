@@ -76,6 +76,21 @@ export function AIAnalysisOverviewCard({ sessionId }: { sessionId: string }) {
     )
   }
 
+  if (payload?.stale) {
+    return (
+      <section className="rounded-xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
+        <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">Saved AI analysis</p>
+        <h2 className="mt-1 text-lg font-bold text-amber-950">A previous analysis is out of date</h2>
+        <p className="mt-2 text-sm leading-relaxed text-amber-900">
+          Its method or verified source evidence no longer matches the current analysis configuration, so this overview does not present its findings as current.
+        </p>
+        <Link href={href} className="mt-4 inline-block text-sm font-semibold text-amber-950 underline decoration-amber-400 underline-offset-2">
+          Review the saved report and refresh options &rarr;
+        </Link>
+      </section>
+    )
+  }
+
   const analysis = payload?.analysis
   if (!analysis) {
     const pending = !payload?.can_generate && (payload?.remaining_generations ?? 0) > 0

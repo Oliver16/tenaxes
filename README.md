@@ -18,6 +18,9 @@ A Next.js application with Supabase backend for a 350-item political orientation
 
 ## Quick Deploy
 
+Local development and CI require Node.js 22.3 or newer. The route-level test
+suite uses Node's module-mocking test API to exercise the real Next handlers.
+
 ### 1. Set Up Supabase
 
 1. Go to [supabase.com](https://supabase.com) and create a new project
@@ -68,7 +71,9 @@ OPENAI_ANALYSIS_MODEL=
 ANTHROPIC_API_KEY=
 ANTHROPIC_ANALYSIS_MODEL=
 AI_ANALYSIS_MAX_REGENERATIONS=3
+AI_ANALYSIS_MAX_ATTEMPTS=6
 AI_ANALYSIS_CONTEXT_MAX_CHARS=2000
+AI_ANALYSIS_TIMEOUT_MS=60000
 RUN_LIVE_AI_EVALS=false
 ```
 

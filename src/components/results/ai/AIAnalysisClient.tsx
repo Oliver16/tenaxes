@@ -1,10 +1,10 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AIAnalysisConsent } from './AIAnalysisConsent'
 import { AIAnalysisReport } from './AIAnalysisReport'
 import { AIAnalysisStatus } from './AIAnalysisStatus'
-import { aiAnalysisStatusMessage, analysisVersions } from './status'
+import { aiAnalysisStatusMessage, analysisVersions, shouldRefreshGenerationStatus } from './status'
 import type { AIQuestionDisplayEvidence, GetAIAnalysisResponse } from '@/lib/ai-analysis/types'
 
 type GenerateRequest = {
@@ -26,11 +26,13 @@ type LoadMode = 'loading' | 'ready' | 'unavailable' | 'error'
 export function AIAnalysisClient({
   sessionId,
   enabled,
-  evidence
+  evidence,
+  contextMaxLength
 }: {
   sessionId: string
   enabled: boolean
   evidence: AIQuestionDisplayEvidence[]
+  contextMaxLength: number
 }) {
   const [payload, setPayload] = useState<GetAIAnalysisResponse | null>(null)
   const [mode, setMode] = useState<LoadMode>(enabled ? 'loading' : 'ready')
@@ -39,6 +41,8 @@ export function AIAnalysisClient({
   const [lastRequest, setLastRequest] = useState<AnalysisRequest | null>(null)
   const [selectedRecordId, setSelectedRecordId] = useState('')
   const [cached, setCached] = useState(false)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const reportHeadingRef = useRef<HTMLHeadingElement>(null)
 
   const endpoint = `/api/results/${encodeURIComponent(sessionId)}/ai-analysis`
 
@@ -87,6 +91,7 @@ export function AIAnalysisClient({
     setLastRequest(request)
     setOperation(request.action)
     setError(null)
+    setSuccessMessage(null)
     try {
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -95,7 +100,12 @@ export function AIAnalysisClient({
       })
       if (!response.ok) {
         const message = aiAnalysisStatusMessage(response.status)
-        if (response.status === 409 || response.status === 429) await load()
+        if (shouldRefreshGenerationStatus(response.status)) {
+          await load()
+        }
+        if (response.status === 409 || response.status === 429) {
+          setLastRequest(null)
+        }
         throw new Error(message)
       }
 
@@ -108,12 +118,20 @@ export function AIAnalysisClient({
       setCached(next.cached === true || response.status === 200)
       setMode('ready')
       setLastRequest(null)
+      setSuccessMessage(request.action === 'refine'
+        ? 'Your refined AI analysis is ready.'
+        : 'Your updated AI analysis is ready.')
     } catch (caught) {
       setError((caught as Error).message)
     } finally {
       setOperation(null)
     }
   }, [endpoint, load])
+
+  useEffect(() => {
+    if (!successMessage) return
+    reportHeadingRef.current?.focus()
+  }, [successMessage])
 
   const versions = useMemo(() => analysisVersions(payload), [payload])
   const activeVersion = versions.find(version => version.record.id === selectedRecordId)
@@ -123,7 +141,7 @@ export function AIAnalysisClient({
     return (
       <div className="space-y-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">AI-assisted interpretation</h1>
+          <h2 className="text-2xl font-bold text-gray-900">AI-assisted interpretation</h2>
           <p className="mt-1 text-sm text-gray-500">Optional, candid analysis grounded in your verified result.</p>
         </div>
         <AIAnalysisStatus kind="disabled" title="AI analysis is not enabled">
@@ -145,7 +163,7 @@ export function AIAnalysisClient({
     return (
       <div className="space-y-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">AI-assisted interpretation</h1>
+          <h2 className="text-2xl font-bold text-gray-900">AI-assisted interpretation</h2>
           <p className="mt-1 text-sm text-gray-500">Optional, candid analysis grounded in your verified result.</p>
         </div>
         <AIAnalysisStatus
@@ -171,7 +189,7 @@ export function AIAnalysisClient({
     return (
       <div className="space-y-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">AI-assisted interpretation</h1>
+          <h2 className="text-2xl font-bold text-gray-900">AI-assisted interpretation</h2>
           <p className="mt-1 text-sm text-gray-500">Optional, candid analysis grounded in your verified result.</p>
         </div>
         <AIAnalysisStatus
@@ -197,7 +215,7 @@ export function AIAnalysisClient({
     return (
       <div className="space-y-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">AI-assisted interpretation</h1>
+          <h2 className="text-2xl font-bold text-gray-900">AI-assisted interpretation</h2>
           <p className="mt-1 text-sm text-gray-500">Your Polyaxis scores remain fixed while the provider interprets the evidence.</p>
         </div>
         <AIAnalysisStatus kind="generating" title="Generating your candid analysis">
@@ -246,9 +264,11 @@ export function AIAnalysisClient({
         )}
         {canGenerate && (
           <AIAnalysisConsent
+            purpose={payload?.stale ? 'refresh' : 'initial'}
             submitting={operation === 'generate'}
             canGenerate={canGenerate}
             remainingGenerations={remaining}
+            contextMaxLength={contextMaxLength}
             onGenerate={generalContext => submit({
               action: 'generate',
               ...(generalContext ? { general_context: generalContext } : {})
@@ -267,22 +287,24 @@ export function AIAnalysisClient({
   return (
     <div className="space-y-4">
       {payload.stale && (
-        <AIAnalysisStatus
-          kind="stale"
-          title="This analysis is stale"
-          action={(
-            <button
-              type="button"
-              disabled={!canGenerate || operation !== null}
-              onClick={() => void submit({ action: 'generate' })}
-              className="rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm font-semibold text-amber-950 hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Generate an updated analysis
-            </button>
-          )}
-        >
+        <AIAnalysisStatus kind="stale" title="This analysis is stale">
           The prompt, schema, model, or verified input has changed since this version was generated. You can still inspect it, but a new version is recommended.
         </AIAnalysisStatus>
+      )}
+
+      {payload.stale && canGenerate && (
+        <AIAnalysisConsent
+          key={`refresh-${record.id}`}
+          purpose="refresh"
+          submitting={operation === 'generate'}
+          canGenerate={canGenerate}
+          remainingGenerations={payload.remaining_generations}
+          contextMaxLength={contextMaxLength}
+          onGenerate={generalContext => submit({
+            action: 'generate',
+            ...(generalContext ? { general_context: generalContext } : {})
+          })}
+        />
       )}
 
       {cached && !payload.stale && (
@@ -307,7 +329,7 @@ export function AIAnalysisClient({
         <AIAnalysisStatus
           kind="error"
           title={lastRequest?.action === 'refine' ? 'Refinement failed' : 'Generation failed'}
-          action={lastRequest ? (
+          action={lastRequest && canGenerate ? (
             <button
               type="button"
               disabled={operation !== null}
@@ -345,7 +367,10 @@ export function AIAnalysisClient({
         cached={cached}
         canGenerate={canGenerate}
         remainingGenerations={payload.remaining_generations}
+        contextMaxLength={contextMaxLength}
         refining={operation === 'refine'}
+        allowRefinement={!payload.stale}
+        headingRef={reportHeadingRef}
         onRefine={({ generalContext, clarificationAnswers }) => submit({
           action: 'refine',
           parent_analysis_id: record.id,
@@ -353,6 +378,9 @@ export function AIAnalysisClient({
           ...(generalContext ? { general_context: generalContext } : {})
         })}
       />
+      <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {successMessage}
+      </p>
     </div>
   )
 }

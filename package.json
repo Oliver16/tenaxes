@@ -2,12 +2,15 @@
   "name": "polyaxis",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": ">=22.3.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "node --conditions=react-server --import tsx --test"
+    "test": "node --conditions=react-server --experimental-test-module-mocks --import tsx --test"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.112.1",

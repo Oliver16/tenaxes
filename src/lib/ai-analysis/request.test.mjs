@@ -53,3 +53,30 @@ test('refinement context preserves prior context and clarification answers', () 
 test('combined refinement context remains subject to the configured maximum', () => {
   assert.throws(() => mergeGeneralContext('a'.repeat(1500), 'b'.repeat(600)), RequestValidationError)
 })
+
+test('cumulative clarification lineage is bounded by unique answer count', () => {
+  const inherited = Array.from({ length: 10 }, (_, index) => ({
+    clarification_id: `earlier-${index}`,
+    answer: 'retained answer'
+  }))
+  assert.throws(() => mergeClarificationAnswers(inherited, [{
+    clarification_id: 'new-question', answer: 'new answer'
+  }]), error => error instanceof RequestValidationError && /at most 10/.test(error.message))
+
+  const replacement = mergeClarificationAnswers(inherited, [{
+    clarification_id: 'earlier-0', answer: 'replacement'
+  }])
+  assert.equal(replacement.length, 10)
+  assert.equal(replacement[0].answer, 'replacement')
+})
+
+test('cumulative clarification lineage is bounded by total retained characters', () => {
+  const inherited = Array.from({ length: 8 }, (_, index) => ({
+    clarification_id: `earlier-${index}`,
+    answer: 'x'.repeat(1000)
+  }))
+  assert.equal(mergeClarificationAnswers(inherited, []).length, 8)
+  assert.throws(() => mergeClarificationAnswers(inherited, [{
+    clarification_id: 'new-question', answer: 'y'
+  }]), error => error instanceof RequestValidationError && /total 8000/.test(error.message))
+})

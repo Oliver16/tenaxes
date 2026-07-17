@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { aiAnalysisStatusMessage, analysisVersions } from './status.ts'
+import { aiAnalysisStatusMessage, analysisVersions, shouldRefreshGenerationStatus } from './status.ts'
 import { makeAnalysis } from '../../../lib/ai-analysis/__tests__/helpers.mjs'
 
 test('UI status copy distinguishes pending, capped, invalid-provider, and unavailable states', () => {
@@ -9,6 +9,13 @@ test('UI status copy distinguishes pending, capped, invalid-provider, and unavai
   assert.match(aiAnalysisStatusMessage(429), /generation limit/i)
   assert.match(aiAnalysisStatusMessage(502), /safely validated/i)
   assert.match(aiAnalysisStatusMessage(503), /temporarily unavailable/i)
+})
+
+test('provider failures refresh attempt allowance while request-validation failures do not', () => {
+  assert.equal(shouldRefreshGenerationStatus(502), true)
+  assert.equal(shouldRefreshGenerationStatus(503), true)
+  assert.equal(shouldRefreshGenerationStatus(429), true)
+  assert.equal(shouldRefreshGenerationStatus(400), false)
 })
 
 test('version helper retains the selected provisional report when history omits it', () => {

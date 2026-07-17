@@ -12,6 +12,10 @@ export function aiAnalysisStatusMessage(status: number): string {
   }
 }
 
+export function shouldRefreshGenerationStatus(status: number): boolean {
+  return status === 409 || status === 429 || status >= 500
+}
+
 export function analysisVersions(payload: GetAIAnalysisResponse | null) {
   if (!payload?.analysis || !payload.record) return []
   const versions = payload.versions ? [...payload.versions] : []

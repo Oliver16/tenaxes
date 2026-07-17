@@ -138,8 +138,8 @@ export function makeAnalysis(tension = null) {
     defining_commitments: [1, 2, 3].map(index => ({
       title: `Commitment ${index}`,
       analysis: 'A supported synthetic commitment.',
-      axis_ids: [],
-      question_ids: [],
+      axis_ids: ['A1'],
+      question_ids: [1],
       confidence: 'medium'
     })),
     center_explanations: [],

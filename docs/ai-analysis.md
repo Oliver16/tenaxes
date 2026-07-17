@@ -19,7 +19,8 @@ The on-demand pipeline is:
    its stored bank version and null-safe response semantics.
 2. `load-ai-analysis-context.ts` loads only questions and metadata belonging to
    those bank-pinned question IDs. Missing metadata on an older result degrades
-   to null fields rather than switching to the active bank.
+   to null fields rather than switching to the active bank; a metadata query
+   error fails generation closed instead of caching a degraded signal set.
 3. `signals.ts` computes topic engagement, center shape, and candidate tensions.
    These deterministic signals narrow the model's task and preserve the
    distinction between neutral (`0`) and `Not sure` (`null`).
@@ -56,6 +57,7 @@ name already begins with `NEXT_PUBLIC_` for the normal Supabase browser client.
 | `ANTHROPIC_API_KEY` | Anthropic server credential, required when Anthropic is selected | empty |
 | `ANTHROPIC_ANALYSIS_MODEL` | Explicit Anthropic model ID | empty |
 | `AI_ANALYSIS_MAX_REGENERATIONS` | Maximum completed generations per session in a rolling 24 hours | `3` |
+| `AI_ANALYSIS_MAX_ATTEMPTS` | Maximum completed or failed provider attempts per session in the same window | `6` |
 | `AI_ANALYSIS_CONTEXT_MAX_CHARS` | Maximum initial free-form context length | `2000` |
 | `AI_ANALYSIS_TIMEOUT_MS` | Per-provider-attempt abort timeout in milliseconds | `60000` |
 | `RUN_LIVE_AI_EVALS` | Opt-in switch for development-only provider evaluations | `false` |
@@ -70,6 +72,8 @@ OpenAI generation uses the Responses API with strict structured output,
 `store: false`, no search, and no external tools. Anthropic generation forces a
 single `submit_polyaxis_analysis` schema tool. Both adapters apply a timeout,
 capture available usage/provenance, and validate against the same Zod schema.
+If schema or evidence repair is needed, usage, latency, and request IDs from both
+provider calls are aggregated on the completed or failed analysis row.
 
 ## Structured report contract
 
@@ -186,7 +190,8 @@ deterministic engine distinguishes:
 - `counterbalanced_center` when intensity is at least 0.55 and each pole receives
   at least 0.30 of directional weighted contribution;
 - `contextual_center` when the conceptual/applied gap is at least 0.30 or policy
-  domains lean strongly in opposite directions.
+  domains lean strongly in opposite directions. Each opposing domain subgroup
+  needs at least two numeric answers before it can establish that pattern.
 
 This prevents strong offsetting convictions from being summarized as apathy or
 generic centrism.
@@ -201,7 +206,11 @@ to the provisional row. The original is retained. Context can reconcile,
 strengthen, or leave a finding unchanged; it is not accepted automatically.
 
 Initial context is limited to 2,000 characters by default. Each clarification
-answer is limited to 1,000 characters and at most five answers are accepted.
+answer is limited to 1,000 characters and at most five answers are accepted per
+request. A refinement lineage retains at most ten unique clarification answers
+and 8,000 answer characters so repeated refinements cannot grow the stored or
+provider context without bound. The refinement form explicitly discloses that
+retained prior context and answers will be resent and requires acknowledgement.
 
 ## Caching and generation limits
 
@@ -213,8 +222,15 @@ excludes timestamps, session ID, unrelated row IDs, and provider request IDs.
 A completed unique index prevents duplicate cached rows, and a partial unique
 index permits only one pending generation per session. Cached reads never consume
 the rolling limit or call a provider. At most three completed generations per
-session are allowed in a rolling 24-hour window by default. Ordinary clients
-cannot force regeneration.
+session are allowed in a rolling 24-hour window by default. A separate default
+limit of six completed or failed attempts bounds repeated provider charges when
+outputs fail validation. Whichever rolling allowance is exhausted first blocks
+another attempt. Ordinary clients cannot force regeneration.
+
+After a route acquires the pending reservation, it rechecks both the exact cache
+and rolling allowances before creating the provider client. This closes the
+window where an earlier request completes or fails while a later request was
+waiting to claim the session, avoiding a duplicate charge or stale cap decision.
 
 Changing UI code does not invalidate a report. Changing evidence, user context,
 provider/model, prompt version, or schema version does. A report generated under
