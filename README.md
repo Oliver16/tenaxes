@@ -1,6 +1,6 @@
 # Polyaxis
 
-A Next.js application with Supabase backend for a 300-item political orientation survey (108 conceptual + 192 applied questions, including 48 deliberate collision scenarios).
+A Next.js application with Supabase backend for a 300-item political orientation survey (108 conceptual + 192 applied questions, including 48 deliberate collision scenarios). The current bank is **v2.1**, a wording/comprehension revision of v2.0: every question pairs a technical proposition with a plain-language "In other words" restatement, 152 scenarios carry an explicit "Assume that" premise, and the response scale separates "Neither / genuinely balanced" (scored 0) from "Not sure / need more information" (recorded as null, excluded from scoring). v2.1 is not assumed psychometrically interchangeable with v2.0; results store their bank version.
 
 ## Features
 

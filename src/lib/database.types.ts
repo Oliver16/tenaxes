@@ -346,6 +346,8 @@ export interface Database {
           core_axes: Json | null
           facets: Json | null
           top_flavors: Json | null
+          response_coverage: Json | null
+          not_sure_count: number
           completed_at: string | null
           created_at: string
         }
@@ -362,6 +364,8 @@ export interface Database {
           core_axes?: Json | null
           facets?: Json | null
           top_flavors?: Json | null
+          response_coverage?: Json | null
+          not_sure_count?: number
           completed_at?: string | null
           created_at?: string
         }
@@ -378,6 +382,8 @@ export interface Database {
           core_axes?: Json | null
           facets?: Json | null
           top_flavors?: Json | null
+          response_coverage?: Json | null
+          not_sure_count?: number
           completed_at?: string | null
           created_at?: string
         }
@@ -532,4 +538,28 @@ export interface QuestionContribution {
   }[]
 }
 
-export type ResponsesMap = Record<number, number>
+/**
+ * v2.1 response encoding:
+ * - missing key: unanswered / unvisited
+ * - null: explicitly "Not sure / need more information" — excluded from
+ *   scoring numerator AND denominator
+ * - 0: "Neither / genuinely balanced" — an answered response that counts
+ *   toward axis coverage
+ * - ±1, ±2: directional answers
+ * Never coerce null to zero (no `response || 0`).
+ */
+export type ScoredResponse = -2 | -1 | 0 | 1 | 2
+export type SurveyResponse = ScoredResponse | null
+export type ResponsesMap = Record<number, SurveyResponse | number>
+
+/** Per-axis answer coverage stored on survey_results.response_coverage. */
+export interface AxisCoverage {
+  axis_id: string
+  answered_primary_items: number
+  available_primary_items: number
+  answered_weight: number
+  available_weight: number
+  /** answered primary weight / available primary weight, in [0, 1]. */
+  coverage: number
+  confidence: 'high' | 'moderate' | 'low' | 'insufficient'
+}

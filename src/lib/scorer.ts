@@ -1,4 +1,4 @@
-import { QuestionWithLinks, AxisScore, QuestionContribution, ResponsesMap } from './database.types'
+import { AxisCoverage, QuestionWithLinks, AxisScore, QuestionContribution, ResponsesMap } from './database.types'
 
 // Secondary links may add at most this fraction of the question's own
 // weight to other axes, so cross-loadings can never outweigh the axis
@@ -38,7 +38,12 @@ export function calculateAxisScoresFromLinks(
 
   for (const q of questions) {
     const r = responses[q.id]
-    if (r === undefined) continue
+    // v2.1 response contract: only numeric responses are scored. `null`
+    // means "not sure / need more information" and is excluded from both
+    // numerator and denominator; missing means unanswered. A numeric 0 is
+    // an answered neutral and stays in the denominator. Never coerce null
+    // to zero here.
+    if (typeof r !== 'number') continue
 
     const questionWeight = q.weight ?? 1.0
 
@@ -136,6 +141,64 @@ function calculateVariance(values: number[]): number {
   const mean = values.reduce((a, b) => a + b, 0) / values.length
   const squareDiffs = values.map(v => Math.pow(v - mean, 2))
   return squareDiffs.reduce((a, b) => a + b, 0) / values.length
+}
+
+// Confidence thresholds from the v2.1 application contract.
+const COVERAGE_HIGH = 0.8
+const COVERAGE_MODERATE = 0.65
+const COVERAGE_LOW = 0.5
+const MIN_NUMERIC_ITEMS = 8
+
+/**
+ * Per-axis answer coverage over primary links: how much of each axis's
+ * available primary weight was actually answered numerically. `null`
+ * ("not sure") and missing responses count as unanswered; a numeric 0
+ * counts as answered. Stored on survey_results.response_coverage.
+ */
+export function calculateAxisCoverage(
+  responses: ResponsesMap,
+  questions: QuestionWithLinks[]
+): AxisCoverage[] {
+  const byAxis: Record<string, {
+    answeredItems: number; availableItems: number
+    answeredWeight: number; availableWeight: number
+  }> = {}
+
+  for (const q of questions) {
+    const links = q.question_axis_links && q.question_axis_links.length > 0
+      ? q.question_axis_links
+      : [{ axis_id: q.axis_id, role: 'primary' as const, weight: q.weight ?? 1.0 }]
+    const primary = links.find(l => l.role === 'primary')
+    if (!primary) continue
+
+    const bucket = (byAxis[primary.axis_id] ??= {
+      answeredItems: 0, availableItems: 0, answeredWeight: 0, availableWeight: 0
+    })
+    const w = q.weight ?? 1.0
+    bucket.availableItems++
+    bucket.availableWeight += w
+    if (typeof responses[q.id] === 'number') {
+      bucket.answeredItems++
+      bucket.answeredWeight += w
+    }
+  }
+
+  return Object.entries(byAxis).map(([axis_id, b]) => {
+    const coverage = b.availableWeight > 0 ? b.answeredWeight / b.availableWeight : 0
+    const confidence: AxisCoverage['confidence'] =
+      coverage < COVERAGE_LOW || b.answeredItems < MIN_NUMERIC_ITEMS ? 'insufficient' :
+      coverage >= COVERAGE_HIGH ? 'high' :
+      coverage >= COVERAGE_MODERATE ? 'moderate' : 'low'
+    return {
+      axis_id,
+      answered_primary_items: b.answeredItems,
+      available_primary_items: b.availableItems,
+      answered_weight: b.answeredWeight,
+      available_weight: b.availableWeight,
+      coverage,
+      confidence
+    }
+  }).sort((a, b) => a.axis_id.localeCompare(b.axis_id, undefined, { numeric: true }))
 }
 
 /**

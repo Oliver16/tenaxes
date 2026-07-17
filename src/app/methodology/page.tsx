@@ -91,7 +91,8 @@ export default async function MethodologyPage() {
         <SectionTitle>2. The question bank</SectionTitle>
         <p className="text-gray-700 leading-relaxed mb-4">
           The evaluation contains <strong>{totalQuestions} statements</strong> answered on a
-          five-point agree–disagree scale, in two deliberately different registers:
+          five-point agree&ndash;disagree scale (plus an unscored &ldquo;not sure&rdquo; option),
+          in two deliberately different registers:
         </p>
         <ul className="list-disc pl-6 text-gray-700 space-y-2 mb-4">
           <li>
@@ -106,6 +107,16 @@ export default async function MethodologyPage() {
             behavior under constraint is more informative than assent to a principle.
           </li>
         </ul>
+        <p className="text-gray-700 leading-relaxed mb-4">
+          Every question pairs a technical proposition with a plain-language
+          &ldquo;in other words&rdquo; restatement, and many scenarios pin down their factual
+          premise with an explicit &ldquo;assume that&rdquo; note, so comprehension never
+          depends on policy vocabulary. The answer scale also separates{' '}
+          <strong>&ldquo;Neither / genuinely balanced&rdquo;</strong> (a real, scored position
+          between the poles) from <strong>&ldquo;Not sure / need more information&rdquo;</strong>{' '}
+          (recorded, but excluded from scoring entirely — uncertainty is never converted
+          into a fake centrist answer; it lowers the axis&apos;s reported coverage instead).
+        </p>
         <p className="text-gray-700 leading-relaxed mb-4">
           Every axis has an equal number of items keyed toward each pole, so a tendency to
           agree with things (acquiescence bias) cannot masquerade as an ideology. Question

@@ -16,7 +16,7 @@ type AxisDrillDownProps = {
   conceptualScore: number
   appliedScore: number
   questions: Question[]
-  responses: Record<number, number>
+  responses: Record<number, number | null>
 }
 
 export function AxisDrillDown({
@@ -32,14 +32,17 @@ export function AxisDrillDown({
   // Filter questions for this axis
   const axisQuestions = questions.filter(q => q.axis_id === axisId)
 
-  // Separate by type and include responses
+  // Separate by type and include responses. Only numeric answers are
+  // scored; explicit null means "not sure" and is listed separately.
   const conceptualQuestions = axisQuestions
-    .filter(q => q.question_type === 'conceptual' && responses[q.id] !== undefined)
-    .map(q => analyzeQuestion(q, responses[q.id], conceptualScore))
+    .filter(q => q.question_type === 'conceptual' && typeof responses[q.id] === 'number')
+    .map(q => analyzeQuestion(q, responses[q.id] as number, conceptualScore))
 
   const appliedQuestions = axisQuestions
-    .filter(q => q.question_type === 'applied' && responses[q.id] !== undefined)
-    .map(q => analyzeQuestion(q, responses[q.id], appliedScore))
+    .filter(q => q.question_type === 'applied' && typeof responses[q.id] === 'number')
+    .map(q => analyzeQuestion(q, responses[q.id] as number, appliedScore))
+
+  const notSureQuestions = axisQuestions.filter(q => responses[q.id] === null)
 
   // Find outliers - questions that pull opposite to the overall score
   const conflictingConceptual = conceptualQuestions.filter(q => q.isOutlier)
@@ -74,7 +77,8 @@ export function AxisDrillDown({
           )}
         </span>
         <span className="text-xs text-gray-400">
-          {conceptualQuestions.length + appliedQuestions.length} questions
+          {conceptualQuestions.length + appliedQuestions.length} answered
+          {notSureQuestions.length > 0 ? ` · ${notSureQuestions.length} not sure` : ''}
         </span>
       </button>
 
@@ -109,6 +113,24 @@ export function AxisDrillDown({
               </div>
             </div>
           )}
+
+          {/* Explicit "not sure" answers - recorded but never scored */}
+          {notSureQuestions.length > 0 && (
+            <div>
+              <h4 className="text-sm font-semibold text-sky-700 mb-3 flex items-center gap-2">
+                <div className="w-3 h-3 bg-sky-400 rounded-full" />
+                Not sure / need more information ({notSureQuestions.length})
+              </h4>
+              <div className="space-y-2">
+                {notSureQuestions.map(q => (
+                  <div key={q.id} className="p-3 rounded border border-sky-200 bg-sky-50 text-xs text-gray-700">
+                    {q.text}
+                    <span className="ml-2 text-sky-700 font-medium whitespace-nowrap">— excluded from scoring</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -125,7 +147,7 @@ function QuestionCard({
   const responseLabels: Record<number, string> = {
     2: 'Strongly Agree',
     1: 'Agree',
-    0: 'Neutral',
+    0: 'Neither / balanced',
     '-1': 'Disagree',
     '-2': 'Strongly Disagree'
   }
