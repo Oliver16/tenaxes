@@ -96,3 +96,28 @@ insufficient below 8 numeric primary items).
 v2.0 and v2.1 wordings are not assumed psychometrically interchangeable:
 live databases keep v2.0 rows (deactivated) and every response/result row
 carries its bank version.
+
+## v2.2 addendum — controversy-stress expansion (2026-07-17)
+
+v2.2 appends 50 overt, high-conflict items (logical ids 301-350) to the
+unchanged v2.1 bank; nothing in the first 300 items changed (verified
+byte-identical during integration). The additions widen observed
+variance on emotionally costly disputes the earlier banks avoided:
+abortion (jurisdiction, ethics, and value hierarchy — with objectivist
+and contextualist formulations on BOTH substantive sides so C10 never
+equates a meta-ethical position with one abortion stance), economic
+systems (public ownership, planning, private capital, profit), extreme
+wealth and reparations, firearms, encryption, preventive detention,
+vaccine mandates, marriage and gender identity, immigration enforcement
+and birthright citizenship, international criminal jurisdiction, human
+enhancement, fossil energy and animal rights, police/prison abolition,
+election legitimacy, capital punishment, and nuclear first use.
+
+Structure: 350 questions (108 conceptual / 242 applied), 398 links
+(350 primary + the unchanged 48 tradeoff links), exact per-axis pole
+balance preserved (axes now carry 18-22 primary items; the scorer's
+weight normalization keeps them comparable). The new items are
+primary-only by design — no new one-probe collision groups — and are
+tagged `item_family='controversy_stress'` in question_metadata for
+separate analysis. Live-database ID mapping: v2.0 = 1-300,
+v2.1 = 301-600, v2.2 carried = 601-900, v2.2 new = 901-950.

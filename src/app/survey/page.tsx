@@ -22,7 +22,7 @@ const RESPONSE_OPTIONS: { value: SurveyResponseValue; label: string; color: stri
   { value: null, label: 'Not sure / need more information', color: 'bg-blue-300' },
 ]
 
-// The 300-question evaluation is meant to be completable across several
+// The 350-question evaluation is meant to be completable across several
 // sittings, so progress is continuously saved on this device. The stored
 // sessionId also seeds the question shuffle, which keeps the presented
 // order stable across a resume.
