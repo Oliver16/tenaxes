@@ -9,6 +9,7 @@ import { AxisScale } from '@/components/charts/AxisScale'
 import { FlavorList, FlavorBarChart } from '@/components/charts/FlavorCharts'
 import { AxisDrillDown } from '@/components/AxisDrillDown'
 import { ValueTensionsSection } from '@/components/results/ValueTensionsSection'
+import { IdeologicalConsistency } from '@/components/results/IdeologicalConsistency'
 import { AxisCollisionDetails } from '@/components/results/AxisCollisionDetails'
 import { AxisScore as AxisScoreType, Database } from '@/lib/database.types'
 import type { AxisScore as LegacyAxisScore, FlavorMatch } from '@/lib/supabase'
@@ -207,6 +208,13 @@ export default async function ResultsPage({
           pairs={collisionPairs}
           questions={appliedQuestions}
           responses={responses}
+        />
+
+        {/* Ideals vs practice: archetypes matched per register + consistency rating */}
+        <IdeologicalConsistency
+          conceptualScores={conceptualScores}
+          appliedScores={appliedScores}
+          tensions={tensionScores}
         />
 
         {/* Talk the Talk vs Walk the Walk - Conceptual vs Practical Comparison */}
