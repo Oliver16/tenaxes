@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { fetchQuestionsWithLinks } from '@/lib/api/questions'
-import { analyzeTensions } from '@/lib/tension-analyzer'
+import { analyzeTensions, analyzeCollisionPairs } from '@/lib/tension-analyzer'
 import { buildAxisSummaries, computeFlavorMatches, scoresById } from '@/lib/flavor-matcher'
 import { ResultsActions } from '@/components/ResultsActions'
 import { SaveResultsPrompt } from '@/components/SaveResultsPrompt'
@@ -56,8 +56,12 @@ export default async function ResultsPage({
     )
   }
 
-  // Fetch questions with links (used for drill-downs and tension analysis)
-  const questions = await fetchQuestionsWithLinks()
+  // Fetch questions with links (used for drill-downs and tension
+  // analysis), pinned to the bank version this result was answered on so
+  // later bank changes never reinterpret old answers
+  const questions = await fetchQuestionsWithLinks({
+    bankVersion: (surveyResult as { bank_version?: string }).bank_version ?? null
+  })
 
   // Fetch axes metadata
   const { data: axesData } = await (supabase
@@ -76,7 +80,7 @@ export default async function ResultsPage({
         core_axes: surveyResult.core_axes as unknown as LegacyAxisScore[],
         facets: (surveyResult.facets || []) as unknown as LegacyAxisScore[]
       }
-    : buildAxisSummaries(rawScores)
+    : buildAxisSummaries(rawScores, axes)
   const coreAxes = summaries.core_axes
   const facets = summaries.facets
   const topFlavors = surveyResult.top_flavors
@@ -102,6 +106,7 @@ export default async function ResultsPage({
   // improvements automatically
   const appliedQuestions = questions.filter(q => q.question_type === 'applied')
   const tensionScores = analyzeTensions(responses, appliedQuestions, axes, conceptualScores)
+  const collisionPairs = analyzeCollisionPairs(tensionScores)
 
   const conceptualByAxis = Object.fromEntries(conceptualScores.map(s => [s.axis_id, s.score]))
   const appliedByAxis = Object.fromEntries(appliedScores.map(s => [s.axis_id, s.score]))
@@ -177,7 +182,9 @@ export default async function ResultsPage({
               Political Style
             </h2>
             <p className="text-gray-500 text-sm mb-6">
-              How you pursue your beliefs — your approach to change, trust in institutions, views on justice, and who should decide.
+              How you pursue your beliefs — your approach to change, institutional confidence, views on justice,
+              majorities vs. constitutional limits, experts vs. elected judgment, direct vs. representative democracy,
+              and force &amp; peace.
             </p>
             {facets.map(axis => (
               <div key={axis.axis_id}>
@@ -195,6 +202,7 @@ export default async function ResultsPage({
         {/* Value Tensions - which values you prioritize when they collide */}
         <ValueTensionsSection
           tensions={tensionScores}
+          pairs={collisionPairs}
           questions={appliedQuestions}
           responses={responses}
         />

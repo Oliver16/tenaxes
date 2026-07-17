@@ -6,7 +6,7 @@ export const revalidate = 3600
 
 export default async function Home() {
   const distribution = await getBankDistribution()
-  const totalQuestions = distribution?.totals.total ?? 286
+  const totalQuestions = distribution?.totals.total ?? 300
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800">
       {/* Hero Section */}
@@ -19,11 +19,11 @@ export default async function Home() {
           </h1>
           <p className="text-xl text-slate-300 max-w-2xl mx-auto mb-4">
             The most rigorous ideological evaluation you can take. {totalQuestions} questions across
-            11 core axes and 4 style facets — measuring not just what you believe, but
+            11 core axes and 7 style facets — measuring not just what you believe, but
             which values win when they collide, and where your choices contradict your ideals.
           </p>
           <p className="text-slate-400 max-w-2xl mx-auto mb-8">
-            No four-quadrant shortcuts. Real scenarios, real tradeoffs, 33 archetypes.
+            No four-quadrant shortcuts. Real scenarios, real tradeoffs, 38 archetypes.
           </p>
           <Link
             href="/survey"
@@ -31,7 +31,7 @@ export default async function Home() {
           >
             Start the Evaluation →
           </Link>
-          <p className="text-slate-400 text-sm mt-4">~35 minutes • No account required • Worth it</p>
+          <p className="text-slate-400 text-sm mt-4">~40 minutes • No account required • Worth it</p>
           <p className="text-slate-500 text-sm mt-2">
             <Link href="/methodology" className="underline hover:text-slate-300">
               Read the methodology
@@ -44,17 +44,17 @@ export default async function Home() {
           <h2 className="text-2xl font-bold text-white text-center mb-8">11 Core Axes</h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
             {[
-              { name: 'Economic Control', left: 'State-Directed', right: 'Market-Directed', color: 'from-red-500 to-green-500' },
-              { name: 'Economic Equality', left: 'Redistributionist', right: 'Property Rights', color: 'from-rose-500 to-emerald-500' },
-              { name: 'Coercive Power', left: 'Security/Order', right: 'Civil Liberties', color: 'from-orange-500 to-cyan-500' },
-              { name: 'Where Power Sits', left: 'Centralized', right: 'Localized', color: 'from-amber-500 to-teal-500' },
-              { name: 'Cultural Orientation', left: 'Traditionalist', right: 'Progressivist', color: 'from-purple-500 to-pink-500' },
-              { name: 'Group Boundaries', left: 'Particularist', right: 'Universalist', color: 'from-indigo-500 to-yellow-500' },
+              { name: 'Economic Coordination', left: 'State-Directed', right: 'Market-Directed', color: 'from-red-500 to-green-500' },
+              { name: 'Distribution & Property', left: 'Redistributionist', right: 'Property-Rights', color: 'from-rose-500 to-emerald-500' },
+              { name: 'Liberty & Public Order', left: 'Security/Order', right: 'Civil Liberties', color: 'from-orange-500 to-cyan-500' },
+              { name: 'Territorial Authority', left: 'Centralized', right: 'Localized', color: 'from-amber-500 to-teal-500' },
+              { name: 'Cultural Continuity', left: 'Traditionalist', right: 'Progressivist', color: 'from-purple-500 to-pink-500' },
+              { name: 'Scope of Obligation', left: 'Particularist', right: 'Universalist', color: 'from-indigo-500 to-yellow-500' },
               { name: 'Sovereignty Scope', left: 'Sovereigntist', right: 'Integrationist', color: 'from-blue-500 to-violet-500' },
-              { name: 'Technology Stance', left: 'Tech-Skeptical', right: 'Tech-Solutionist', color: 'from-slate-500 to-lime-500' },
-              { name: 'Nature\'s Moral Weight', left: 'Anthropocentric', right: 'Ecocentric', color: 'from-stone-500 to-green-500' },
-              { name: 'Moral Epistemology', left: 'Moral Universalist', right: 'Moral Pluralist', color: 'from-fuchsia-500 to-sky-500' },
-              { name: 'Force & Peace', left: 'Dove', right: 'Hawk', color: 'from-sky-500 to-red-500' },
+              { name: 'Technology Orientation', left: 'Tech-Cautious', right: 'Tech-Accelerative', color: 'from-slate-500 to-lime-500' },
+              { name: 'Ecological Moral Standing', left: 'Anthropocentric', right: 'Ecocentric', color: 'from-stone-500 to-green-500' },
+              { name: 'Moral Objectivity', left: 'Moral Objectivist', right: 'Moral Contextualist', color: 'from-fuchsia-500 to-sky-500' },
+              { name: 'Value Structure', left: 'Moral Monist', right: 'Value Pluralist', color: 'from-sky-500 to-red-500' },
             ].map((axis) => (
               <div key={axis.name} className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
                 <h3 className="text-white font-medium mb-2">{axis.name}</h3>
@@ -85,7 +85,7 @@ export default async function Home() {
 
         {/* Flavor Archetypes Preview */}
         <div className="mb-16">
-          <h2 className="text-2xl font-bold text-white text-center mb-4">33 Political Archetypes</h2>
+          <h2 className="text-2xl font-bold text-white text-center mb-4">38 Political Archetypes</h2>
           <p className="text-slate-300 text-center mb-8 max-w-2xl mx-auto">
             Discover which political profiles match your beliefs, from Revolutionary Socialist to Libertarian Capitalist,
             Techno-Optimist to Deep Ecologist.
@@ -117,7 +117,7 @@ export default async function Home() {
               </div>
             ))}
           </div>
-          <p className="text-slate-400 text-center mt-4 text-sm">...and 21 more archetypes</p>
+          <p className="text-slate-400 text-center mt-4 text-sm">...and 26 more archetypes</p>
         </div>
 
         {/* Features */}
@@ -130,7 +130,7 @@ export default async function Home() {
             </div>
             <h3 className="text-white font-semibold text-lg mb-2">11 Core Axes</h3>
             <p className="text-slate-400">
-              Measure your position on economics, liberty, culture, environment, war and peace, and more.
+              Measure your position on economics, liberty, culture, environment, moral foundations, and more.
             </p>
           </div>
           <div className="text-center">
@@ -139,9 +139,10 @@ export default async function Home() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
             </div>
-            <h3 className="text-white font-semibold text-lg mb-2">4 Style Facets</h3>
+            <h3 className="text-white font-semibold text-lg mb-2">7 Style Facets</h3>
             <p className="text-slate-400">
-              Understand how you pursue your beliefs: Change Strategy, Institutional Trust, Justice Style, and Decision Authority.
+              Understand how you pursue your beliefs: Change Strategy, Institutional Confidence, Justice Style,
+              Democratic Constraint, Epistemic Authority, Democratic Mediation, and Force &amp; Peace.
             </p>
           </div>
           <div className="text-center">
@@ -150,7 +151,7 @@ export default async function Home() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
             </div>
-            <h3 className="text-white font-semibold text-lg mb-2">33 Political Archetypes</h3>
+            <h3 className="text-white font-semibold text-lg mb-2">38 Political Archetypes</h3>
             <p className="text-slate-400">
               Match your profile to political types from Revolutionary Socialist to Eco-Capitalist — and see
               where your real-world choices clash with your stated ideals.
@@ -171,7 +172,7 @@ export default async function Home() {
       {/* Footer */}
       <footer className="border-t border-slate-800 py-8">
         <div className="max-w-6xl mx-auto px-4 text-center text-slate-500 text-sm">
-          <p>{totalQuestions} questions • 11 core axes • 4 style facets • 33 political archetypes</p>
+          <p>{totalQuestions} questions • 11 core axes • 7 style facets • 38 political archetypes</p>
           <div className="mt-4">
             <a href="/admin" className="text-slate-400 hover:text-slate-300">
               View Analytics →

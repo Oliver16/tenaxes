@@ -87,16 +87,28 @@ function CustomTooltip({ active, payload }: any) {
 
 function getShortName(name: string): string {
   const map: Record<string, string> = {
+    'Economic Coordination': 'Economy',
+    'Distribution & Property': 'Property',
+    'Liberty & Public Order': 'Liberty',
+    'Territorial Authority': 'Territory',
+    'Cultural Continuity': 'Culture',
+    'Scope of Obligation': 'Obligation',
+    'Sovereignty Scope': 'Sovereignty',
+    'Technology Orientation': 'Technology',
+    'Ecological Moral Standing': 'Ecology',
+    'Moral Objectivity': 'Objectivity',
+    'Value Structure': 'Pluralism',
+    // v1 bank names, kept for historical results
     'Economic Control': 'Economy',
     'Economic Equality': 'Equality',
     'Coercive Power': 'Liberty',
     'Where Power Sits': 'Power',
     'Cultural Orientation': 'Culture',
     'Group Boundaries': 'Boundaries',
-    'Sovereignty Scope': 'Sovereignty',
     'Technology Stance': 'Technology',
     "Nature's Moral Weight": 'Nature',
-    'Moral Foundation': 'Morality'
+    'Moral Epistemology': 'Morality',
+    'Force & Peace': 'Force'
   }
   return map[name] || name
 }

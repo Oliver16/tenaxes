@@ -12,7 +12,7 @@ type SurveyResultInsert = Database['public']['Tables']['survey_results']['Insert
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { responses } = body
+    const { responses, question_order, bank_version } = body
 
     if (!responses || typeof responses !== 'object') {
       return NextResponse.json(
@@ -21,10 +21,22 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const questionOrder: number[] | null =
+      Array.isArray(question_order) && question_order.every((id: unknown) => typeof id === 'number')
+        ? question_order
+        : null
+
     const supabase = await createClient()
     
     // Fetch questions with links
     const questions = await fetchQuestionsWithLinks()
+
+    // The bank version these responses belong to. The client sends what it
+    // showed; the active bank is the fallback.
+    const bankVersion: string | null =
+      (typeof bank_version === 'string' && bank_version) ||
+      (questions[0] as { bank_version?: string })?.bank_version ||
+      null
     
     // Fetch axes metadata
     const { data, error: axesError } = await supabase
@@ -69,8 +81,9 @@ export async function POST(request: NextRequest) {
       conceptualScores
     )
     
-    // Archetype matching and axis summaries (character sheets)
-    const { core_axes, facets } = buildAxisSummaries(allScores)
+    // Archetype matching and axis summaries (character sheets); the
+    // database's axes.family column decides the core/facet split
+    const { core_axes, facets } = buildAxisSummaries(allScores, axes)
     const topFlavors = computeFlavorMatches(scoresById(allScores))
 
     // Create session ID
@@ -81,7 +94,9 @@ export async function POST(request: NextRequest) {
       .from('survey_responses') as any)
       .insert({
         session_id: sessionId,
-        responses: responses as any
+        responses: responses as any,
+        ...(questionOrder ? { question_order: questionOrder } : {}),
+        ...(bankVersion ? { bank_version: bankVersion } : {})
       })
 
     if (responseError) throw responseError
@@ -89,6 +104,7 @@ export async function POST(request: NextRequest) {
     // Then, store results in survey_results
     const insertData: SurveyResultInsert = {
       session_id: sessionId,
+      ...(bankVersion ? { bank_version: bankVersion } : {}),
       scores: allScores as any,
       conceptual_scores: conceptualScores as any,
       applied_scores: appliedScores as any,

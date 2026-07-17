@@ -82,7 +82,7 @@ async function testTensionScoring() {
   const appliedQuestions = questions.filter(q => q.question_type === 'applied')
   const tensions = analyzeTensions(responses, appliedQuestions as any, axes)
 
-  console.log(`\nFound ${tensions.length} tension pairs (>=2 answered scenarios each)`)
+  console.log(`\nFound ${tensions.length} tension groups (pair x pole signature)`)
   console.log('\nTensions by interestingness:')
 
   tensions.forEach((t, i) => {

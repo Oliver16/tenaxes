@@ -31,7 +31,12 @@ import {
  * separate tensions even though both involve C9 and C2.
  */
 
-const MIN_ANSWERED = 2
+// The v2.0 bank supplies 48 deliberate collision scenarios as 24 mirrored
+// axis pairs: each unordered pair carries one scenario per pole signature,
+// so a pair x signature group holds exactly one question. A tension is
+// therefore reportable from a single answered scenario (it surfaces with
+// question_count 1 and low confidence rather than being suppressed).
+const MIN_ANSWERED = 1
 const DECISIVE_LEAN = 0.30
 const IDEALS_SUPPORT_THRESHOLD = 0.20
 const CONTRADICTION_LEAN = 0.20
@@ -43,12 +48,9 @@ const CONTRADICTION_LEAN = 0.20
  * Pairs not listed fall back to the majority-primary-pole heuristic.
  */
 const DISPLAY_ANCHORS: Record<string, { axis: string; pole: -1 | 1 }> = {
-  // green space (eco) vs affordable housing (redistribution)
-  'C2|C9|1': { axis: 'C9', pole: 1 },
-  // tech benefits vs distrust of the companies handling the data
-  'C8|F2|-1': { axis: 'C8', pole: 1 },
-  // protection of tradition vs personal liberty
-  'C3|C5|1': { axis: 'C5', pole: -1 }
+  // No overrides needed for the v2.0 bank: with one scenario per
+  // pair x signature group, the majority-primary-pole heuristic below
+  // anchors each tension to the poles its scenario actually engages.
 }
 
 interface TensionEntry {
@@ -308,6 +310,121 @@ export function analyzeTensions(
   }
 
   return scores.sort((a, b) => b.interestingness_score - a.interestingness_score)
+}
+
+/**
+ * Pair-level rollup of the mirrored collision probes.
+ *
+ * The v2.0 bank probes every collision pair twice — once per pole
+ * signature — and the two probes oppose different pole combinations, so
+ * their leans must never be averaged into one score. What the two probes
+ * DO share is exactly one pole (the value both scenarios put at stake,
+ * e.g. Civil Liberties priced against market convenience in one probe
+ * and against a state mandate in the other). This rollup asks a single
+ * well-defined question: does that shared value prevail in both
+ * framings, in neither, or does the answer flip with the framing?
+ */
+export interface CollisionPairSummary {
+  /** Unordered pair id, e.g. "C1|C3". */
+  pair_id: string
+  axis_a: string
+  axis_b: string
+  /** The pole at stake in every probe of this pair. */
+  shared_pole: TensionSide
+  /** pair_keys of the underlying per-signature tensions. */
+  probe_keys: string[]
+  probes_answered: number
+  shared_wins: number
+  shared_losses: number
+  neutral: number
+  /**
+   * aligned: the shared value wins (or loses) in every answered probe.
+   * cross_pressured: it wins under one framing and loses under the other.
+   * inconclusive: fewer than two decisive probes.
+   */
+  classification: 'aligned' | 'cross_pressured' | 'inconclusive'
+  /** +1 = shared pole consistently prevails, -1 = consistently sacrificed, 0 = mixed/unknown. */
+  direction: -1 | 0 | 1
+}
+
+export function analyzeCollisionPairs(tensions: TensionScore[]): CollisionPairSummary[] {
+  const byPair = new Map<string, TensionScore[]>()
+  for (const t of tensions) {
+    const pairId = `${t.axis_a}|${t.axis_b}`
+    if (!byPair.has(pairId)) byPair.set(pairId, [])
+    byPair.get(pairId)!.push(t)
+  }
+
+  const summaries: CollisionPairSummary[] = []
+
+  for (const [pairId, probes] of byPair.entries()) {
+    const answered = probes.filter(p => p.answered_count > 0)
+    if (answered.length === 0) continue
+
+    // The pole common to every probe's two sides. With a single probe the
+    // "shared" pole is ambiguous; prefer the side that also appears in the
+    // pair's other probe, falling back to side_a.
+    const sideKey = (s: TensionSide) => `${s.axis_id}:${s.pole}`
+    const counts = new Map<string, { side: TensionSide; n: number }>()
+    for (const p of probes) {
+      for (const side of [p.side_a, p.side_b]) {
+        const k = sideKey(side)
+        const e = counts.get(k) ?? { side, n: 0 }
+        e.n++
+        counts.set(k, e)
+      }
+    }
+    const shared = [...counts.values()].sort((a, b) => b.n - a.n)[0].side
+
+    let wins = 0
+    let losses = 0
+    let neutral = 0
+    for (const p of answered) {
+      const sharedIsA = sideKey(p.side_a) === sideKey(shared)
+      const sharedIsB = sideKey(p.side_b) === sideKey(shared)
+      if (!sharedIsA && !sharedIsB) { neutral++; continue }
+      const term = sharedIsA ? p.lean : -p.lean
+      if (term > 0) wins++
+      else if (term < 0) losses++
+      else neutral++
+    }
+
+    const decisive = wins + losses
+    let classification: CollisionPairSummary['classification']
+    let direction: -1 | 0 | 1
+    if (decisive >= 2 && losses === 0) {
+      classification = 'aligned'; direction = 1
+    } else if (decisive >= 2 && wins === 0) {
+      classification = 'aligned'; direction = -1
+    } else if (wins > 0 && losses > 0) {
+      classification = 'cross_pressured'; direction = 0
+    } else {
+      classification = 'inconclusive'
+      direction = wins > 0 ? 1 : losses > 0 ? -1 : 0
+    }
+
+    summaries.push({
+      pair_id: pairId,
+      axis_a: probes[0].axis_a,
+      axis_b: probes[0].axis_b,
+      shared_pole: shared,
+      probe_keys: probes.map(p => p.pair_key),
+      probes_answered: answered.length,
+      shared_wins: wins,
+      shared_losses: losses,
+      neutral,
+      classification,
+      direction
+    })
+  }
+
+  // Cross-pressured pairs first (most informative), then aligned, then
+  // inconclusive; more answered probes first within each class.
+  const rank = { cross_pressured: 0, aligned: 1, inconclusive: 2 }
+  return summaries.sort(
+    (a, b) => rank[a.classification] - rank[b.classification] ||
+      b.probes_answered - a.probes_answered
+  )
 }
 
 /**

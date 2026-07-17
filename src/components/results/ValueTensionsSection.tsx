@@ -1,9 +1,11 @@
 import { TensionScore, QuestionWithLinks, ResponsesMap } from '@/lib/database.types'
-import { getTensionQuestionDetails } from '@/lib/tension-analyzer'
+import { getTensionQuestionDetails, type CollisionPairSummary } from '@/lib/tension-analyzer'
 import { TensionCard } from './TensionCard'
 
 interface ValueTensionsSectionProps {
   tensions: TensionScore[]
+  /** Pair-level rollup of the mirrored collision probes, if available. */
+  pairs?: CollisionPairSummary[]
   questions: QuestionWithLinks[]
   responses: ResponsesMap
 }
@@ -25,16 +27,75 @@ const InfoIcon = () => (
   </svg>
 )
 
+const PAIR_CLASS_STYLES: Record<
+  CollisionPairSummary['classification'],
+  { label: string; badge: string }
+> = {
+  aligned: { label: 'Consistent', badge: 'bg-green-100 text-green-800' },
+  cross_pressured: { label: 'Cross-pressured', badge: 'bg-amber-100 text-amber-800' },
+  inconclusive: { label: 'Inconclusive', badge: 'bg-gray-100 text-gray-600' }
+}
+
+function pairSummaryText(pair: CollisionPairSummary): string {
+  const value = pair.shared_pole.label
+  if (pair.classification === 'cross_pressured') {
+    return `You protected ${value} under one framing but traded it away under the other — the framing, not the value, decided.`
+  }
+  if (pair.classification === 'aligned') {
+    return pair.direction > 0
+      ? `You protected ${value} in both framings of this collision.`
+      : `You traded ${value} away in both framings of this collision.`
+  }
+  return `Not enough decisive answers to read a pattern for ${value} here.`
+}
+
+function CollisionPairsRollup({ pairs }: { pairs: CollisionPairSummary[] }) {
+  const shown = pairs.filter(p => p.probes_answered > 0 && p.classification !== 'inconclusive')
+  if (shown.length === 0) return null
+
+  return (
+    <div className="space-y-3">
+      <h3 className="text-xl font-semibold tracking-tight">
+        Mirrored collision probes
+      </h3>
+      <p className="text-muted-foreground text-sm">
+        Each collision pair is probed twice, with the scenario framed from each
+        side. The two framings test different pole combinations, so they are
+        never averaged — instead we ask whether the value at stake survives
+        both framings.
+      </p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {shown.map(pair => {
+          const style = PAIR_CLASS_STYLES[pair.classification]
+          return (
+            <div key={pair.pair_id} className="rounded-lg border bg-white p-4">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <span className="font-medium text-sm">{pair.shared_pole.label}</span>
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${style.badge}`}>
+                  {style.label}
+                </span>
+              </div>
+              <p className="text-sm text-muted-foreground">{pairSummaryText(pair)}</p>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 export function ValueTensionsSection({
   tensions,
+  pairs,
   questions,
   responses
 }: ValueTensionsSectionProps) {
 
   if (tensions.length === 0) return null
 
-  // Top 6 most interesting tensions (analyzer already requires >=2
-  // answered scenarios and ranks contradictions and dilemmas highest)
+  // Top 6 most interesting tensions (the analyzer ranks contradictions
+  // and genuine dilemmas highest; single-scenario tensions surface with
+  // low confidence rather than being hidden)
   const topTensions = tensions.slice(0, 6)
 
   return (
@@ -50,6 +111,8 @@ export function ValueTensionsSection({
           from your stated ideals.
         </p>
       </div>
+
+      {pairs && <CollisionPairsRollup pairs={pairs} />}
 
       <div className="space-y-8">
         {topTensions.map((tension, index) => (

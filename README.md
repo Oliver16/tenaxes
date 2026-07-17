@@ -1,12 +1,13 @@
 # Polyaxis
 
-A Next.js application with Supabase backend for a 286-item political orientation survey (112 conceptual + 174 applied questions).
+A Next.js application with Supabase backend for a 300-item political orientation survey (108 conceptual + 192 applied questions, including 48 deliberate collision scenarios).
 
 ## Features
 
-- **11 Core Axes**: Economic control, equality, liberty, federalism, culture, group identity, sovereignty, technology, environment, moral epistemology, force & peace
-- **4 Style Facets**: Change strategy, institutional trust, justice style, decision authority
-- **33 Political Archetypes**: Automatically matched based on your profile
+- **11 Core Axes**: Economic coordination, distribution & property, liberty & public order, territorial authority, cultural continuity, scope of obligation, sovereignty, technology, ecology, moral objectivity, value structure
+- **7 Style Facets**: Change strategy, institutional confidence, justice style, democratic constraint, epistemic authority, democratic mediation, force & peace
+- **38 Political Archetypes**: Automatically matched based on your profile
+- **48 Collision Scenarios**: 24 mirrored axis pairs that price one value against another
 - **Rich Visualizations**: Radar charts, axis scales, flavor bar charts
 - **Admin Analytics Dashboard**: Response trends, population averages, popular types
 - **Anonymous**: No login, no PII collection
@@ -20,7 +21,7 @@ A Next.js application with Supabase backend for a 286-item political orientation
 
 1. Go to [supabase.com](https://supabase.com) and create a new project
 2. Once created, go to **SQL Editor**
-3. Paste the contents of `supabase/fresh_install.sql` and run it once — this installs the complete current state (schema, policies, 15 axes, 288 questions (286 active), all links). Do not run `schema.sql`/seeds/migrations separately for a new project; see `docs/supabase-migration.md` for details and for migrating data from an old project.
+3. Paste the contents of `supabase/fresh_install.sql` and run it once — this installs the complete current state (schema, policies, 18 constructs, 300 questions, all links, and semantic coverage metadata). Do not run `schema.sql`/seeds/migrations separately for a new project; see `docs/supabase-migration.md` for details and for migrating data from an old project.
 4. Go to **Settings → API** and copy:
    - Project URL
    - `anon` public key
@@ -62,7 +63,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
 | Route | Description |
 |-------|-------------|
 | `/` | Landing page with feature overview |
-| `/survey` | 286-question questionnaire (112 conceptual + 174 applied) |
+| `/survey` | 300-question questionnaire (108 conceptual + 192 applied), resumable across sittings |
 | `/results/[sessionId]` | Individual results with visualizations |
 | `/admin` | Analytics dashboard |
 | `/admin/questions` | Question management (add/edit/delete) |
@@ -174,7 +175,7 @@ After running `schema.sql`, seed the default questions:
 | `display_order` | Order in the survey |
 | `active` | Whether to include in survey |
 | `question_type` | `'conceptual'` or `'applied'` |
-| `weight` | Scoring multiplier (default 1.0, applied questions use 1.25) |
+| `weight` | Scoring multiplier (1.0 conceptual, 1.15 applied, 1.25 collision scenarios) |
 
 ### Best Practices
 

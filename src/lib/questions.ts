@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
-import { AXES, ITEMS, type AxisId } from './instrument'
+import { AXES, type AxisId } from './instrument'
+import { BANK_ITEMS } from './question-bank'
 
 const normalizeQuestion = (q: any): Question => ({
   ...q,
@@ -17,6 +18,7 @@ export type Question = {
   active: boolean
   weight: number
   question_type: 'conceptual' | 'applied'
+  bank_version?: string
   created_at?: string
   updated_at?: string
 }
@@ -233,16 +235,18 @@ export async function seedQuestions(): Promise<boolean> {
     return true
   }
 
-  // Insert all default questions
-  const questions = ITEMS.map(item => ({
+  // Insert all default questions. Note: this seeds the questions table
+  // only; the collision scenarios' tradeoff links live in
+  // question_axis_links and come from supabase/fresh_install.sql.
+  const questions = BANK_ITEMS.map(item => ({
     axis_id: item.axis,
     key: item.key,
     text: item.text,
     educational_content: item.educational_content,
     display_order: item.order,
     active: true,
-    weight: 1.0,
-    question_type: 'conceptual'
+    weight: item.weight,
+    question_type: item.question_type
   }))
 
   const { error } = await supabase
