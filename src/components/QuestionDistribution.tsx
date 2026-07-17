@@ -35,18 +35,26 @@ export type BankDistribution = {
 
 export async function getBankDistribution(): Promise<BankDistribution | null> {
   try {
-    const [questionsRes, linksRes, axesRes] = await Promise.all([
-      supabase.from('questions').select('id, axis_id, question_type').eq('active', true),
-      supabase.from('question_axis_links').select('question_id, axis_id, role, axis_key'),
+    // Links are fetched embedded on the active questions rather than as a
+    // whole-table select: with multiple bank versions stored, the links
+    // table exceeds Supabase's 1000-row response cap and a flat fetch
+    // silently drops the newest bank's rows, breaking the tradeoff and
+    // tension tiles. Embedded rows are scoped per question and immune.
+    const [questionsRes, axesRes] = await Promise.all([
+      supabase
+        .from('questions')
+        .select('id, axis_id, question_type, question_axis_links(question_id, axis_id, role, axis_key)')
+        .eq('active', true),
       supabase.from('axes').select('id, name, pole_negative, pole_positive, family').order('id')
     ])
 
     if (questionsRes.error || !questionsRes.data || questionsRes.data.length === 0) return null
 
-    const questions = questionsRes.data as { id: number; axis_id: string; question_type: string }[]
-    const links = (linksRes.data ?? []) as {
-      question_id: number; axis_id: string; role: string; axis_key: number
+    const questions = questionsRes.data as unknown as {
+      id: number; axis_id: string; question_type: string
+      question_axis_links: { question_id: number; axis_id: string; role: string; axis_key: number }[]
     }[]
+    const links = questions.flatMap(q => q.question_axis_links ?? [])
 
     const byAxis: Record<string, { conceptual: number; applied: number }> = {}
     for (const q of questions) {
