@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { calculateAxisScoresFromLinks } from '@/lib/scorer'
 import type { QuestionWithLinks, ResponsesMap } from '@/lib/database.types'
+import { requireAdmin } from '@/lib/admin-auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -59,6 +60,9 @@ function variance(values: number[]): number {
 }
 
 export async function GET() {
+  const auth = await requireAdmin()
+  if (auth.response) return auth.response
+
   try {
     const { data: questionData, error: qError } = await supabaseAdmin
       .from('questions')

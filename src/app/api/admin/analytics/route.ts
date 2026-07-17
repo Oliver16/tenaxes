@@ -2,10 +2,14 @@ import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import type { AnalyticsData } from '@/lib/analytics'
 import { aggregateByDay, computeAxisAggregates, computeFlavorPopularity } from '@/lib/analytics-utils'
+import { requireAdmin } from '@/lib/admin-auth'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
+  const auth = await requireAdmin()
+  if (auth.response) return auth.response
+
   try {
     // Total response count
     const { count: totalResponses, error: totalError } = await supabaseAdmin

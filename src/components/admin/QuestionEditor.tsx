@@ -25,6 +25,8 @@ export function QuestionEditor({
   const [text, setText] = useState(question?.text || '')
   const [educationalContent, setEducationalContent] = useState(question?.educational_content || '')
   const [key, setKey] = useState<1 | -1>(question?.key || 1)
+  const [questionType, setQuestionType] = useState<'conceptual' | 'applied'>(question?.question_type || 'conceptual')
+  const [weight, setWeight] = useState(question?.weight ?? 1)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -47,7 +49,9 @@ export function QuestionEditor({
         key,
         text: text.trim(),
         educational_content: educationalContent.trim() || undefined,
-        display_order: question?.display_order
+        display_order: question?.display_order,
+        question_type: questionType,
+        weight
       })
     } catch (err) {
       setError('Failed to save question')
@@ -91,6 +95,39 @@ export function QuestionEditor({
             rows={4}
             placeholder="Example: This question explores the balance between individual liberty and collective action. Consider how different societies prioritize personal freedom versus community obligations..."
           />
+        </div>
+
+        {/* Revised bank metadata */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <label htmlFor="question-type" className="block text-sm font-medium text-gray-700 mb-1">
+              Question Type
+            </label>
+            <select
+              id="question-type"
+              value={questionType}
+              onChange={(event) => setQuestionType(event.target.value as 'conceptual' | 'applied')}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-800"
+            >
+              <option value="conceptual">Conceptual</option>
+              <option value="applied">Applied / scenario</option>
+            </select>
+          </div>
+          <div>
+            <label htmlFor="question-weight" className="block text-sm font-medium text-gray-700 mb-1">
+              Scoring Weight
+            </label>
+            <input
+              id="question-weight"
+              type="number"
+              min="0.01"
+              max="10"
+              step="0.05"
+              value={weight}
+              onChange={(event) => setWeight(Number(event.target.value))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-800"
+            />
+          </div>
         </div>
 
         {/* Key (Which pole does agreement push toward) */}

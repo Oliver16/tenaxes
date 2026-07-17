@@ -78,7 +78,10 @@ export function CompactCollisionPair({ pair }: { pair: CollisionPairViewModel })
   const badge = CLASSIFICATION_BADGE[pair.classification]
 
   return (
-    <details className="group bg-white rounded-xl border-2 border-gray-200">
+    <details
+      id={`pair-${pair.pairId}`}
+      className="group scroll-mt-6 bg-white rounded-xl border-2 border-gray-200 target:border-amber-400 target:ring-2 target:ring-amber-100"
+    >
       <summary className="cursor-pointer list-none p-4 space-y-2">
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>

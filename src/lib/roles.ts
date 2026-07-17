@@ -96,20 +96,15 @@ export async function assignRole(
   roleId: string,
   assignedBy?: string
 ): Promise<{ success: boolean; error?: string }> {
-  const { error } = await (supabase
-    .from('user_roles') as any)
-    .insert({
-      user_id: userId,
-      role_id: roleId,
-      assigned_by: assignedBy || null
-    })
-
-  if (error) {
-    console.error('Error assigning role:', error)
-    return { success: false, error: error.message }
-  }
-
-  return { success: true }
+  const response = await fetch('/api/admin/users', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId, roleId, action: 'assign' })
+  })
+  const result = await response.json().catch(() => ({}))
+  return response.ok
+    ? { success: true }
+    : { success: false, error: result.error || 'Failed to assign role' }
 }
 
 /**
@@ -120,18 +115,15 @@ export async function removeRole(
   userId: string,
   roleId: string
 ): Promise<{ success: boolean; error?: string }> {
-  const { error } = await supabase
-    .from('user_roles')
-    .delete()
-    .eq('user_id', userId)
-    .eq('role_id', roleId)
-
-  if (error) {
-    console.error('Error removing role:', error)
-    return { success: false, error: error.message }
-  }
-
-  return { success: true }
+  const response = await fetch('/api/admin/users', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId, roleId, action: 'remove' })
+  })
+  const result = await response.json().catch(() => ({}))
+  return response.ok
+    ? { success: true }
+    : { success: false, error: result.error || 'Failed to remove role' }
 }
 
 /**

@@ -4,6 +4,7 @@ import { fetchQuestionsWithLinks } from '@/lib/api/questions'
 import { analyzeTensions, analyzeCollisionPairs, type CollisionPairSummary } from '@/lib/tension-analyzer'
 import { calculateAxisCoverage } from '@/lib/scorer'
 import { buildAxisSummaries, computeFlavorMatches, scoresById } from '@/lib/flavor-matcher'
+import { isSampleSession, loadSampleResultAnalysis } from '@/lib/results/sample-result'
 import { AxisScore as AxisScoreType, AxisCoverage, Database, QuestionWithLinks, TensionScore } from '@/lib/database.types'
 import type { AxisScore as AxisScoreSummary, FlavorMatch } from '@/lib/supabase'
 
@@ -67,6 +68,8 @@ export interface ResultAnalysis {
  */
 export const loadResultAnalysis = cache(
   async (sessionId: string): Promise<ResultAnalysis | null> => {
+    if (isSampleSession(sessionId)) return loadSampleResultAnalysis()
+
     const supabase = await createClient()
 
     const { data, error } = await (supabase
@@ -79,7 +82,9 @@ export const loadResultAnalysis = cache(
     if (error || !result) return null
 
     const bankVersion = (result as { bank_version?: string }).bank_version ?? null
-    const questions = await fetchQuestionsWithLinks({ bankVersion })
+    const responses = (result.responses || {}) as Record<number, number | null>
+    const storedQuestionIds = Object.keys(responses).map(Number).filter(Number.isFinite)
+    const questions = await fetchQuestionsWithLinks({ bankVersion, questionIds: storedQuestionIds })
 
     const { data: axesData } = await (supabase
       .from('axes')
@@ -102,7 +107,6 @@ export const loadResultAnalysis = cache(
       ? (result.top_flavors as unknown as FlavorMatch[])
       : computeFlavorMatches(scoresById(rawScores))
 
-    const responses = (result.responses || {}) as Record<number, number | null>
     const responseCount = Object.keys(responses).length
     const conceptualCount = questions.filter(
       q => q.question_type === 'conceptual' && typeof responses[q.id] === 'number'

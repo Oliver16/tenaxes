@@ -1,5 +1,7 @@
+import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { loadResultAnalysis } from '@/lib/results/load-result-analysis'
+import { isSampleSession } from '@/lib/results/sample-result'
 import { computeConsistency } from '@/lib/results/consistency'
 import { rankCollisionPairs, buildCollisionPairViewModel } from '@/lib/results/collision-view'
 import { CoreAxesRadar } from '@/components/charts/CoreAxesRadar'
@@ -7,6 +9,7 @@ import { ResultsProfileHero, strongestAxis } from '@/components/results/ResultsP
 import { DefiningAxes } from '@/components/results/DefiningAxes'
 import { ResultsKeyInsights } from '@/components/results/ResultsKeyInsights'
 import { ResultsExploreCards } from '@/components/results/ResultsExploreCards'
+import { AIAnalysisOverviewCard } from '@/components/results/ai/AIAnalysisOverviewCard'
 import { ResultsActions } from '@/components/ResultsActions'
 import { SaveResultsPrompt } from '@/components/SaveResultsPrompt'
 
@@ -17,6 +20,7 @@ export default async function ResultsOverviewPage({
 }) {
   const analysis = await loadResultAnalysis(params.sessionId)
   if (!analysis) notFound()
+  const isSample = isSampleSession(params.sessionId)
 
   const {
     coreAxes,
@@ -94,13 +98,35 @@ export default async function ResultsOverviewPage({
         conflictCounts={conflictCounts}
       />
 
+      {!isSample && process.env.AI_ANALYSIS_ENABLED === 'true' && (
+        <AIAnalysisOverviewCard sessionId={params.sessionId} />
+      )}
+
       {/* Footer: save, share/retake, methodology and result details */}
-      <SaveResultsPrompt sessionId={params.sessionId} />
-      <ResultsActions
-        sessionId={params.sessionId}
-        coreAxes={coreAxes}
-        topFlavor={topFlavors[0] || null}
-      />
+      {isSample ? (
+        <section className="rounded-xl bg-gradient-to-r from-blue-700 to-violet-700 p-6 text-center text-white shadow-lg">
+          <h2 className="text-2xl font-bold">That was the sample. Yours will be messier.</h2>
+          <p className="mx-auto mt-2 max-w-2xl text-sm leading-relaxed text-blue-100">
+            Put your own principles through the same 18-dimension stress test and see which values
+            survive contact with tradeoffs, constraints, and consequences.
+          </p>
+          <Link
+            href="/survey"
+            className="mt-5 inline-flex rounded-lg bg-white px-5 py-2.5 font-semibold text-blue-800 transition hover:bg-blue-50"
+          >
+            Take your own evaluation <span className="ml-1" aria-hidden="true">&rarr;</span>
+          </Link>
+        </section>
+      ) : (
+        <>
+          <SaveResultsPrompt sessionId={params.sessionId} />
+          <ResultsActions
+            sessionId={params.sessionId}
+            coreAxes={coreAxes}
+            topFlavor={topFlavors[0] || null}
+          />
+        </>
+      )}
 
       <section className="bg-white rounded-xl shadow-lg divide-y">
         <details className="group p-4">
@@ -129,10 +155,17 @@ export default async function ResultsOverviewPage({
             Result details
           </summary>
           <dl className="mt-3 text-sm text-gray-600 space-y-1">
-            <div className="flex gap-2">
-              <dt className="text-gray-400">Session:</dt>
-              <dd className="font-mono break-all">{params.sessionId}</dd>
-            </div>
+            {isSample ? (
+              <div className="flex gap-2">
+                <dt className="text-gray-400">Profile:</dt>
+                <dd>Fictional demonstration</dd>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <dt className="text-gray-400">Session:</dt>
+                <dd className="font-mono break-all">{params.sessionId}</dd>
+              </div>
+            )}
             <div className="flex gap-2">
               <dt className="text-gray-400">Question bank:</dt>
               <dd>{bankVersion ?? 'v1 (legacy)'}</dd>

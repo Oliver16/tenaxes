@@ -1,13 +1,13 @@
 BEGIN;
 
 -- =====================================================
--- POLYAXIS FRESH INSTALL - 300 QUESTION COMPREHENSIVE BANK
+-- POLYAXIS FRESH INSTALL - 350 QUESTION v2.2 COMPREHENSIVE BANK
 --
 -- Complete database setup for a NEW Supabase project.
--- Includes 18 clean ideological constructs, 300 active questions,
+-- Includes 18 clean ideological constructs, 350 active questions,
 -- 48 deliberate collision scenarios across 24 mirrored axis pairs,
--- semantic coverage metadata, audit views, auth/profile support,
--- RLS policies, roles, responses, and results.
+-- semantic coverage metadata, audit views, auth/profile support, RLS
+-- policies, roles, responses, results, and the private AI analysis cache.
 --
 -- Run once in the Supabase SQL Editor on a new project.
 -- This file replaces all prior schema, seed, and migration files.
@@ -577,7 +577,7 @@ ALTER TABLE ONLY public.questions ALTER COLUMN id SET DEFAULT nextval('public.qu
 --
 
 INSERT INTO public.question_bank_versions (id, name, notes, question_count, collision_count) VALUES
-    ('v2.2', 'Polyaxis v2.2 — Controversy Stress Test', '18 constructs; 350 questions; v2.1 comprehension treatment plus 50 overt high-conflict items; 48 collision scenarios across 24 mirrored pairs.', 350, 48); 300 questions; technical concepts retained with plain-language restatements; 152 explicit assumptions; 48 deliberate collision scenarios across 24 mirrored pairs.', 300, 48); 108 conceptual anchors; 144 single-axis applied scenarios; 48 deliberate collision scenarios across 24 mirrored pairs.', 300, 48);
+    ('v2.2', 'Polyaxis v2.2 — Controversy Stress Test', '18 constructs; 350 questions; v2.1 comprehension treatment plus 50 overt high-conflict items; 48 collision scenarios across 24 mirrored pairs.', 350, 48);
 
 
 --
@@ -2462,6 +2462,76 @@ ALTER TABLE public.survey_responses ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE public.survey_results ENABLE ROW LEVEL SECURITY;
 
+
+-- =====================================================
+-- Optional AI-assisted interpretation persistence.
+-- This table has RLS enabled and intentionally has no client policies;
+-- validated generation and retrieval run through service-role server routes.
+-- =====================================================
+CREATE TABLE public.result_ai_analyses (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id text NOT NULL
+    REFERENCES public.survey_results(session_id)
+    ON DELETE CASCADE,
+  parent_analysis_id uuid
+    REFERENCES public.result_ai_analyses(id)
+    ON DELETE SET NULL,
+  user_id uuid
+    REFERENCES auth.users(id)
+    ON DELETE SET NULL,
+  stage text NOT NULL
+    CHECK (stage IN ('provisional', 'refined')),
+  status text NOT NULL
+    CHECK (status IN ('pending', 'completed', 'failed')),
+  provider text NOT NULL
+    CHECK (provider IN ('openai', 'anthropic')),
+  model text NOT NULL,
+  prompt_version text NOT NULL,
+  schema_version text NOT NULL,
+  bank_version text,
+  input_hash text NOT NULL,
+  context_json jsonb NOT NULL DEFAULT '{}'::jsonb,
+  deterministic_signals jsonb NOT NULL DEFAULT '{}'::jsonb,
+  analysis_json jsonb,
+  error_code text,
+  error_message text,
+  input_tokens integer,
+  output_tokens integer,
+  latency_ms integer,
+  provider_request_id text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  completed_at timestamptz
+);
+
+CREATE INDEX idx_result_ai_analyses_session_created
+  ON public.result_ai_analyses(session_id, created_at DESC);
+
+CREATE INDEX idx_result_ai_analyses_status
+  ON public.result_ai_analyses(status);
+
+CREATE INDEX idx_result_ai_analyses_session_completed
+  ON public.result_ai_analyses(session_id, completed_at DESC)
+  WHERE status = 'completed';
+
+CREATE UNIQUE INDEX uq_result_ai_analysis_cache
+  ON public.result_ai_analyses(
+    session_id,
+    input_hash,
+    provider,
+    model,
+    prompt_version,
+    schema_version
+  )
+  WHERE status = 'completed';
+
+CREATE UNIQUE INDEX uq_result_ai_analysis_pending
+  ON public.result_ai_analyses(session_id)
+  WHERE status = 'pending';
+
+ALTER TABLE public.result_ai_analyses ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.result_ai_analyses FROM anon, authenticated;
+GRANT ALL ON TABLE public.result_ai_analyses TO service_role;
+
 --
 -- Name: user_roles; Type: ROW SECURITY; Schema: public; Owner: -
 --
@@ -2532,5 +2602,14 @@ DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- Prevent authenticated users from self-promoting through the legacy admin
+-- column while retaining ordinary profile maintenance.
+REVOKE UPDATE ON TABLE public.profiles FROM authenticated;
+GRANT UPDATE (email, updated_at) ON TABLE public.profiles TO authenticated;
+
+ALTER FUNCTION public.handle_new_user() SET search_path = public;
+ALTER FUNCTION public.has_role(uuid, text) SET search_path = public;
+ALTER FUNCTION public.get_user_roles(uuid) SET search_path = public;
 
 COMMIT;

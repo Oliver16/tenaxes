@@ -10,6 +10,7 @@ import {
   updateQuestion,
   deleteQuestion,
   toggleQuestionActive,
+  reorderQuestions,
   getAllAxes,
   type Question,
   type QuestionInput
@@ -119,13 +120,10 @@ export default function QuestionsAdminPage() {
     const index = axisQuestions.findIndex(q => q.id === id)
     if (index <= 0) return
 
-    // Swap display_order with previous question
-    const current = axisQuestions[index]
-    const previous = axisQuestions[index - 1]
-    
-    await updateQuestion(current.id, { display_order: previous.display_order })
-    await updateQuestion(previous.id, { display_order: current.display_order })
-    await loadQuestions()
+    const reordered = axisQuestions.map(question => question.id)
+    ;[reordered[index - 1], reordered[index]] = [reordered[index], reordered[index - 1]]
+    if (await reorderQuestions(selectedAxis, reordered)) await loadQuestions()
+    else showMessage('error', 'Failed to reorder questions')
   }
 
   const handleMoveDown = async (id: number) => {
@@ -134,13 +132,10 @@ export default function QuestionsAdminPage() {
     const index = axisQuestions.findIndex(q => q.id === id)
     if (index < 0 || index >= axisQuestions.length - 1) return
 
-    // Swap display_order with next question
-    const current = axisQuestions[index]
-    const next = axisQuestions[index + 1]
-    
-    await updateQuestion(current.id, { display_order: next.display_order })
-    await updateQuestion(next.id, { display_order: current.display_order })
-    await loadQuestions()
+    const reordered = axisQuestions.map(question => question.id)
+    ;[reordered[index], reordered[index + 1]] = [reordered[index + 1], reordered[index]]
+    if (await reorderQuestions(selectedAxis, reordered)) await loadQuestions()
+    else showMessage('error', 'Failed to reorder questions')
   }
 
   // Prevent rendering for non-admin users
