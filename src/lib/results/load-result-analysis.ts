@@ -5,6 +5,7 @@ import { analyzeTensions, analyzeCollisionPairs, type CollisionPairSummary } fro
 import { calculateAxisCoverage } from '@/lib/scorer'
 import { buildAxisSummaries, computeFlavorMatches, scoresById } from '@/lib/flavor-matcher'
 import { isSampleSession, loadSampleResultAnalysis } from '@/lib/results/sample-result'
+import { resolveRegisterScores } from '@/lib/results/register-scores'
 import { AxisScore as AxisScoreType, AxisCoverage, Database, QuestionWithLinks, TensionScore } from '@/lib/database.types'
 import type { AxisScore as AxisScoreSummary, FlavorMatch } from '@/lib/supabase'
 
@@ -83,8 +84,23 @@ export const loadResultAnalysis = cache(
     const result = data as SurveyResult | null
     if (error || !result) return null
 
-    const bankVersion = (result as { bank_version?: string }).bank_version ?? null
-    const responses = (result.responses || {}) as Record<number, number | null>
+    let bankVersion = (result as { bank_version?: string }).bank_version ?? null
+    let responses = (result.responses || {}) as Record<number, number | null>
+    // Very old result rows can predate the duplicated responses/scores
+    // columns even though their canonical survey_responses row still exists.
+    if (Object.keys(responses).length === 0) {
+      const { data: storedResponse } = await (supabase
+        .from('survey_responses')
+        .select('responses, bank_version')
+        .eq('session_id', sessionId)
+        .maybeSingle() as any)
+      const historicalResponse = storedResponse as {
+        responses?: Record<number, number | null>
+        bank_version?: string | null
+      } | null
+      responses = historicalResponse?.responses || {}
+      bankVersion = bankVersion ?? historicalResponse?.bank_version ?? null
+    }
     const storedQuestionIds = Object.keys(responses).map(Number).filter(Number.isFinite)
     const questions = await fetchQuestionsWithLinks({ bankVersion, questionIds: storedQuestionIds })
 
@@ -129,8 +145,22 @@ export const loadResultAnalysis = cache(
     const conceptualCoverage = calculateAxisCoverage(responses, conceptualQuestions)
     const appliedCoverage = calculateAxisCoverage(responses, appliedQuestions)
 
-    const conceptualScores = (result.conceptual_scores || []) as unknown as AxisScoreType[]
-    const appliedScores = (result.applied_scores || []) as unknown as AxisScoreType[]
+    const axesById = Object.fromEntries(axes.map(axis => [axis.id, axis]))
+    // Some historical results predate the stored register-specific score
+    // columns. Rebuild those profiles from their bank-pinned questions and
+    // raw responses instead of treating a completed survey as no evidence.
+    const conceptualScores = resolveRegisterScores(
+      result.conceptual_scores,
+      responses,
+      conceptualQuestions,
+      axesById
+    )
+    const appliedScores = resolveRegisterScores(
+      result.applied_scores,
+      responses,
+      appliedQuestions,
+      axesById
+    )
 
     // Recompute tensions from the stored responses rather than reading the
     // stored snapshot, so past sessions benefit from link fixes and

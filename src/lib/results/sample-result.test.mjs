@@ -65,6 +65,8 @@ test('sample drives the full scoring, archetype, and conflict pipeline', () => {
   })
   assert.equal(alignment?.rating, 80)
   assert.equal(alignment?.band.label, 'Mixed')
+  assert.equal(alignment?.gapCount, 18)
+  assert.equal(alignment?.lowDirectionalSignal, false)
 })
 
 test('sample session matching is case-insensitive and narrow', () => {
