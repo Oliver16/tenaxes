@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { DEEPER_ANALYSIS_LABEL } from './ai/copy'
 
 const TABS = [
   { slug: '', label: 'Overview' },
@@ -11,7 +12,7 @@ const TABS = [
   { slug: 'types', label: 'Political types' }
 ] as const
 
-const AI_TAB = { slug: 'analysis', label: 'AI analysis' } as const
+const AI_TAB = { slug: 'analysis', label: DEEPER_ANALYSIS_LABEL } as const
 
 export function ResultsSubnav({
   sessionId,

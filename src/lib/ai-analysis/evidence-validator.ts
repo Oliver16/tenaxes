@@ -1,4 +1,5 @@
 import type { PersonalizedAnalysis, PersonalizedAnalysisInput } from './types'
+import { analysisHeadlineProblem } from './headline'
 import { isSelectivelyEngaged, SIGNAL_THRESHOLDS } from './signals'
 
 export interface EvidenceValidationResult {
@@ -8,6 +9,8 @@ export interface EvidenceValidationResult {
 
 export function validateAnalysisEvidence(analysis: PersonalizedAnalysis, input: PersonalizedAnalysisInput): EvidenceValidationResult {
   const errors: string[] = []
+  const headlineProblem = analysisHeadlineProblem(analysis.headline)
+  if (headlineProblem) errors.push(`headline: ${headlineProblem}`)
   const axisById = new Map([...input.profile.core_axes, ...input.profile.facets].map(a => [a.axis_id, a]))
   const axes = new Set(axisById.keys())
   const questions = new Map(input.questions.map(q => [q.question_id, q]))

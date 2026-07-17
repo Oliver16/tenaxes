@@ -2,6 +2,8 @@
 
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
+import { AI_ASSISTED_INTERPRETATION_LABEL, DEEPER_ANALYSIS_LABEL } from './copy'
+import { analysisHeaderForDisplay } from '@/lib/ai-analysis/headline'
 import type { GetAIAnalysisResponse } from '@/lib/ai-analysis/types'
 
 const COHERENCE_LABELS: Record<
@@ -61,7 +63,7 @@ export function AIAnalysisOverviewCard({ sessionId }: { sessionId: string }) {
   if (loading) {
     return (
       <section className="rounded-xl border border-violet-200 bg-gradient-to-br from-violet-50 to-white p-6 shadow-sm" aria-busy="true">
-        <p className="text-sm font-semibold text-violet-900">Personalized AI analysis</p>
+        <p className="text-sm font-semibold text-violet-900">{DEEPER_ANALYSIS_LABEL}</p>
         <p className="mt-2 text-sm text-violet-700">Checking for a saved analysis&hellip;</p>
       </section>
     )
@@ -70,8 +72,8 @@ export function AIAnalysisOverviewCard({ sessionId }: { sessionId: string }) {
   if (unavailable) {
     return (
       <section className="rounded-xl border border-gray-200 bg-gray-50 p-6">
-        <p className="text-sm font-semibold text-gray-700">Personalized AI analysis</p>
-        <p className="mt-1 text-sm text-gray-500">AI analysis is temporarily unavailable. Your verified results are unaffected.</p>
+        <p className="text-sm font-semibold text-gray-700">{DEEPER_ANALYSIS_LABEL}</p>
+        <p className="mt-1 text-sm text-gray-500">{DEEPER_ANALYSIS_LABEL} is temporarily unavailable. Your verified results are unaffected.</p>
       </section>
     )
   }
@@ -79,7 +81,7 @@ export function AIAnalysisOverviewCard({ sessionId }: { sessionId: string }) {
   if (payload?.stale) {
     return (
       <section className="rounded-xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
-        <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">Saved AI analysis</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">Saved analysis</p>
         <h2 className="mt-1 text-lg font-bold text-amber-950">A previous analysis is out of date</h2>
         <p className="mt-2 text-sm leading-relaxed text-amber-900">
           Its method or verified source evidence no longer matches the current analysis configuration, so this overview does not present its findings as current.
@@ -100,7 +102,7 @@ export function AIAnalysisOverviewCard({ sessionId }: { sessionId: string }) {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="max-w-2xl">
             <p className="text-xs font-semibold uppercase tracking-wide text-violet-700">Optional</p>
-            <h2 className="mt-1 text-lg font-bold text-gray-900">Personalized AI analysis</h2>
+            <h2 className="mt-1 text-lg font-bold text-gray-900">{DEEPER_ANALYSIS_LABEL}</h2>
             <p className="mt-1 text-sm leading-relaxed text-gray-600">
               {pending
                 ? 'An analysis request is already being generated and evidence-validated for this result.'
@@ -126,11 +128,14 @@ export function AIAnalysisOverviewCard({ sessionId }: { sessionId: string }) {
   const knowledgeCount = analysis.engagement_and_knowledge.topics.filter(topic =>
     KNOWLEDGE_OR_SALIENCE.has(topic.classification)
   ).length
+  const header = analysisHeaderForDisplay(analysis.headline, analysis.executive_summary)
 
   return (
     <section className="rounded-xl border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-blue-50 p-6 shadow-sm">
-      <p className="text-xs font-semibold uppercase tracking-wide text-violet-700">AI-assisted interpretation</p>
-      <h2 className="mt-1 text-xl font-bold text-gray-900">{analysis.headline}</h2>
+      <p className="text-xs font-semibold uppercase tracking-wide text-violet-700">{AI_ASSISTED_INTERPRETATION_LABEL}</p>
+      <h2 className="mt-1 text-xl font-bold text-gray-900">
+        {header.headline}
+      </h2>
       <div className="mt-3 flex flex-wrap gap-2 text-sm">
         <span className="rounded-full border border-violet-200 bg-white px-3 py-1 font-medium text-violet-900">
           {COHERENCE_LABELS[analysis.overall_assessment.ideological_coherence]}

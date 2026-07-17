@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { ANALYSIS_HEADLINE_EDITORIAL_MAX_CHARS } from './headline'
 
 export const confidenceSchema = z.enum(['low', 'medium', 'high'])
 export const tensionClassificationSchema = z.enum([
@@ -17,6 +18,9 @@ export const centerShapeSchema = z.enum([
 ])
 
 const boundedText = z.string().trim().min(1).max(4000)
+const headlineText = boundedText.max(200).describe(
+  `A complete standalone headline of no more than ${ANALYSIS_HEADLINE_EDITORIAL_MAX_CHARS} characters. Never end with a dangling word, hyphen, dash, or punctuation mark.`
+)
 const ids = z.array(z.string().min(1).max(100)).max(30)
 const questionIds = z.array(z.number().int().positive()).max(60)
 const stableOutputId = z.string().min(1).max(100).regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/)
@@ -24,7 +28,7 @@ const stableOutputId = z.string().min(1).max(100).regex(/^[A-Za-z0-9][A-Za-z0-9.
 export const personalizedAnalysisSchema = z.object({
   schema_version: z.literal('1'),
   analysis_stage: z.enum(['provisional', 'refined']),
-  headline: boundedText.max(200),
+  headline: headlineText,
   executive_summary: boundedText,
   overall_assessment: z.object({
     ideological_coherence: z.enum(['high', 'mostly_coherent', 'mixed', 'significant_unresolved_tensions', 'insufficient_evidence']),

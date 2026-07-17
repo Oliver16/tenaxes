@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import type { Ref } from 'react'
 import { ClarificationForm } from './ClarificationForm'
+import { AI_ASSISTED_INTERPRETATION_LABEL } from './copy'
 import { EngagementTopicCard } from './EngagementTopicCard'
 import { EvidenceReferences } from './EvidenceReferences'
 import { TensionFindingCard } from './TensionFindingCard'
@@ -13,6 +14,7 @@ import type {
   GetAIAnalysisResponse,
   PersonalizedAnalysis
 } from '@/lib/ai-analysis/types'
+import { analysisHeaderForDisplay } from '@/lib/ai-analysis/headline'
 
 type AnalysisVersion = NonNullable<GetAIAnalysisResponse['versions']>[number]
 
@@ -108,6 +110,8 @@ export function AIAnalysisReport({
     clarificationAnswers: Array<{ clarification_id: string; answer: string }>
   }) => Promise<void> | void
 }) {
+  const header = analysisHeaderForDisplay(analysis.headline, analysis.executive_summary)
+
   return (
     <div className="space-y-6">
       <article className="overflow-hidden rounded-xl border border-violet-200 bg-white shadow-sm">
@@ -116,7 +120,7 @@ export function AIAnalysisReport({
             <div className="min-w-0 max-w-3xl">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="rounded-full border border-violet-200 bg-white px-2.5 py-1 text-xs font-semibold text-violet-800">
-                  AI-assisted interpretation
+                  {AI_ASSISTED_INTERPRETATION_LABEL}
                 </span>
                 {analysis.analysis_stage === 'refined' && (
                   <span className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-800">
@@ -134,9 +138,9 @@ export function AIAnalysisReport({
                 tabIndex={-1}
                 className="mt-3 text-2xl font-bold leading-tight text-gray-950 outline-none md:text-3xl"
               >
-                {analysis.headline}
+                {header.headline}
               </h2>
-              <p className="mt-4 text-base leading-relaxed text-gray-700">{analysis.executive_summary}</p>
+              <p className="mt-4 text-base leading-relaxed text-gray-700">{header.executiveSummary}</p>
             </div>
 
             {versions.length > 1 && (

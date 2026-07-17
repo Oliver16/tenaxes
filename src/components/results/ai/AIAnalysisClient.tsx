@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AIAnalysisConsent } from './AIAnalysisConsent'
+import { DEEPER_ANALYSIS_LABEL } from './copy'
 import { AIAnalysisReport } from './AIAnalysisReport'
 import { AIAnalysisStatus } from './AIAnalysisStatus'
 import { aiAnalysisStatusMessage, analysisVersions, shouldRefreshGenerationStatus } from './status'
@@ -111,7 +112,7 @@ export function AIAnalysisClient({
 
       const next = await response.json() as PublicResponse
       if (!next.enabled || !next.analysis || !next.record) {
-        throw new Error('AI analysis is temporarily unavailable. Your verified Polyaxis results are unaffected.')
+        throw new Error(`${DEEPER_ANALYSIS_LABEL} is temporarily unavailable. Your verified Polyaxis results are unaffected.`)
       }
       setPayload(next)
       setSelectedRecordId(next.record.id)
@@ -119,8 +120,8 @@ export function AIAnalysisClient({
       setMode('ready')
       setLastRequest(null)
       setSuccessMessage(request.action === 'refine'
-        ? 'Your refined AI analysis is ready.'
-        : 'Your updated AI analysis is ready.')
+        ? 'Your refined analysis is ready.'
+        : 'Your updated analysis is ready.')
     } catch (caught) {
       setError((caught as Error).message)
     } finally {
@@ -141,10 +142,10 @@ export function AIAnalysisClient({
     return (
       <div className="space-y-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">AI-assisted interpretation</h2>
+          <h2 className="text-2xl font-bold text-gray-900">{DEEPER_ANALYSIS_LABEL}</h2>
           <p className="mt-1 text-sm text-gray-500">Optional, candid analysis grounded in your verified result.</p>
         </div>
-        <AIAnalysisStatus kind="disabled" title="AI analysis is not enabled">
+        <AIAnalysisStatus kind="disabled" title={`${DEEPER_ANALYSIS_LABEL} is not enabled`}>
           The rest of your result remains available. No result data has been sent to an AI provider.
         </AIAnalysisStatus>
       </div>
@@ -153,7 +154,7 @@ export function AIAnalysisClient({
 
   if (mode === 'loading' && !payload) {
     return (
-      <AIAnalysisStatus kind="loading" title="Loading AI analysis">
+      <AIAnalysisStatus kind="loading" title={`Loading ${DEEPER_ANALYSIS_LABEL}`}>
         Checking for a matching saved version. Reloading never starts a new provider request.
       </AIAnalysisStatus>
     )
@@ -163,12 +164,12 @@ export function AIAnalysisClient({
     return (
       <div className="space-y-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">AI-assisted interpretation</h2>
+          <h2 className="text-2xl font-bold text-gray-900">{DEEPER_ANALYSIS_LABEL}</h2>
           <p className="mt-1 text-sm text-gray-500">Optional, candid analysis grounded in your verified result.</p>
         </div>
         <AIAnalysisStatus
           kind="unavailable"
-          title="AI analysis is temporarily unavailable"
+          title={`${DEEPER_ANALYSIS_LABEL} is temporarily unavailable`}
           action={(
             <button
               type="button"
@@ -189,7 +190,7 @@ export function AIAnalysisClient({
     return (
       <div className="space-y-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">AI-assisted interpretation</h2>
+          <h2 className="text-2xl font-bold text-gray-900">{DEEPER_ANALYSIS_LABEL}</h2>
           <p className="mt-1 text-sm text-gray-500">Optional, candid analysis grounded in your verified result.</p>
         </div>
         <AIAnalysisStatus
@@ -215,7 +216,7 @@ export function AIAnalysisClient({
     return (
       <div className="space-y-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">AI-assisted interpretation</h2>
+          <h2 className="text-2xl font-bold text-gray-900">{DEEPER_ANALYSIS_LABEL}</h2>
           <p className="mt-1 text-sm text-gray-500">Your Polyaxis scores remain fixed while the provider interprets the evidence.</p>
         </div>
         <AIAnalysisStatus kind="generating" title="Generating your candid analysis">

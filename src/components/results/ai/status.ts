@@ -1,4 +1,5 @@
 import type { GetAIAnalysisResponse } from '@/lib/ai-analysis/types'
+import { DEEPER_ANALYSIS_LABEL } from './copy'
 
 export function aiAnalysisStatusMessage(status: number): string {
   switch (status) {
@@ -7,7 +8,7 @@ export function aiAnalysisStatusMessage(status: number): string {
     case 409: return 'An analysis is already being generated for this result. Wait a moment, then check again.'
     case 429: return 'This result has reached its analysis-generation limit. Saved versions remain available.'
     case 502: return 'The provider returned an analysis that could not be safely validated. You can retry without affecting your scores.'
-    case 503: return 'AI analysis is temporarily unavailable. Your verified Polyaxis results are unaffected.'
+    case 503: return `${DEEPER_ANALYSIS_LABEL} is temporarily unavailable. Your verified Polyaxis results are unaffected.`
     default: return 'The analysis could not be loaded or generated. Please try again.'
   }
 }
