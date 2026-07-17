@@ -7,6 +7,7 @@ type Props = {
   questions: Question[]
   axisNames: Record<string, string>
   canReorder: boolean
+  readOnly: boolean
   onEdit: (question: Question) => void
   onDelete: (id: number) => void
   onToggleActive: (id: number, active: boolean) => void
@@ -20,6 +21,7 @@ export function QuestionList({
   questions,
   axisNames,
   canReorder,
+  readOnly,
   onEdit,
   onDelete,
   onToggleActive,
@@ -58,6 +60,8 @@ export function QuestionList({
       {visibleQuestions.map(question => {
         const position = questions.findIndex(item => item.id === question.id)
         const deleting = confirmDelete === question.id
+        const supplementalLinks = question.question_axis_links.filter(link => link.role !== 'primary')
+        const tradeoffCount = supplementalLinks.filter(link => link.role === 'tradeoff').length
 
         return (
           <article
@@ -69,7 +73,8 @@ export function QuestionList({
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
               <button
                 type="button"
-                onClick={() => onEdit(question)}
+                onClick={() => { if (!readOnly) onEdit(question) }}
+                disabled={readOnly}
                 className="min-w-0 flex-1 text-left"
                 aria-label={`Edit question ${question.id}`}
               >
@@ -84,6 +89,10 @@ export function QuestionList({
                   <span className={`rounded px-2 py-1 font-medium ${question.active ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-600'}`}>
                     {question.active ? 'Active' : 'Inactive'}
                   </span>
+                  <span className={`rounded px-2 py-1 font-medium ${question.question_metadata ? 'bg-amber-50 text-amber-700' : 'bg-red-100 text-red-700'}`}>
+                    {question.question_metadata?.item_family || 'Metadata missing'}
+                  </span>
+                  {supplementalLinks.length > 0 && <span className="rounded bg-indigo-50 px-2 py-1 font-medium text-indigo-700">{supplementalLinks.length} cross-link{supplementalLinks.length === 1 ? '' : 's'}{tradeoffCount ? ` · ${tradeoffCount} tension` : ''}</span>}
                   <span className="text-gray-400">Order {question.display_order} · Weight {question.weight}</span>
                 </div>
                 <p className={`leading-relaxed text-gray-900 ${question.active ? '' : 'text-gray-500'}`}>{question.text}</p>
@@ -99,18 +108,18 @@ export function QuestionList({
                     <button type="button" onClick={() => onMoveDown(question.id)} disabled={position === questions.length - 1} className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-25" title="Move down" aria-label="Move down">↓</button>
                   </>
                 )}
-                <button type="button" onClick={() => onEdit(question)} className="rounded-lg px-3 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50">Edit</button>
-                <button type="button" onClick={() => onToggleActive(question.id, !question.active)} className="rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100">
+                {!readOnly && <button type="button" onClick={() => onEdit(question)} className="rounded-lg px-3 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50">Edit</button>}
+                {!readOnly && <button type="button" onClick={() => onToggleActive(question.id, !question.active)} className="rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100">
                   {question.active ? 'Deactivate' : 'Activate'}
-                </button>
-                {deleting ? (
+                </button>}
+                {!readOnly && (deleting ? (
                   <>
                     <button type="button" onClick={() => { onDelete(question.id); setConfirmDelete(null) }} className="rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700">Confirm</button>
                     <button type="button" onClick={() => setConfirmDelete(null)} className="rounded-lg px-3 py-2 text-sm text-gray-600 hover:bg-gray-100">Cancel</button>
                   </>
                 ) : (
                   <button type="button" onClick={() => setConfirmDelete(question.id)} className="rounded-lg px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50">Delete</button>
-                )}
+                ))}
               </div>
             </div>
           </article>

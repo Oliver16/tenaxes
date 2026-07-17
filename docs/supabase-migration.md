@@ -188,7 +188,9 @@ before using **New bank version** in the question manager. It installs the
 atomic clone/publish functions, adds Draft/Live/Archived revision states, and
 keeps question counts and primary scoring links in sync when administrators
 add, delete, or change questions. A newly cloned revision is a draft until an
-administrator explicitly publishes it.
+administrator explicitly publishes it. Draft question saves atomically include
+semantic metadata and secondary/tradeoff scoring links; Live and Archived banks
+are read-only, and publishing rejects incomplete scoring or collision records.
 
 Run in the new project's SQL Editor — every row must say `t`:
 

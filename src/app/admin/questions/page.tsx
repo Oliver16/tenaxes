@@ -89,10 +89,11 @@ export default function QuestionsAdminPage() {
   }, [questions, query, selectedAxis, statusFilter, typeFilter])
 
   const selectedAxisInfo = axes.find(axis => axis.id === selectedAxis)
+  const selectedVersion = versions.find(version => version.id === bankVersion)
+  const isDraftBank = selectedVersion?.status === 'draft'
   const axisQuestions = selectedAxis === 'all' ? [] : questions.filter(question => question.axis_id === selectedAxis)
   const activeAxisQuestions = axisQuestions.filter(question => question.active)
-  const canReorder = selectedAxis !== 'all' && !query && typeFilter === 'all' && statusFilter === 'active'
-  const selectedVersion = versions.find(version => version.id === bankVersion)
+  const canReorder = isDraftBank && selectedAxis !== 'all' && !query && typeFilter === 'all' && statusFilter === 'active'
   const activeCount = questions.filter(question => question.active).length
   const inactiveCount = questions.length - activeCount
   const conceptualCount = questions.filter(question => question.question_type === 'conceptual').length
@@ -180,7 +181,7 @@ export default function QuestionsAdminPage() {
               </button>
             )}
             <button type="button" onClick={() => setIsCreatingVersion(true)} disabled={!bankVersion || loading} className="rounded-lg border border-violet-300 bg-white px-4 py-2.5 text-sm font-semibold text-violet-700 shadow-sm hover:bg-violet-50 disabled:opacity-50">New bank version</button>
-            <button type="button" onClick={() => setIsAdding(true)} className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700">+ Add question</button>
+            <button type="button" onClick={() => setIsAdding(true)} disabled={!isDraftBank} title={isDraftBank ? 'Add a question' : 'Create or select a draft revision to edit'} className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40">+ Add question</button>
           </div>
         </header>
 
@@ -188,6 +189,12 @@ export default function QuestionsAdminPage() {
           <div className={`mb-5 flex items-center justify-between rounded-xl border px-4 py-3 text-sm ${error ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>
             <span>{error || message}</span>
             <button type="button" onClick={() => { setError(null); setMessage(null) }} aria-label="Dismiss message" className="text-lg">×</button>
+          </div>
+        )}
+
+        {selectedVersion && !isDraftBank && (
+          <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <strong>{selectedVersion.id} is {selectedVersion.status === 'published' ? 'the live bank' : 'archived'} and is read-only.</strong> Create a new bank version from it to make a tracked revision.
           </div>
         )}
 
@@ -269,6 +276,7 @@ export default function QuestionsAdminPage() {
                 questions={filteredQuestions}
                 axisNames={axisNames}
                 canReorder={canReorder}
+                readOnly={!isDraftBank}
                 onEdit={question => setEditingQuestion(question)}
                 onDelete={id => void handleDelete(id)}
                 onToggleActive={(id, active) => void handleToggleActive(id, active)}
@@ -290,7 +298,7 @@ export default function QuestionsAdminPage() {
 
       {(editingQuestion || isAdding) && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-gray-950/60 p-4 backdrop-blur-sm sm:p-8">
-          <div className="mx-auto max-w-3xl rounded-2xl bg-white p-5 shadow-2xl sm:p-7">
+          <div className="mx-auto max-w-5xl rounded-2xl bg-white p-5 shadow-2xl sm:p-7">
             <QuestionEditor
               key={editingQuestion?.id ?? `new-${selectedAxis}`}
               question={editingQuestion}
