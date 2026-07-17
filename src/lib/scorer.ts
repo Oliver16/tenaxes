@@ -1,4 +1,6 @@
 import { QuestionWithLinks, AxisScore, QuestionContribution, ResponsesMap } from './database.types'
+import { AXES, FLAVOR_ARCHETYPES } from './instrument'
+import type { AxisScore as LegacyAxisScore, FlavorMatch } from './supabase'
 
 /**
  * Calculate axis scores from questions with multi-axis links
@@ -118,10 +120,104 @@ export function calculateScoresFromQuestions(
   questions: QuestionWithLinks[],
   axes?: { id: string; name: string }[]
 ): AxisScore[] {
-  const axesById = axes 
+  const axesById = axes
     ? Object.fromEntries(axes.map(a => [a.id, a]))
     : {}
-  
+
   const { axisScores } = calculateAxisScoresFromLinks(responses, questions, axesById)
   return axisScores
+}
+
+function getPoleLabel(score: number, negLabel: string, posLabel: string): string {
+  if (score < -0.6) return `Strong ${negLabel}`
+  if (score < -0.2) return `Moderate ${negLabel}`
+  if (score <= 0.2) return 'Centrist / Mixed'
+  if (score <= 0.6) return `Moderate ${posLabel}`
+  return `Strong ${posLabel}`
+}
+
+function getMatchStrength(affinity: number): string {
+  if (affinity >= 0.7) return 'Very Strong'
+  if (affinity >= 0.5) return 'Strong'
+  if (affinity >= 0.3) return 'Moderate'
+  if (affinity >= 0.1) return 'Weak'
+  return 'Minimal'
+}
+
+export interface CompassResults {
+  coreAxes: LegacyAxisScore[]
+  facets: LegacyAxisScore[]
+  topFlavors: FlavorMatch[]
+  allFlavors: FlavorMatch[]
+}
+
+/**
+ * Build the full profile summary (axis labels, core/facet split, and flavor
+ * archetype matches) from normalized axis scores. This is what powers the
+ * radar chart, axis scale breakdown, and archetype matching on the results
+ * page, so it needs to run for every survey submission.
+ */
+export function buildCompassResults(
+  axisScores: AxisScore[],
+  axesById: Record<string, { id: string; name: string; pole_negative?: string | null; pole_positive?: string | null }>
+): CompassResults {
+  const legacyScores: LegacyAxisScore[] = axisScores.map(s => {
+    const meta = axesById[s.axis_id]
+    const poleNegative = meta?.pole_negative ?? ''
+    const polePositive = meta?.pole_positive ?? ''
+    const clamped = Math.max(-1, Math.min(1, s.score))
+
+    return {
+      axis_id: s.axis_id,
+      name: meta?.name ?? s.name,
+      score: clamped,
+      pole_negative: poleNegative,
+      pole_positive: polePositive,
+      pole_label: getPoleLabel(clamped, poleNegative, polePositive)
+    }
+  })
+
+  const isFacet = (axisId: string) => !!(AXES as Record<string, { is_facet?: boolean }>)[axisId]?.is_facet
+
+  const coreAxes = legacyScores
+    .filter(a => !isFacet(a.axis_id))
+    .sort((a, b) => a.axis_id.localeCompare(b.axis_id))
+  const facets = legacyScores
+    .filter(a => isFacet(a.axis_id))
+    .sort((a, b) => a.axis_id.localeCompare(b.axis_id))
+
+  const scoreByAxis = Object.fromEntries(legacyScores.map(s => [s.axis_id, s.score]))
+
+  const flavorMatches: FlavorMatch[] = FLAVOR_ARCHETYPES.map(flavor => {
+    let weightedSum = 0
+    let totalWeight = 0
+
+    flavor.components.forEach(comp => {
+      const axisScoreValue = scoreByAxis[comp.axis]
+      if (axisScoreValue !== undefined && comp.direction !== 0) {
+        const alignment = axisScoreValue * comp.direction
+        weightedSum += alignment * comp.weight
+        totalWeight += comp.weight
+      }
+    })
+
+    const affinity = totalWeight > 0 ? weightedSum / totalWeight : 0
+    const clampedAffinity = Math.max(-1, Math.min(1, affinity))
+
+    return {
+      flavor_id: flavor.id,
+      name: flavor.name,
+      affinity: clampedAffinity,
+      match_strength: getMatchStrength(clampedAffinity),
+      description: flavor.description,
+      color: flavor.color
+    }
+  }).sort((a, b) => b.affinity - a.affinity)
+
+  return {
+    coreAxes,
+    facets,
+    topFlavors: flavorMatches.slice(0, 5),
+    allFlavors: flavorMatches
+  }
 }

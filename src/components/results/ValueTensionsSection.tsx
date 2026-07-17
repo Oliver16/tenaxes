@@ -13,7 +13,7 @@ interface ValueTensionsSectionProps {
 const InfoIcon = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
-    className="h-5 w-5 mt-0.5 text-muted-foreground"
+    className="h-5 w-5 mt-0.5 text-gray-500"
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
@@ -48,7 +48,7 @@ export function ValueTensionsSection({
         <h2 className="text-3xl font-bold tracking-tight">
           How You Navigate Value Conflicts
         </h2>
-        <p className="text-muted-foreground text-lg">
+        <p className="text-gray-500 text-lg">
           Real-world decisions often pit two good things against each other.
           Here's what your responses reveal about which values you prioritize when they collide.
         </p>
@@ -86,12 +86,12 @@ export function ValueTensionsSection({
         })}
       </div>
 
-      <div className="mt-8 p-4 bg-muted/50 rounded-lg border">
+      <div className="mt-8 p-4 bg-gray-50 rounded-lg border">
         <div className="flex items-start gap-3">
           <InfoIcon />
           <div className="space-y-1 text-sm">
             <p className="font-medium">How we identify these tensions</p>
-            <p className="text-muted-foreground">
+            <p className="text-gray-500">
               These insights come from questions that explicitly ask you to choose between
               two competing values in realistic scenarios. The specific questions that revealed
               each tension are shown below, along with how your ideals (conceptual) compared

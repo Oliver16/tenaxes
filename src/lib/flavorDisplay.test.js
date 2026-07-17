@@ -38,13 +38,12 @@ const mockFlavors = [
 ]
 
 describe('flavor display helpers', () => {
-  it('returns top five when showAll is false', () => {
+  it('returns top five positive matches when showAll is false', () => {
     const display = getDisplayFlavors(mockFlavors, false)
     assert.deepEqual(display.map(f => f.flavor_id), [
       'deep_ecologist',
       'eco_sovereigntist',
-      'communitarian_conservationist',
-      'anthropocentric_developer'
+      'communitarian_conservationist'
     ])
   })
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { calculateAxisScoresFromLinks } from '@/lib/scorer'
+import { calculateAxisScoresFromLinks, buildCompassResults } from '@/lib/scorer'
 import { analyzeCollisions } from '@/lib/collision-analyzer'
 import { fetchQuestionsWithLinks } from '@/lib/api/questions'
 import type { Database } from '@/lib/database.types'
@@ -65,7 +65,11 @@ export async function POST(request: NextRequest) {
       appliedQuestions,
       axes || []
     )
-    
+
+    // Build the profile summary (radar chart axes, facets, archetype matches)
+    // from the combined conceptual + applied scores
+    const { coreAxes, facets, topFlavors } = buildCompassResults(allScores, axesById)
+
     // Create session ID
     const sessionId = crypto.randomUUID()
 
@@ -86,6 +90,9 @@ export async function POST(request: NextRequest) {
       conceptual_scores: conceptualScores as any,
       applied_scores: appliedScores as any,
       collision_pairs: collisionScores as any,  // NEW: store collision analysis
+      core_axes: coreAxes as any,
+      facets: facets as any,
+      top_flavors: topFlavors as any,
       responses: responses as any,
       completed_at: new Date().toISOString()
     }
