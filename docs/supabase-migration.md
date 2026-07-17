@@ -184,7 +184,9 @@ time for `NEXT_PUBLIC_*`).
 
 For an existing v2.2 project, apply
 `supabase/migrations/20260717210000_add_question_bank_revision_workflow.sql`
-before using **New bank version** in the question manager. It installs the
+and then
+`supabase/migrations/20260717220000_add_complete_question_configuration.sql`
+before using **New bank version** in the question manager. They install the
 atomic clone/publish functions, adds Draft/Live/Archived revision states, and
 keeps question counts and primary scoring links in sync when administrators
 add, delete, or change questions. A newly cloned revision is a draft until an

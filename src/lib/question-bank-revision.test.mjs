@@ -6,6 +6,10 @@ const migration = readFileSync(
   new URL('../../supabase/migrations/20260717210000_add_question_bank_revision_workflow.sql', import.meta.url),
   'utf8'
 )
+const configurationMigration = readFileSync(
+  new URL('../../supabase/migrations/20260717220000_add_complete_question_configuration.sql', import.meta.url),
+  'utf8'
+)
 const freshInstall = readFileSync(
   new URL('../../supabase/fresh_install.sql', import.meta.url),
   'utf8'
@@ -51,12 +55,12 @@ test('only an explicitly published revision can drive the live survey', () => {
 })
 
 test('complete question configuration is saved atomically and service-role only', () => {
-  assert.match(migration, /CREATE OR REPLACE FUNCTION public\.save_question_configuration/)
-  assert.match(migration, /INSERT INTO public\.question_metadata[\s\S]*ON CONFLICT \(question_id\) DO UPDATE/)
-  assert.match(migration, /DELETE FROM public\.question_axis_links[\s\S]*role <> 'primary'/)
-  assert.match(migration, /jsonb_array_elements\(p_axis_links\)/)
-  assert.match(migration, /REVOKE ALL ON FUNCTION public\.save_question_configuration[\s\S]*FROM PUBLIC, anon, authenticated/)
-  assert.match(migration, /Only draft question banks can be edited/)
+  assert.match(configurationMigration, /CREATE OR REPLACE FUNCTION public\.save_question_configuration/)
+  assert.match(configurationMigration, /INSERT INTO public\.question_metadata[\s\S]*ON CONFLICT \(question_id\) DO UPDATE/)
+  assert.match(configurationMigration, /DELETE FROM public\.question_axis_links[\s\S]*role <> 'primary'/)
+  assert.match(configurationMigration, /jsonb_array_elements\(p_axis_links\)/)
+  assert.match(configurationMigration, /REVOKE ALL ON FUNCTION public\.save_question_configuration[\s\S]*FROM PUBLIC, anon, authenticated/)
+  assert.match(configurationMigration, /Only draft question banks can be edited/)
 })
 
 test('question editor exposes scoring links and analysis metadata', () => {
@@ -68,7 +72,7 @@ test('question editor exposes scoring links and analysis metadata', () => {
 })
 
 test('publishing rejects incomplete scoring and collision configuration', () => {
-  assert.match(migration, /Cannot publish a bank with missing question metadata/)
-  assert.match(migration, /Cannot publish a bank with invalid primary scoring links/)
-  assert.match(migration, /Cannot publish a bank with inconsistent collision metadata or tradeoff links/)
+  assert.match(configurationMigration, /Cannot publish a bank with missing question metadata/)
+  assert.match(configurationMigration, /Cannot publish a bank with invalid primary scoring links/)
+  assert.match(configurationMigration, /Cannot publish a bank with inconsistent collision metadata or tradeoff links/)
 })
