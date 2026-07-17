@@ -1,4 +1,6 @@
+import Link from 'next/link'
 import { loadResultAnalysis } from '@/lib/results/load-result-analysis'
+import { isSampleSession } from '@/lib/results/sample-result'
 import { ResultsSubnav } from '@/components/results/ResultsSubnav'
 import { ResultsActions } from '@/components/ResultsActions'
 
@@ -10,6 +12,7 @@ export default async function ResultsLayout({
   params: { sessionId: string }
 }) {
   const analysis = await loadResultAnalysis(params.sessionId)
+  const isSample = isSampleSession(params.sessionId)
 
   if (!analysis) {
     return (
@@ -30,15 +33,30 @@ export default async function ResultsLayout({
         <header className="space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <h1 className="text-2xl md:text-3xl font-bold text-gray-800 text-center sm:text-left">
-              Your Polyaxis Profile
+              {isSample ? 'Sample Polyaxis Profile' : 'Your Polyaxis Profile'}
             </h1>
-            <ResultsActions
-              sessionId={params.sessionId}
-              coreAxes={analysis.coreAxes}
-              topFlavor={analysis.topFlavors[0] || null}
-              compact
-            />
+            {isSample ? (
+              <Link
+                href="/survey"
+                className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
+              >
+                Take your own evaluation <span className="ml-1" aria-hidden="true">&rarr;</span>
+              </Link>
+            ) : (
+              <ResultsActions
+                sessionId={params.sessionId}
+                coreAxes={analysis.coreAxes}
+                topFlavor={analysis.topFlavors[0] || null}
+                compact
+              />
+            )}
           </div>
+          {isSample && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+              <span className="font-semibold">Fictional example.</span>{' '}
+              This profile demonstrates the real result experience and does not describe a real person.
+            </div>
+          )}
           <ResultsSubnav sessionId={params.sessionId} />
         </header>
 

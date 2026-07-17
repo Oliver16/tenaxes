@@ -205,6 +205,24 @@ export default async function Home() {
             </div>
           ))}
         </div>
+        <div className="mt-8 flex flex-col gap-6 rounded-2xl border border-blue-400/25 bg-gradient-to-r from-blue-500/10 via-white/[0.04] to-violet-500/10 p-7 sm:flex-row sm:items-center sm:justify-between sm:p-8">
+          <div className="max-w-2xl">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-blue-300">Spoilers allowed</p>
+            <h3 className="mt-3 text-2xl font-black sm:text-3xl">
+              See what a completed evaluation turns into.
+            </h3>
+            <p className="mt-3 leading-relaxed text-slate-400">
+              Tour a fictional completed profile&mdash;all 18 dimensions, ideals-versus-practice gaps,
+              value collisions, and political archetype matches. No 45-minute commitment required.
+            </p>
+          </div>
+          <Link
+            href="/results/sample"
+            className="shrink-0 rounded-xl border border-blue-300/40 bg-blue-400/15 px-6 py-3 text-center font-bold text-blue-100 transition hover:-translate-y-0.5 hover:border-blue-200/70 hover:bg-blue-400/25"
+          >
+            See a sample analysis <span aria-hidden="true">&rarr;</span>
+          </Link>
+        </div>
       </section>
 
       <section className="border-t border-white/10 bg-gradient-to-r from-blue-600/20 via-slate-950 to-violet-600/20">

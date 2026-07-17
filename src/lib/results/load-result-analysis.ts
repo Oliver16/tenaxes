@@ -4,6 +4,7 @@ import { fetchQuestionsWithLinks } from '@/lib/api/questions'
 import { analyzeTensions, analyzeCollisionPairs, type CollisionPairSummary } from '@/lib/tension-analyzer'
 import { calculateAxisCoverage } from '@/lib/scorer'
 import { buildAxisSummaries, computeFlavorMatches, scoresById } from '@/lib/flavor-matcher'
+import { isSampleSession, loadSampleResultAnalysis } from '@/lib/results/sample-result'
 import { AxisScore as AxisScoreType, AxisCoverage, Database, QuestionWithLinks, TensionScore } from '@/lib/database.types'
 import type { AxisScore as AxisScoreSummary, FlavorMatch } from '@/lib/supabase'
 
@@ -67,6 +68,8 @@ export interface ResultAnalysis {
  */
 export const loadResultAnalysis = cache(
   async (sessionId: string): Promise<ResultAnalysis | null> => {
+    if (isSampleSession(sessionId)) return loadSampleResultAnalysis()
+
     const supabase = await createClient()
 
     const { data, error } = await (supabase

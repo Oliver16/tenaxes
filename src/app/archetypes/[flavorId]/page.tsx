@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase-server'
 import { FLAVOR_ARCHETYPES, AXES } from '@/lib/instrument'
 import { buildAxisSummaries, computeFlavorMatches, scoresById } from '@/lib/flavor-matcher'
+import { isSampleSession, loadSampleResultAnalysis } from '@/lib/results/sample-result'
 import type { SurveyResult, FlavorMatch, AxisScore } from '@/lib/supabase'
 import type { Database } from '@/lib/database.types'
 
@@ -26,7 +27,13 @@ export default async function ArchetypePage({ params, searchParams }: Props) {
   let userMatch: FlavorMatch | null = null
   let userAxes: AxisScore[] = []
 
-  if (sessionId) {
+  if (sessionId && isSampleSession(sessionId)) {
+    const sample = loadSampleResultAnalysis()
+    userAxes = [...sample.coreAxes, ...sample.facets]
+    userMatch = sample.topFlavors.find(f => f.flavor_id === flavorId) || null
+  }
+
+  if (sessionId && !isSampleSession(sessionId)) {
     const supabase = await createClient()
     const { data, error } = await supabase
       .from('survey_results')
