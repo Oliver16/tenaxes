@@ -13,9 +13,12 @@ import type { AxisScore } from '@/lib/supabase'
 
 type Props = {
   axes: AxisScore[]
+  /** Fixed pixel height for compact placements; omit for the full-size default. */
+  height?: number
+  margin?: { top: number; right: number; bottom: number; left: number }
 }
 
-export function CoreAxesRadar({ axes }: Props) {
+export function CoreAxesRadar({ axes, height, margin }: Props) {
   const data = axes.map(axis => ({
     axis: axis.name.replace(/([A-Z])/g, ' $1').trim(),
     shortName: getShortName(axis.name),
@@ -29,9 +32,12 @@ export function CoreAxesRadar({ axes }: Props) {
   }))
 
   return (
-    <div className="w-full h-[400px] md:h-[500px]">
+    <div
+      className={height === undefined ? 'w-full h-[400px] md:h-[500px]' : 'w-full'}
+      style={height === undefined ? undefined : { height }}
+    >
       <ResponsiveContainer width="100%" height="100%">
-        <RadarChart data={data} margin={{ top: 20, right: 30, bottom: 20, left: 30 }}>
+        <RadarChart data={data} margin={margin ?? { top: 20, right: 30, bottom: 20, left: 30 }}>
           <PolarGrid gridType="polygon" stroke="#e5e7eb" />
           <PolarAngleAxis 
             dataKey="shortName" 

@@ -36,7 +36,7 @@ export function AxisCollisionDetails({
   if (relevant.length === 0) return null
 
   return (
-    <div className="mt-6 pt-6 border-t space-y-4">
+    <div className="space-y-4">
       <h4 className="font-semibold text-sm">
         When {axisName} collides with other values:
       </h4>

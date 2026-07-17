@@ -1,408 +1,153 @@
-import { createClient } from '@/lib/supabase/server'
-import { fetchQuestionsWithLinks } from '@/lib/api/questions'
-import { analyzeTensions, analyzeCollisionPairs } from '@/lib/tension-analyzer'
-import { calculateAxisCoverage } from '@/lib/scorer'
-import { buildAxisSummaries, computeFlavorMatches, scoresById } from '@/lib/flavor-matcher'
+import { notFound } from 'next/navigation'
+import { loadResultAnalysis } from '@/lib/results/load-result-analysis'
+import { computeConsistency } from '@/lib/results/consistency'
+import { rankCollisionPairs, buildCollisionPairViewModel } from '@/lib/results/collision-view'
+import { CoreAxesRadar } from '@/components/charts/CoreAxesRadar'
+import { ResultsProfileHero, strongestAxis } from '@/components/results/ResultsProfileHero'
+import { DefiningAxes } from '@/components/results/DefiningAxes'
+import { ResultsKeyInsights } from '@/components/results/ResultsKeyInsights'
+import { ResultsExploreCards } from '@/components/results/ResultsExploreCards'
 import { ResultsActions } from '@/components/ResultsActions'
 import { SaveResultsPrompt } from '@/components/SaveResultsPrompt'
-import { CoreAxesRadar } from '@/components/charts/CoreAxesRadar'
-import { AxisScale } from '@/components/charts/AxisScale'
-import { FlavorList, FlavorBarChart } from '@/components/charts/FlavorCharts'
-import { AxisDrillDown } from '@/components/AxisDrillDown'
-import { ValueTensionsSection } from '@/components/results/ValueTensionsSection'
-import { IdeologicalConsistency } from '@/components/results/IdeologicalConsistency'
-import { AxisCollisionDetails } from '@/components/results/AxisCollisionDetails'
-import { AxisScore as AxisScoreType, Database } from '@/lib/database.types'
-import type { AxisScore as LegacyAxisScore, FlavorMatch } from '@/lib/supabase'
-import type { Question } from '@/lib/questions'
 
-type SurveyResult = Database['public']['Tables']['survey_results']['Row']
-type Axis = Database['public']['Tables']['axes']['Row']
-
-type AxisComparison = {
-  axis_id: string
-  name: string
-  conceptual_score: number
-  applied_score: number
-  difference: number
-  pole_negative: string
-  pole_positive: string
-}
-
-export default async function ResultsPage({
+export default async function ResultsOverviewPage({
   params
 }: {
   params: { sessionId: string }
 }) {
-  const supabase = await createClient()
+  const analysis = await loadResultAnalysis(params.sessionId)
+  if (!analysis) notFound()
 
-  // Fetch survey results
-  const { data, error } = await (supabase
-    .from('survey_results')
-    .select('*')
-    .eq('session_id', params.sessionId)
-    .single() as any)
+  const {
+    coreAxes,
+    facets,
+    topFlavors,
+    coverageByAxis,
+    conceptualScores,
+    appliedScores,
+    axisComparisons,
+    tensionScores,
+    collisionPairs,
+    conflictCounts,
+    questions,
+    responseCount,
+    notSureCount,
+    bankVersion
+  } = analysis
 
-  const surveyResult = data as SurveyResult | null
+  const consistency = computeConsistency(conceptualScores, appliedScores)
+  const strongestCore = strongestAxis(coreAxes, coverageByAxis)
+  const strongestFacet = strongestAxis(facets, coverageByAxis)
 
-  if (error || !surveyResult) {
-    return (
-      <main className="min-h-screen bg-gray-100 py-16 px-4">
-        <div className="max-w-md mx-auto text-center bg-white rounded-xl shadow-lg p-8">
-          <h1 className="text-xl font-bold text-gray-800 mb-2">Results not found</h1>
-          <p className="text-gray-500 text-sm">
-            This session may have expired or the link may be incorrect.
-          </p>
-        </div>
-      </main>
-    )
-  }
-
-  // Fetch questions with links (used for drill-downs and tension
-  // analysis), pinned to the bank version this result was answered on so
-  // later bank changes never reinterpret old answers
-  const questions = await fetchQuestionsWithLinks({
-    bankVersion: (surveyResult as { bank_version?: string }).bank_version ?? null
-  })
-
-  // Fetch axes metadata
-  const { data: axesData } = await (supabase
-    .from('axes')
-    .select('*')
-    .order('id') as any)
-
-  const axes = (axesData || []) as Axis[]
-
-  // Profile summary (radar chart, axis scales, archetype matches). Older
-  // sessions may predate stored summaries; rebuild them from raw scores so
-  // every session gets the current archetypes and labels.
-  const rawScores = (surveyResult.scores || []) as unknown as { axis_id: string; score: number }[]
-  const summaries = surveyResult.core_axes
-    ? {
-        core_axes: surveyResult.core_axes as unknown as LegacyAxisScore[],
-        facets: (surveyResult.facets || []) as unknown as LegacyAxisScore[]
-      }
-    : buildAxisSummaries(rawScores, axes)
-  const coreAxes = summaries.core_axes
-  const facets = summaries.facets
-  const topFlavors = surveyResult.top_flavors
-    ? (surveyResult.top_flavors as unknown as FlavorMatch[])
-    : computeFlavorMatches(scoresById(rawScores))
-
-  // Responses map. v2.1 encoding: numeric answers are scored, explicit
-  // null means "not sure" (recorded, never scored), missing means
-  // unanswered.
-  const responses = (surveyResult.responses || {}) as Record<number, number | null>
-  const responseCount = Object.keys(responses).length
-  const conceptualCount = questions.filter(
-    q => q.question_type === 'conceptual' && typeof responses[q.id] === 'number'
-  ).length
-  const appliedCount = questions.filter(
-    q => q.question_type === 'applied' && typeof responses[q.id] === 'number'
-  ).length
-  const notSureCount = Object.values(responses).filter(v => v === null).length
-
-  // Per-axis answer coverage; recomputed so historical rows without the
-  // stored column still get confidence labels
-  const axisCoverage = calculateAxisCoverage(responses, questions)
-  const coverageByAxis = Object.fromEntries(axisCoverage.map(c => [c.axis_id, c]))
-
-  // Conceptual vs applied scores, for the "Talk the Talk vs Walk the Walk" comparison
-  const conceptualScores = (surveyResult.conceptual_scores || []) as unknown as AxisScoreType[]
-  const appliedScores = (surveyResult.applied_scores || []) as unknown as AxisScoreType[]
-
-  // Recompute tensions from the stored responses rather than reading the
-  // stored snapshot, so past sessions benefit from link fixes and analyzer
-  // improvements automatically
-  const appliedQuestions = questions.filter(q => q.question_type === 'applied')
-  const tensionScores = analyzeTensions(responses, appliedQuestions, axes, conceptualScores)
-  const collisionPairs = analyzeCollisionPairs(tensionScores)
-
-  const conceptualByAxis = Object.fromEntries(conceptualScores.map(s => [s.axis_id, s.score]))
-  const appliedByAxis = Object.fromEntries(appliedScores.map(s => [s.axis_id, s.score]))
-
-  const axisComparisons: AxisComparison[] = coreAxes
-    .map(axis => {
-      const conceptual = conceptualByAxis[axis.axis_id] ?? 0
-      const applied = appliedByAxis[axis.axis_id] ?? 0
-      // Scores are in [-1, 1] and the bars/labels below render them on a
-      // 1.0 = 100% basis, so the gap is expressed on that same scale:
-      // e.g. 0.80 vs 0.60 => 0.20 => "20%". A full opposite-pole flip
-      // (e.g. +0.8 vs -0.8) can therefore exceed 100%.
-      const diff = Math.abs(conceptual - applied)
-
-      return {
-        axis_id: axis.axis_id,
-        name: axis.name,
-        conceptual_score: conceptual,
-        applied_score: applied,
-        difference: diff,
-        pole_negative: axis.pole_negative,
-        pole_positive: axis.pole_positive
-      }
-    })
-    .sort((a, b) => b.difference - a.difference)
+  // Highest-ranked decisive conflict, using the same ranking as the
+  // conflicts page (cross-pressured first, then contradictions to ideals;
+  // inconclusive pairs excluded)
+  const topDecisivePair = rankCollisionPairs(collisionPairs, tensionScores)
+    .find(p => p.classification !== 'inconclusive')
+  const topConflict = topDecisivePair
+    ? buildCollisionPairViewModel(topDecisivePair, tensionScores, analysis.questions, analysis.responses)
+    : null
 
   return (
-    <main className="min-h-screen bg-gray-100 py-8 px-4">
-      <div className="max-w-5xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="text-center mb-2">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">Your Polyaxis Profile</h1>
-          <p className="text-gray-600">
-            Based on your {responseCount} responses ({conceptualCount} conceptual, {appliedCount} practical
-            {notSureCount > 0 ? `, ${notSureCount} not sure` : ''})
-          </p>
-          {notSureCount > 0 && (
-            <p className="text-xs text-gray-400 mt-1">
-              &ldquo;Not sure&rdquo; answers are recorded but never scored — they reduce coverage instead of faking a position.
-            </p>
-          )}
-          <p className="text-sm text-gray-400 mt-1">Session: {params.sessionId}</p>
-        </div>
+    <>
+      <ResultsProfileHero
+        topFlavors={topFlavors}
+        coreAxes={coreAxes}
+        facets={facets}
+        coverageByAxis={coverageByAxis}
+        consistency={consistency}
+        answeredCount={responseCount - notSureCount}
+        totalQuestions={questions.length}
+        notSureCount={notSureCount}
+      />
 
-        {/* Radar Chart - Core Axes Overview */}
-        {coreAxes.length > 0 && (
-          <section className="bg-white rounded-xl shadow-lg p-6">
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">Core Axes Overview</h2>
-            <p className="text-gray-500 text-sm mb-4">
-              Your position across the core dimensions. Outer edge = stronger position, center = neutral.
-            </p>
-            <CoreAxesRadar axes={coreAxes} />
-          </section>
-        )}
-
-        {/* Core Axes Detail - Scales */}
-        {coreAxes.length > 0 && (
-          <section className="bg-white rounded-xl shadow-lg p-6">
-            <h2 className="text-2xl font-bold text-gray-800 mb-6 pb-2 border-b">
-              Core Axes Detail
-            </h2>
-            {coreAxes.map(axis => (
-              <div key={axis.axis_id}>
-                <AxisScale axis={axis} />
-                {(() => {
-                  const cov = coverageByAxis[axis.axis_id]
-                  if (!cov || cov.confidence === 'high') return null
-                  return (
-                    <p className={`text-xs mt-1 ${cov.confidence === 'insufficient' ? 'text-red-600' : 'text-gray-500'}`}>
-                      {cov.confidence === 'insufficient'
-                        ? `Insufficient data for a reliable position (${cov.answered_primary_items} of ${cov.available_primary_items} items answered) — treat this score as indicative only.`
-                        : `${Math.round(cov.coverage * 100)}% of this axis's items answered · ${cov.confidence} confidence`}
-                    </p>
-                  )
-                })()}
-                <AxisCollisionDetails
-                  axisId={axis.axis_id}
-                  axisName={axis.name}
-                  pairs={collisionPairs}
-                  tensions={tensionScores}
-                />
-              </div>
-            ))}
-          </section>
-        )}
-
-        {/* Facets - Political Style */}
-        {facets.length > 0 && (
-          <section className="bg-white rounded-xl shadow-lg p-6">
-            <h2 className="text-2xl font-bold text-gray-800 mb-2 pb-2 border-b">
-              Political Style
-            </h2>
-            <p className="text-gray-500 text-sm mb-6">
-              How you pursue your beliefs — your approach to change, institutional confidence, views on justice,
-              majorities vs. constitutional limits, experts vs. elected judgment, direct vs. representative democracy,
-              and force &amp; peace.
-            </p>
-            {facets.map(axis => (
-              <div key={axis.axis_id}>
-                <AxisScale axis={axis} />
-                {(() => {
-                  const cov = coverageByAxis[axis.axis_id]
-                  if (!cov || cov.confidence === 'high') return null
-                  return (
-                    <p className={`text-xs mt-1 ${cov.confidence === 'insufficient' ? 'text-red-600' : 'text-gray-500'}`}>
-                      {cov.confidence === 'insufficient'
-                        ? `Insufficient data for a reliable position (${cov.answered_primary_items} of ${cov.available_primary_items} items answered) — treat this score as indicative only.`
-                        : `${Math.round(cov.coverage * 100)}% of this axis's items answered · ${cov.confidence} confidence`}
-                    </p>
-                  )
-                })()}
-                <AxisCollisionDetails
-                  axisId={axis.axis_id}
-                  axisName={axis.name}
-                  pairs={collisionPairs}
-                  tensions={tensionScores}
-                />
-              </div>
-            ))}
-          </section>
-        )}
-
-        {/* Value Tensions - which values you prioritize when they collide */}
-        <ValueTensionsSection
-          tensions={tensionScores}
-          pairs={collisionPairs}
-          questions={appliedQuestions}
-          responses={responses}
-        />
-
-        {/* Ideals vs practice: archetypes matched per register + consistency rating */}
-        <IdeologicalConsistency
-          conceptualScores={conceptualScores}
-          appliedScores={appliedScores}
-          tensions={tensionScores}
-        />
-
-        {/* Talk the Talk vs Walk the Walk - Conceptual vs Practical Comparison */}
-        {axisComparisons.length > 0 && (
-          <section className="bg-white rounded-xl shadow-lg p-6">
-            <h2 className="text-2xl font-bold text-gray-800 mb-2 pb-2 border-b">
-              Talk the Talk vs. Walk the Walk
-            </h2>
-            <p className="text-gray-500 text-sm mb-6">
-              Comparing your responses to conceptual principles vs. practical scenarios reveals consistency between beliefs and action.
-              Larger differences may indicate areas where abstract values differ from real-world choices.
-            </p>
-
-            <div className="space-y-4">
-              {axisComparisons.slice(0, 5).map((comparison) => {
-                const showWarning = comparison.difference > 0.6
-                return (
-                  <div key={comparison.axis_id} className={`p-4 rounded-lg border ${showWarning ? 'bg-amber-50 border-amber-200' : 'bg-gray-50 border-gray-200'}`}>
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <h3 className="font-semibold text-gray-800">{comparison.name}</h3>
-                        <p className="text-xs text-gray-500">{comparison.pole_negative} ↔ {comparison.pole_positive}</p>
-                      </div>
-                      {showWarning && (
-                        <span className="text-xs bg-amber-200 text-amber-800 px-2 py-1 rounded-full font-medium">
-                          Notable Gap
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4 mb-2">
-                      <div>
-                        <p className="text-xs text-gray-600 mb-1">Conceptual Beliefs</p>
-                        <div className="flex items-center gap-2">
-                          <div className="flex-1 bg-gray-200 rounded-full h-2">
-                            <div
-                              className="bg-blue-500 h-2 rounded-full transition-all"
-                              style={{
-                                width: `${Math.abs(comparison.conceptual_score) * 100}%`,
-                                marginLeft: comparison.conceptual_score < 0 ? '0' : 'auto',
-                                marginRight: comparison.conceptual_score < 0 ? 'auto' : '0'
-                              }}
-                            />
-                          </div>
-                          <span className="text-sm font-medium text-gray-700 w-12 text-right">
-                            {comparison.conceptual_score.toFixed(2)}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div>
-                        <p className="text-xs text-gray-600 mb-1">Practical Application</p>
-                        <div className="flex items-center gap-2">
-                          <div className="flex-1 bg-gray-200 rounded-full h-2">
-                            <div
-                              className="bg-green-500 h-2 rounded-full transition-all"
-                              style={{
-                                width: `${Math.abs(comparison.applied_score) * 100}%`,
-                                marginLeft: comparison.applied_score < 0 ? '0' : 'auto',
-                                marginRight: comparison.applied_score < 0 ? 'auto' : '0'
-                              }}
-                            />
-                          </div>
-                          <span className="text-sm font-medium text-gray-700 w-12 text-right">
-                            {comparison.applied_score.toFixed(2)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-2 text-xs text-gray-500">
-                      Difference: {(comparison.difference * 100).toFixed(0)}%
-                      {showWarning && (
-                        <span className="ml-2 text-amber-700">
-                          — Your practical choices show a different stance than your stated principles
-                        </span>
-                      )}
-                    </div>
-
-                    <AxisDrillDown
-                      axisId={comparison.axis_id}
-                      axisName={comparison.name}
-                      conceptualScore={comparison.conceptual_score}
-                      appliedScore={comparison.applied_score}
-                      questions={questions as unknown as Question[]}
-                      responses={responses}
-                    />
-                  </div>
-                )
-              })}
-            </div>
-
-            {axisComparisons.every(c => c.difference < 0.4) && (
-              <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-                <p className="text-sm text-green-800">
-                  ✓ Your responses show strong consistency between conceptual beliefs and practical application across all axes.
-                </p>
-              </div>
-            )}
-          </section>
-        )}
-
-        {/* Flavors Section */}
-        {topFlavors.length > 0 && (
-          <section className="bg-white rounded-xl shadow-lg p-6">
-            <h2 className="text-2xl font-bold text-gray-800 mb-2 pb-2 border-b">
-              Your Political Types
-            </h2>
-            <p className="text-gray-500 text-sm mb-6">
-              Archetypes that match your combination of beliefs and style. Higher percentage = stronger match.
-            </p>
-
-            {/* Bar Chart */}
-            <div className="mb-8">
-              <h3 className="text-sm font-medium text-gray-600 mb-3">Match Strength</h3>
-              <FlavorBarChart flavors={topFlavors} />
-            </div>
-
-            {/* Expandable Card List */}
-            <h3 className="text-sm font-medium text-gray-600 mb-3">Detailed Profiles</h3>
-            <FlavorList flavors={topFlavors} sessionId={params.sessionId} />
-          </section>
-        )}
-
-        {/* Quick Summary Card */}
-        <section className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl shadow-lg p-6 text-white">
-          <h2 className="text-xl font-bold mb-4">Quick Summary</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Compact profile map: radar + defining axes */}
+      {coreAxes.length > 0 && (
+        <section className="bg-white rounded-xl shadow-lg p-6">
+          <div className="grid gap-6 md:grid-cols-2 items-start">
             <div>
-              <p className="text-blue-100 text-sm">Top Political Type</p>
-              <p className="text-xl font-bold">{topFlavors[0]?.name || 'N/A'}</p>
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500 mb-2">
+                Core profile
+              </h2>
+              <CoreAxesRadar axes={coreAxes} height={300} margin={{ top: 10, right: 25, bottom: 10, left: 25 }} />
             </div>
-            <div>
-              <p className="text-blue-100 text-sm">Strongest Axis</p>
-              <p className="text-xl font-bold">
-                {[...coreAxes].sort((a, b) => Math.abs(b.score) - Math.abs(a.score))[0]?.name || 'N/A'}
-              </p>
-            </div>
+            <DefiningAxes
+              sessionId={params.sessionId}
+              coreAxes={coreAxes}
+              coverageByAxis={coverageByAxis}
+            />
           </div>
         </section>
+      )}
 
-        {/* Save Results Prompt */}
-        <SaveResultsPrompt sessionId={params.sessionId} />
+      <ResultsKeyInsights
+        sessionId={params.sessionId}
+        strongestCore={strongestCore}
+        strongestFacet={strongestFacet}
+        largestGap={axisComparisons[0] ?? null}
+        topConflict={topConflict}
+      />
 
-        {/* Actions: take again, copy, share */}
-        <ResultsActions
-          sessionId={params.sessionId}
-          coreAxes={coreAxes}
-          topFlavor={topFlavors[0] || null}
-        />
-      </div>
-    </main>
+      <ResultsExploreCards
+        sessionId={params.sessionId}
+        axisCount={coreAxes.length + facets.length}
+        conflictCounts={conflictCounts}
+      />
+
+      {/* Footer: save, share/retake, methodology and result details */}
+      <SaveResultsPrompt sessionId={params.sessionId} />
+      <ResultsActions
+        sessionId={params.sessionId}
+        coreAxes={coreAxes}
+        topFlavor={topFlavors[0] || null}
+      />
+
+      <section className="bg-white rounded-xl shadow-lg divide-y">
+        <details className="group p-4">
+          <summary className="cursor-pointer text-sm font-semibold text-gray-700 hover:text-gray-900 list-none flex items-center gap-2">
+            <span className="transition-transform group-open:rotate-90" aria-hidden>›</span>
+            How scoring works
+          </summary>
+          <div className="mt-3 text-sm text-gray-600 space-y-2">
+            <p>
+              Each question contributes to one or more axes with a fixed direction and weight.
+              &ldquo;Not sure&rdquo; answers are recorded but never scored — they reduce coverage
+              instead of faking a position — while a &ldquo;neither / balanced&rdquo; answer counts
+              as a real neutral. Deliberate collision scenarios are excluded from axis scores and
+              analyzed separately as value conflicts.
+            </p>
+            <p>
+              <a href="/methodology" className="text-blue-600 hover:text-blue-800 font-medium">
+                Read the full methodology →
+              </a>
+            </p>
+          </div>
+        </details>
+        <details className="group p-4">
+          <summary className="cursor-pointer text-sm font-semibold text-gray-700 hover:text-gray-900 list-none flex items-center gap-2">
+            <span className="transition-transform group-open:rotate-90" aria-hidden>›</span>
+            Result details
+          </summary>
+          <dl className="mt-3 text-sm text-gray-600 space-y-1">
+            <div className="flex gap-2">
+              <dt className="text-gray-400">Session:</dt>
+              <dd className="font-mono break-all">{params.sessionId}</dd>
+            </div>
+            <div className="flex gap-2">
+              <dt className="text-gray-400">Question bank:</dt>
+              <dd>{bankVersion ?? 'v1 (legacy)'}</dd>
+            </div>
+            <div className="flex gap-2">
+              <dt className="text-gray-400">Responses:</dt>
+              <dd>
+                {responseCount} recorded ({analysis.conceptualCount} conceptual,{' '}
+                {analysis.appliedCount} practical
+                {notSureCount > 0 ? `, ${notSureCount} not sure` : ''})
+              </dd>
+            </div>
+          </dl>
+        </details>
+      </section>
+    </>
   )
 }
