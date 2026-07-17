@@ -59,7 +59,7 @@ name already begins with `NEXT_PUBLIC_` for the normal Supabase browser client.
 | `AI_ANALYSIS_MAX_REGENERATIONS` | Maximum completed generations per session in a rolling 24 hours | `3` |
 | `AI_ANALYSIS_MAX_ATTEMPTS` | Maximum completed or failed provider attempts per session in the same window | `6` |
 | `AI_ANALYSIS_CONTEXT_MAX_CHARS` | Maximum initial free-form context length | `2000` |
-| `AI_ANALYSIS_TIMEOUT_MS` | Per-provider-attempt abort timeout in milliseconds | `60000` |
+| `AI_ANALYSIS_TIMEOUT_MS` | Per-provider-attempt abort timeout in milliseconds (capped at four minutes) | `240000` |
 | `RUN_LIVE_AI_EVALS` | Opt-in switch for development-only provider evaluations | `false` |
 
 The selected provider must have both its key and model configured. Missing
@@ -74,6 +74,16 @@ single `submit_polyaxis_analysis` schema tool. Both adapters apply a timeout,
 capture available usage/provenance, and validate against the same Zod schema.
 If schema or evidence repair is needed, usage, latency, and request IDs from both
 provider calls are aggregated on the completed or failed analysis row.
+
+The analysis route reserves a five-minute hosting window because a complete
+v2.2 evidence payload can exceed 100,000 input tokens. The initial provider
+attempt is capped at four minutes. A schema/evidence repair attempt receives
+only the time still available after preserving 30 seconds for final database
+updates, so an upstream delay cannot leave the row pending at the hosting
+deadline. After changing the timeout in a hosting environment, redeploy before
+retrying a failed generation. Deployments that explicitly set the earlier
+`60000` value must replace it with `240000` (or remove the override); merging
+this code does not replace an existing hosting environment variable.
 
 ## Structured report contract
 

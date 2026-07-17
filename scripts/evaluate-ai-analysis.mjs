@@ -304,8 +304,8 @@ async function callAnthropic(input, runtime) {
 }
 
 function timeoutMs() {
-  const parsed = Number(process.env.AI_ANALYSIS_TIMEOUT_MS ?? 60000)
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : 60000
+  const parsed = Number(process.env.AI_ANALYSIS_TIMEOUT_MS ?? 240000)
+  return Math.min(Number.isFinite(parsed) && parsed > 0 ? parsed : 240000, 240000)
 }
 
 function parseFixtureIds(raw) {
