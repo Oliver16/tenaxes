@@ -21,12 +21,18 @@ function unique<T>(values: T[]) {
   return Array.from(new Set(values))
 }
 
-function QuestionEvidence({ item }: { item: AIQuestionDisplayEvidence }) {
+function QuestionEvidence({
+  item,
+  sessionId
+}: {
+  item: AIQuestionDisplayEvidence
+  sessionId: string
+}) {
   return (
     <details className="group rounded-lg border border-gray-200 bg-white">
       <summary className="cursor-pointer list-none px-3 py-2 text-xs font-semibold text-blue-700 hover:text-blue-900">
         Question {item.display_order}
-        <span className="ml-1 font-normal text-gray-400">(ID {item.question_id})</span>
+        <span className="ml-1 font-normal text-gray-500">(ID {item.question_id})</span>
         <span className="ml-1 group-open:hidden" aria-hidden="true">&rsaquo;</span>
         <span className="ml-1 hidden group-open:inline" aria-hidden="true">&#8963;</span>
       </summary>
@@ -39,7 +45,14 @@ function QuestionEvidence({ item }: { item: AIQuestionDisplayEvidence }) {
           </div>
           <div>
             <dt className="inline font-semibold text-gray-700">Primary axis: </dt>
-            <dd className="inline">{item.primary_axis_name}</dd>
+            <dd className="inline">
+              <Link
+                href={`/results/${sessionId}/axes/${encodeURIComponent(item.primary_axis_id)}`}
+                className="font-medium text-blue-700 hover:text-blue-900 hover:underline"
+              >
+                {item.primary_axis_name}
+              </Link>
+            </dd>
           </div>
           <div>
             <dt className="inline font-semibold text-gray-700">Contribution: </dt>
@@ -110,7 +123,7 @@ export function EvidenceReferences({
           {questions.map(questionId => {
             const item = evidenceById.get(questionId)
             return item ? (
-              <QuestionEvidence key={questionId} item={item} />
+              <QuestionEvidence key={questionId} item={item} sessionId={sessionId} />
             ) : (
               <div key={questionId} className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600">
                 Question ID {questionId}: details are unavailable for this historical bank version.

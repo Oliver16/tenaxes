@@ -4,6 +4,7 @@ import { loadAIAnalysisContext } from '@/lib/ai-analysis/load-ai-analysis-contex
 import { loadResultAnalysis } from '@/lib/results/load-result-analysis'
 import { isSampleSession } from '@/lib/results/sample-result'
 import type { AIQuestionDisplayEvidence } from '@/lib/ai-analysis/types'
+import { contextMaxChars } from '@/lib/ai-analysis/config'
 
 export const dynamic = 'force-dynamic'
 
@@ -45,6 +46,7 @@ export default async function AIAnalysisPage({
       sessionId={params.sessionId}
       enabled={enabled}
       evidence={evidence}
+      contextMaxLength={contextMaxChars()}
     />
   )
 }

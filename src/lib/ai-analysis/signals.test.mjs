@@ -51,6 +51,7 @@ test('signal thresholds retain the specification values', () => {
     centerUncertainNotSureRate: 0.25,
     contextualGap: 0.30,
     domainOpposition: 0.35,
+    domainOppositionMinNumeric: 2,
     domainExceptionMinAxisScore: 0.40,
     domainExceptionMinItems: 2,
     avoidanceMinControversyNumeric: 4,
@@ -125,7 +126,12 @@ test('selective engagement requires two strongly engaged and two low-information
     ...topicEvidence([0, 0, 0, 0, 1], { startId: 220, domain: 'Low A' }),
     ...topicEvidence([null, null, 1, 0], { startId: 230, domain: 'Low B' })
   ]
-  assert.equal(isSelectivelyEngaged(buildTopicSignals(evidence)), true)
+  const signals = buildTopicSignals(evidence)
+  assert.equal(isSelectivelyEngaged(signals), true)
+  const candidates = buildCandidateTensions({
+    evidence, topicSignals: signals, centers: [], axisComparisons: [], collisionPairs: []
+  })
+  assert.equal(candidates.find(candidate => candidate.candidate_id === 'profile:selectively_engaged')?.coverage_confidence, 'medium')
 })
 
 test('weak numeric-neutral center is classified as low-intensity center', () => {
@@ -178,6 +184,18 @@ test('opposed domain subgroups are classified as contextual center', () => {
   assert.equal(signal.shape, 'contextual_center')
 })
 
+test('singleton domains cannot establish contextual-center subgroup opposition', () => {
+  const evidence = [
+    ...topicEvidence([2], { startId: 320, domain: 'Singleton A' }),
+    ...topicEvidence([-2], { startId: 330, domain: 'Singleton B' })
+  ]
+  const signal = classifyCenterShape({
+    axisId: 'A1', score: 0, coverage: makeCoverage('A1', evidence), evidence,
+    conceptualScore: 0.05, appliedScore: -0.05
+  })
+  assert.equal(signal.shape, 'counterbalanced_center')
+})
+
 test('score at the center boundary is not center', () => {
   const evidence = topicEvidence([0, 0, 0, 0, 0])
   const signal = classifyCenterShape({
@@ -206,6 +224,26 @@ test('an otherwise unmatched near-center pattern is not mislabeled contextual', 
   assert.equal(signal.shape, 'insufficient_evidence')
 })
 
+test('every center shape and non-center bidirectional intensity produce review candidates', () => {
+  const lowEvidence = topicEvidence([0, 0, 0, 1, -1], { startId: 700 })
+  const lowCenter = classifyCenterShape({
+    axisId: 'A1', score: 0.02, coverage: makeCoverage('A1', lowEvidence), evidence: lowEvidence,
+    conceptualScore: 0.05, appliedScore: 0.01
+  })
+  const mixedEvidence = topicEvidence([2, 2, 2, 2, 2, 2, 2, -2, -2, -2], { startId: 710 })
+  const nonCenter = classifyCenterShape({
+    axisId: 'A2', score: 0.35, coverage: makeCoverage('A2', mixedEvidence.map(item => ({ ...item, primary_axis_id: 'A2' }))),
+    evidence: mixedEvidence.map(item => ({ ...item, primary_axis_id: 'A2' })),
+    conceptualScore: 0.5, appliedScore: 0.35
+  })
+  const candidates = buildCandidateTensions({
+    evidence: [...lowEvidence, ...mixedEvidence], topicSignals: [], centers: [lowCenter, nonCenter],
+    axisComparisons: [], collisionPairs: []
+  })
+  assert.ok(candidates.some(candidate => candidate.candidate_id === 'center:A1'))
+  assert.ok(candidates.some(candidate => candidate.candidate_id === 'counterbalance:A2'))
+})
+
 test('an opposed policy domain becomes an exception candidate, not a hypocrisy label', () => {
   const evidence = topicEvidence([-2, -2], { domain: 'Network utility' })
   const candidates = buildCandidateTensions({
@@ -215,6 +253,31 @@ test('an opposed policy domain becomes an exception candidate, not a hypocrisy l
   const candidate = candidates.find(item => item.source === 'domain_exception')
   assert.ok(candidate)
   assert.match(candidate.factual_summary, /exception candidate, not a moral classification/i)
+})
+
+test('real-bank-style utility evidence forms an energy exception across narrow metadata domains', () => {
+  const evidence = [
+    makeEvidence({
+      id: 3, response: 2, axisId: 'A1', axisKey: -1, questionType: 'conceptual',
+      domain: 'general principles', latentConflict: 'State-Directed vs Market-Directed', family: 'base'
+    }),
+    makeEvidence({
+      id: 7, response: 2, axisId: 'A1', axisKey: -1, questionType: 'applied',
+      domain: 'energy & utilities', latentConflict: 'State-Directed vs Market-Directed', family: 'base'
+    }),
+    makeEvidence({
+      id: 301, response: 2, axisId: 'A1', axisKey: -1, questionType: 'applied',
+      domain: 'banking, energy & social ownership', latentConflict: 'State-Directed vs Market-Directed',
+      family: 'controversy_stress'
+    })
+  ]
+  const candidates = buildCandidateTensions({
+    evidence, topicSignals: buildTopicSignals(evidence), centers: [], axisComparisons: [], collisionPairs: [],
+    axisScores: { A1: 0.7 }, conceptualScores: { A1: 0.7 }
+  })
+  const candidate = candidates.find(item => item.candidate_id === 'domain:A1:energy theme')
+  assert.ok(candidate)
+  assert.deepEqual(new Set(candidate.question_ids), new Set([3, 7, 301]))
 })
 
 test('selective controversy neutrality produces an avoidance-or-ambivalence review candidate', () => {

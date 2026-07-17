@@ -1,5 +1,10 @@
 import { generateRequestSchema } from './schema'
-import { contextMaxChars, DEFAULT_CLARIFICATION_MAX_CHARS } from './config'
+import {
+  contextMaxChars,
+  DEFAULT_CLARIFICATION_LINEAGE_MAX_ANSWERS,
+  DEFAULT_CLARIFICATION_LINEAGE_MAX_CHARS,
+  DEFAULT_CLARIFICATION_MAX_CHARS
+} from './config'
 
 export type ValidGenerateRequest = ReturnType<typeof validateGenerateRequest>
 
@@ -44,7 +49,26 @@ export function mergeClarificationAnswers(
   inherited: Array<{ clarification_id: string; answer: string }>,
   additional: Array<{ clarification_id: string; answer: string }>
 ) {
-  const merged = new Map(inherited.map(answer => [answer.clarification_id, answer]))
-  additional.forEach(answer => merged.set(answer.clarification_id, answer))
-  return [...merged.values()]
+  const normalized = [...inherited, ...additional].map(item => ({
+    clarification_id: item.clarification_id,
+    answer: item.answer.trim()
+  }))
+  const merged = new Map<string, { clarification_id: string; answer: string }>()
+  normalized.forEach(answer => merged.set(answer.clarification_id, answer))
+  const answers = [...merged.values()]
+  if (answers.some(item => item.answer.length > DEFAULT_CLARIFICATION_MAX_CHARS)) {
+    throw new RequestValidationError(`Clarification answers must be ${DEFAULT_CLARIFICATION_MAX_CHARS} characters or fewer`)
+  }
+  if (answers.length > DEFAULT_CLARIFICATION_LINEAGE_MAX_ANSWERS) {
+    throw new RequestValidationError(
+      `A refinement lineage can retain at most ${DEFAULT_CLARIFICATION_LINEAGE_MAX_ANSWERS} clarification answers`
+    )
+  }
+  const totalCharacters = answers.reduce((total, item) => total + item.answer.length, 0)
+  if (totalCharacters > DEFAULT_CLARIFICATION_LINEAGE_MAX_CHARS) {
+    throw new RequestValidationError(
+      `Retained clarification answers must total ${DEFAULT_CLARIFICATION_LINEAGE_MAX_CHARS} characters or fewer`
+    )
+  }
+  return answers
 }

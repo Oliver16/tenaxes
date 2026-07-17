@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict'
-import test from 'node:test'
+import test, { mock } from 'node:test'
 
 import { OpenAIAnalysisProvider } from './openai.ts'
 import { AnthropicAnalysisProvider } from './anthropic.ts'
-import { AnalysisProviderError } from './provider.ts'
+import { AnalysisProviderError, summarizeProviderAttempts } from './provider.ts'
 import { configuredModel } from './index.ts'
 import { makeAnalysis, makeInput } from '../__tests__/helpers.mjs'
 
@@ -32,10 +32,18 @@ test('OpenAI adapter sends strict stored-off structured output and captures usag
 })
 
 test('OpenAI adapter rejects malformed structured output', async () => {
-  const client = { responses: { create: async () => ({ output_text: '{bad', usage: null, id: 'bad' }) } }
+  const client = { responses: { create: async () => ({
+    output_text: '{bad', usage: { input_tokens: 11, output_tokens: 7 }, id: 'bad'
+  }) } }
   const provider = new OpenAIAnalysisProvider({ apiKey: 'test', model: 'openai-test', client, timeoutMs: 100 })
-  await assert.rejects(provider.generate(input, 'provisional'), error =>
-    error instanceof AnalysisProviderError && error.code === 'malformed_output')
+  await assert.rejects(provider.generate(input, 'provisional'), error => {
+    assert.ok(error instanceof AnalysisProviderError)
+    assert.equal(error.code, 'malformed_output')
+    assert.equal(error.attempt.inputTokens, 11)
+    assert.equal(error.attempt.outputTokens, 7)
+    assert.equal(error.attempt.providerRequestId, 'bad')
+    return true
+  })
 })
 
 test('OpenAI adapter enforces its abort timeout even when a mocked SDK hangs', async () => {
@@ -43,6 +51,27 @@ test('OpenAI adapter enforces its abort timeout even when a mocked SDK hangs', a
   const provider = new OpenAIAnalysisProvider({ apiKey: 'test', model: 'openai-test', client, timeoutMs: 15 })
   await assert.rejects(provider.generate(input, 'provisional'), error =>
     error instanceof AnalysisProviderError && error.code === 'timeout')
+})
+
+test('provider adapters use the validated timeout configuration', async () => {
+  const before = process.env.AI_ANALYSIS_TIMEOUT_MS
+  let observedTimeout
+  process.env.AI_ANALYSIS_TIMEOUT_MS = 'invalid'
+  const timeoutMock = mock.method(AbortSignal, 'timeout', milliseconds => {
+    observedTimeout = milliseconds
+    return new AbortController().signal
+  })
+  const client = { responses: { create: async () => ({
+    output_text: JSON.stringify(analysis), usage: null, id: 'configured-timeout'
+  }) } }
+  try {
+    const provider = new OpenAIAnalysisProvider({ apiKey: 'test', model: 'openai-test', client })
+    await provider.generate(input, 'provisional')
+    assert.equal(observedTimeout, 60000)
+  } finally {
+    timeoutMock.mock.restore()
+    restoreEnvironment('AI_ANALYSIS_TIMEOUT_MS', before)
+  }
 })
 
 test('Anthropic adapter forces one schema tool and captures usage', async () => {
@@ -73,8 +102,33 @@ test('Anthropic adapter rejects text or multiple schema tool outputs', async () 
     usage: { input_tokens: 1, output_tokens: 1 }, id: 'msg-bad'
   }) } }
   const provider = new AnthropicAnalysisProvider({ apiKey: 'test', model: 'anthropic-test', client, timeoutMs: 100 })
-  await assert.rejects(provider.generate(input, 'provisional'), error =>
-    error instanceof AnalysisProviderError && error.code === 'malformed_output')
+  await assert.rejects(provider.generate(input, 'provisional'), error => {
+    assert.ok(error instanceof AnalysisProviderError)
+    assert.equal(error.code, 'malformed_output')
+    assert.equal(error.attempt.inputTokens, 1)
+    assert.equal(error.attempt.providerRequestId, 'msg-bad')
+    return true
+  })
+})
+
+test('provider usage summary aggregates malformed and repair attempts without fabricating token counts', () => {
+  assert.deepEqual(summarizeProviderAttempts([
+    { inputTokens: 11, outputTokens: 7, latencyMs: 20, providerRequestId: 'first' },
+    { inputTokens: 13, outputTokens: 17, latencyMs: 30, providerRequestId: 'second' }
+  ]), {
+    inputTokens: 24,
+    outputTokens: 24,
+    latencyMs: 50,
+    providerRequestId: 'first,second'
+  })
+  assert.deepEqual(summarizeProviderAttempts([
+    { inputTokens: null, outputTokens: null, latencyMs: 12, providerRequestId: null }
+  ]), {
+    inputTokens: null,
+    outputTokens: null,
+    latencyMs: 12,
+    providerRequestId: null
+  })
 })
 
 test('a selected provider failure remains that provider failure and never falls back', async () => {

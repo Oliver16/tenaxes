@@ -1,5 +1,6 @@
 import 'server-only'
 import OpenAI from 'openai'
+import { analysisTimeoutMs } from '../config'
 import { personalizedAnalysisJsonSchema, personalizedAnalysisSchema } from '../schema'
 import { AI_ANALYSIS_SYSTEM_PROMPT, buildProvisionalRequest, buildRefinementRequest, buildRepairRequest } from '../prompts/v1'
 import type { PersonalizedAnalysisInput } from '../types'
@@ -15,7 +16,7 @@ export class OpenAIAnalysisProvider implements AnalysisProvider {
     const apiKey = options?.apiKey ?? process.env.OPENAI_API_KEY
     this.model = options?.model ?? process.env.OPENAI_ANALYSIS_MODEL ?? ''
     if (!apiKey || !this.model) throw new AnalysisProviderError('configuration', 'Selected AI analysis provider is not configured')
-    this.timeoutMs = options?.timeoutMs ?? providerTimeoutMs()
+    this.timeoutMs = options?.timeoutMs ?? analysisTimeoutMs()
     this.client = options?.client ?? new OpenAI({ apiKey, timeout: this.timeoutMs })
   }
 
@@ -40,34 +41,46 @@ export class OpenAIAnalysisProvider implements AnalysisProvider {
         },
         store: false
       }, { signal }), signal)
+      const attempt = {
+        inputTokens: response.usage?.input_tokens ?? null,
+        outputTokens: response.usage?.output_tokens ?? null,
+        latencyMs: Date.now() - started,
+        providerRequestId: response.id ?? null
+      }
       let raw: unknown
       try { raw = JSON.parse(response.output_text) } catch {
-        throw new AnalysisProviderError('malformed_output', 'OpenAI returned invalid JSON', response.output_text)
+        throw new AnalysisProviderError('malformed_output', 'OpenAI returned invalid JSON', response.output_text, attempt)
       }
       const parsed = personalizedAnalysisSchema.safeParse(raw)
       if (!parsed.success) {
         throw new AnalysisProviderError(
           'malformed_output',
           `OpenAI output failed schema validation: ${formatIssues(parsed.error.issues)}`,
-          raw
+          raw,
+          attempt
         )
       }
       return {
         analysis: parsed.data, model: this.model,
-        inputTokens: response.usage?.input_tokens ?? null,
-        outputTokens: response.usage?.output_tokens ?? null,
-        latencyMs: Date.now() - started, providerRequestId: response.id ?? null
+        ...attempt
       }
     } catch (error) {
       if (error instanceof AnalysisProviderError) throw error
-      if (isAbortError(error)) throw new AnalysisProviderError('timeout', 'OpenAI analysis request timed out')
-      throw new AnalysisProviderError('provider_failure', 'OpenAI analysis request failed')
+      const attempt = failedAttempt(Date.now() - started, error)
+      if (isAbortError(error)) throw new AnalysisProviderError('timeout', 'OpenAI analysis request timed out', undefined, attempt)
+      throw new AnalysisProviderError('provider_failure', 'OpenAI analysis request failed', undefined, attempt)
     }
   }
 }
 
-const providerTimeoutMs = () => Number(process.env.AI_ANALYSIS_TIMEOUT_MS || 60000)
 const isAbortError = (error: unknown) => error instanceof Error && (error.name === 'AbortError' || /timed out|timeout/i.test(error.message))
+const failedAttempt = (latencyMs: number, error: unknown) => ({
+  inputTokens: null,
+  outputTokens: null,
+  latencyMs,
+  providerRequestId: isObject(error) && typeof error.request_id === 'string' ? error.request_id : null
+})
+const isObject = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object'
 const formatIssues = (issues: Array<{ path: PropertyKey[]; message: string }>) => issues
   .slice(0, 12)
   .map(issue => `${issue.path.join('.') || 'root'}: ${issue.message}`)

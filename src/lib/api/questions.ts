@@ -12,6 +12,11 @@ import { QuestionWithLinks } from '@/lib/database.types'
 export async function fetchQuestionsWithLinks(
   options?: { bankVersion?: string | null; questionIds?: number[] }
 ): Promise<QuestionWithLinks[]> {
+  // An explicitly empty stored-response key set is itself the historical
+  // pin. Never reinterpret that legacy result through today's active bank.
+  if (options && Object.prototype.hasOwnProperty.call(options, 'questionIds') && options.questionIds?.length === 0) {
+    return []
+  }
   const supabase = createClient()
 
   let query = supabase

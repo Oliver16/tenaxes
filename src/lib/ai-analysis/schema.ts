@@ -19,6 +19,7 @@ export const centerShapeSchema = z.enum([
 const boundedText = z.string().trim().min(1).max(4000)
 const ids = z.array(z.string().min(1).max(100)).max(30)
 const questionIds = z.array(z.number().int().positive()).max(60)
+const stableOutputId = z.string().min(1).max(100).regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/)
 
 export const personalizedAnalysisSchema = z.object({
   schema_version: z.literal('1'),
@@ -39,14 +40,14 @@ export const personalizedAnalysisSchema = z.object({
     axis_id: z.string().min(1), shape: centerShapeSchema, analysis: boundedText, question_ids: questionIds
   }).strict()).max(30),
   tensions: z.array(z.object({
-    tension_id: z.string().min(1).max(100), classification: tensionClassificationSchema,
+    tension_id: stableOutputId, classification: tensionClassificationSchema,
     severity: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]),
     confidence: confidenceSchema, title: boundedText.max(200), verdict: boundedText,
     principle_or_commitment: boundedText, conflicting_pattern: boundedText,
     why_it_may_be_coherent: z.array(boundedText).min(1).max(5),
     why_it_may_be_incoherent: z.array(boundedText).min(1).max(5),
     generalization_test: boundedText, axis_ids: ids, question_ids: questionIds,
-    pair_ids: ids, clarifying_question_id: z.string().max(100).nullable()
+    pair_ids: ids, clarifying_question_id: stableOutputId.nullable()
   }).strict()).max(8),
   engagement_and_knowledge: z.object({
     overall_analysis: boundedText,
@@ -66,7 +67,7 @@ export const personalizedAnalysisSchema = z.object({
     title: boundedText.max(200), analysis: boundedText, confidence: confidenceSchema, question_ids: questionIds
   }).strict()).max(5),
   clarifying_questions: z.array(z.object({
-    clarification_id: z.string().min(1).max(100), question: boundedText.max(500),
+    clarification_id: stableOutputId, question: boundedText.max(500),
     why_it_matters: boundedText.max(1000), related_tension_ids: ids
   }).strict()).max(5),
   reflection_questions: z.array(boundedText.max(500)).min(3).max(6),
