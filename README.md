@@ -20,10 +20,8 @@ A Next.js application with Supabase backend for a 264-item political orientation
 
 1. Go to [supabase.com](https://supabase.com) and create a new project
 2. Once created, go to **SQL Editor**
-3. Paste the contents of `supabase/schema.sql` and run it
-4. Paste the contents of `supabase/seed.sql` and run it (loads 98 conceptual questions)
-5. Paste the contents of `supabase/seed_applied.sql` and run it (loads 52 applied questions)
-6. Go to **Settings → API** and copy:
+3. Paste the contents of `supabase/fresh_install.sql` and run it once — this installs the complete current state (schema, policies, 15 axes, 264 questions, all links). Do not run `schema.sql`/seeds/migrations separately for a new project; see `docs/supabase-migration.md` for details and for migrating data from an old project.
+4. Go to **Settings → API** and copy:
    - Project URL
    - `anon` public key
 

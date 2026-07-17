@@ -120,18 +120,18 @@ ALTER TABLE question_axis_links
 DROP VIEW IF EXISTS axis_weight_audit;
 CREATE VIEW axis_weight_audit AS
 SELECT
-  axis_id,
-  COUNT(*) FILTER (WHERE role = 'primary')   AS primary_count,
-  SUM(weight) FILTER (WHERE role = 'primary')   AS primary_weight_sum,
-  COUNT(*) FILTER (WHERE role = 'secondary') AS secondary_count,
-  SUM(weight) FILTER (WHERE role = 'secondary') AS secondary_weight_sum,
-  COUNT(*) FILTER (WHERE role = 'tradeoff')  AS tradeoff_count,
-  SUM(weight) FILTER (WHERE role = 'tradeoff')  AS tradeoff_weight_sum
-FROM question_axis_links
-JOIN questions ON questions.id = question_axis_links.question_id
+  l.axis_id,
+  COUNT(*) FILTER (WHERE l.role = 'primary')   AS primary_count,
+  SUM(l.weight) FILTER (WHERE l.role = 'primary')   AS primary_weight_sum,
+  COUNT(*) FILTER (WHERE l.role = 'secondary') AS secondary_count,
+  SUM(l.weight) FILTER (WHERE l.role = 'secondary') AS secondary_weight_sum,
+  COUNT(*) FILTER (WHERE l.role = 'tradeoff')  AS tradeoff_count,
+  SUM(l.weight) FILTER (WHERE l.role = 'tradeoff')  AS tradeoff_weight_sum
+FROM question_axis_links l
+JOIN questions ON questions.id = l.question_id
 WHERE questions.active = true
-GROUP BY axis_id
-ORDER BY axis_id;
+GROUP BY l.axis_id
+ORDER BY l.axis_id;
 
 DROP VIEW IF EXISTS axis_collision_matrix;
 CREATE VIEW axis_collision_matrix AS
