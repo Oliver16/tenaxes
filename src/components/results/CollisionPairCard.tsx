@@ -49,21 +49,28 @@ export function buildProbeViews(
     })
 }
 
-/** One-sentence pair narrative built from the actual probe outcomes. */
+/**
+ * One-sentence pair narrative built from the actual probe outcomes.
+ * Opposing values are qualified with their axis, because several axes
+ * share similar pole vocabulary (Moral Objectivist on Moral Objectivity
+ * vs Moral Monist on Value Structure) and an unqualified sentence can
+ * read as an axis colliding with itself.
+ */
 export function pairNarrative(pair: CollisionPairSummary, probes: ProbeView[]): string {
   const value = pair.shared_pole.label
-  const protectedAgainst = probes.filter(p => p.outcome === 'protected').map(p => p.opposing.label)
-  const tradedFor = probes.filter(p => p.outcome === 'traded').map(p => p.opposing.label)
+  const qualify = (s: { label: string; axis_name: string }) => `${s.label} (${s.axis_name})`
+  const protectedAgainst = probes.filter(p => p.outcome === 'protected').map(p => qualify(p.opposing))
+  const tradedFor = probes.filter(p => p.outcome === 'traded').map(p => qualify(p.opposing))
 
   if (pair.classification === 'cross_pressured') {
     return `You protected ${value} when it collided with ${protectedAgainst.join(' and ')}, ` +
       `but gave it up for ${tradedFor.join(' and ')}. The framing, not the value, decided.`
   }
   if (pair.classification === 'aligned' && pair.direction > 0) {
-    return `Whether ${value} was priced against ${probes.map(p => p.opposing.label).join(' or ')}, you protected it.`
+    return `Whether ${value} was priced against ${probes.map(p => qualify(p.opposing)).join(' or ')}, you protected it.`
   }
   if (pair.classification === 'aligned' && pair.direction < 0) {
-    return `Under both framings you traded ${value} away — to ${probes.map(p => p.opposing.label).join(' and to ')}.`
+    return `Under both framings you traded ${value} away — to ${probes.map(p => qualify(p.opposing)).join(' and to ')}.`
   }
   return `Not enough decisive answers to read a pattern for ${value} in this collision.`
 }
@@ -169,6 +176,9 @@ export function CollisionPairCard({
 }) {
   const probes = buildProbeViews(pair, tensions, questions, responses)
   const badge = CLASSIFICATION_BADGE[pair.classification]
+  // Every opposing side sits on the pair's other axis.
+  const otherAxisName = probes[0]?.opposing.axis_name
+    ?? (pair.axis_a === pair.shared_pole.axis_id ? pair.axis_b : pair.axis_a)
 
   return (
     <Card className="border-2">
@@ -181,7 +191,7 @@ export function CollisionPairCard({
                 At stake: {pair.shared_pole.label}
               </CardTitle>
               <div className="text-xs text-muted-foreground mt-0.5">
-                {pair.shared_pole.axis_name} · probed from both directions
+                {pair.shared_pole.axis_name} — in collision with {otherAxisName} · probed from both directions
               </div>
             </div>
           </div>

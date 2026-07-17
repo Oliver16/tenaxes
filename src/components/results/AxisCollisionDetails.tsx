@@ -48,15 +48,28 @@ export function AxisCollisionDetails({
             .filter((t): t is TensionScore => !!t)
           // Per-probe: the value the shared pole was priced against, and
           // whether the shared pole won that probe.
+          // Several axes share similar pole vocabulary (e.g. Moral
+          // Objectivist on C10 vs Moral Monist on C11), so every value is
+          // qualified with the axis it belongs to — otherwise a cross-axis
+          // collision can read as an axis colliding with itself.
+          const qualify = (side: { label: string; axis_name: string }) =>
+            `${side.label} (${side.axis_name})`
           const outcomes = probes.map(t => {
             const shared = pair.shared_pole
             const sharedIsA = t.side_a.axis_id === shared.axis_id && t.side_a.pole === shared.pole
             const opposing = sharedIsA ? t.side_b : t.side_a
             const term = sharedIsA ? t.lean : -t.lean
-            return { opposing: opposing.label, won: term > 0, decisive: term !== 0 && t.answered_count > 0 }
+            return { opposing: qualify(opposing), won: term > 0, decisive: term !== 0 && t.answered_count > 0 }
           })
           const others = outcomes.map(o => o.opposing)
           const anyContradiction = probes.some(t => t.ideals.contradicts_ideals)
+          // The axis the shared pole is priced against: always the pair
+          // axis the shared pole does NOT belong to (each probe carries one
+          // side per axis), regardless of which axis section renders this row.
+          const otherAxisId = pair.axis_a === pair.shared_pole.axis_id ? pair.axis_b : pair.axis_a
+          const otherAxisName =
+            probes.flatMap(t => [t.side_a, t.side_b]).find(s => s.axis_id === otherAxisId)?.axis_name
+            ?? otherAxisId
 
           const badgeText =
             pair.classification === 'aligned'
@@ -82,7 +95,10 @@ export function AxisCollisionDetails({
               <div className="flex-1">
                 <div className="flex items-baseline gap-2 flex-wrap">
                   <span className="text-sm font-medium">
-                    At stake: {pair.shared_pole.label}
+                    At stake: {pair.shared_pole.label}{' '}
+                    <span className="font-normal text-muted-foreground">
+                      ({pair.shared_pole.axis_name}) — colliding with {otherAxisName}
+                    </span>
                   </span>
                   <span className="text-xs text-muted-foreground">
                     ({pair.probes_answered} of {pair.probe_keys.length} probes answered)
