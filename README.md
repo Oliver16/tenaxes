@@ -1,6 +1,6 @@
 # Polyaxis
 
-A Next.js application with Supabase backend for a 264-item political orientation survey (110 conceptual + 154 applied questions).
+A Next.js application with Supabase backend for a 286-item political orientation survey (112 conceptual + 174 applied questions).
 
 ## Features
 
@@ -20,7 +20,7 @@ A Next.js application with Supabase backend for a 264-item political orientation
 
 1. Go to [supabase.com](https://supabase.com) and create a new project
 2. Once created, go to **SQL Editor**
-3. Paste the contents of `supabase/fresh_install.sql` and run it once — this installs the complete current state (schema, policies, 15 axes, 264 questions, all links). Do not run `schema.sql`/seeds/migrations separately for a new project; see `docs/supabase-migration.md` for details and for migrating data from an old project.
+3. Paste the contents of `supabase/fresh_install.sql` and run it once — this installs the complete current state (schema, policies, 15 axes, 288 questions (286 active), all links). Do not run `schema.sql`/seeds/migrations separately for a new project; see `docs/supabase-migration.md` for details and for migrating data from an old project.
 4. Go to **Settings → API** and copy:
    - Project URL
    - `anon` public key
@@ -62,7 +62,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
 | Route | Description |
 |-------|-------------|
 | `/` | Landing page with feature overview |
-| `/survey` | 264-question questionnaire (110 conceptual + 154 applied) |
+| `/survey` | 286-question questionnaire (112 conceptual + 174 applied) |
 | `/results/[sessionId]` | Individual results with visualizations |
 | `/admin` | Analytics dashboard |
 | `/admin/questions` | Question management (add/edit/delete) |

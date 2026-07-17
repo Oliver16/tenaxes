@@ -1,5 +1,17 @@
 # Question Content & Ordering Audit (Round 5)
 
+> **Implementation status:** the P0 shuffle fix shipped with this
+> audit; the P1 de-duplication and P2 depth/coverage work shipped in
+> `supabase/migrations/20260717030000_balance_question_bank.sql` — see
+> `question-bank-balance.md` for the balance policy, the final
+> distribution, and the conflict-coverage census. One correction to
+> §3.3 below: tension pairs must be counted per **pair × pole
+> signature** (the analyzer's real grouping), which revealed a
+> fourth under-minimum group this table missed (C3×C5 −1, "secular
+> neutrality vs religious liberty", n=2 — now 4). Wording similarity
+> is demoted to a tertiary screen in the balance policy; conflict
+> coverage is the primary lens.
+
 **Date:** 2026-07-17
 **Scope:** all 264 active questions (source of truth:
 `supabase/fresh_install.sql`, verified dump of the live bank), the

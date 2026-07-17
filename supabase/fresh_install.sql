@@ -3,10 +3,10 @@
 -- Complete database setup for a NEW Supabase project.
 --
 -- Generated from a verified end-to-end application of schema.sql,
--- seeds, and every migration through 20260716160000, then dumped and
+-- seeds, and every migration through 20260717030000, then dumped and
 -- tested against a clean database. Contains the full current state:
--- all tables, RLS policies, functions, views, 15 axes, 264 questions,
--- and 350 question-axis links.
+-- all tables, RLS policies, functions, views, 15 axes, 288 questions
+-- (286 active), and 383 question-axis links.
 --
 -- This file is Supabase SQL Editor compatible: plain SQL only
 -- (multi-row INSERTs, no psql meta-commands, no COPY FROM stdin).
@@ -859,7 +859,40 @@ INSERT INTO public.question_axis_links VALUES
 	(477, 261, 'C2', 'primary', 1, 1.25, '2026-07-17 00:17:32.966753+00'),
 	(478, 262, 'C9', 'primary', 1, 1.25, '2026-07-17 00:17:32.966753+00'),
 	(479, 263, 'C9', 'primary', -1, 1.25, '2026-07-17 00:17:32.966753+00'),
-	(480, 264, 'C5', 'primary', 1, 1.25, '2026-07-17 00:17:32.966753+00');
+	(480, 264, 'C5', 'primary', 1, 1.25, '2026-07-17 00:17:32.966753+00'),
+	(481, 265, 'F4', 'primary', 1, 1.25, '2026-07-17 03:00:00+00'),
+	(482, 266, 'F4', 'primary', -1, 1.25, '2026-07-17 03:00:00+00'),
+	(483, 267, 'F4', 'primary', 1, 1.25, '2026-07-17 03:00:00+00'),
+	(484, 267, 'F2', 'tradeoff', -1, 0.60, '2026-07-17 03:00:00+00'),
+	(485, 268, 'F4', 'primary', -1, 1.25, '2026-07-17 03:00:00+00'),
+	(486, 269, 'F5', 'primary', 1, 1.00, '2026-07-17 03:00:00+00'),
+	(487, 270, 'F5', 'primary', -1, 1.00, '2026-07-17 03:00:00+00'),
+	(488, 271, 'F5', 'primary', 1, 1.25, '2026-07-17 03:00:00+00'),
+	(489, 271, 'C7', 'tradeoff', -1, 0.50, '2026-07-17 03:00:00+00'),
+	(490, 272, 'F5', 'primary', -1, 1.25, '2026-07-17 03:00:00+00'),
+	(491, 272, 'C7', 'tradeoff', 1, 0.50, '2026-07-17 03:00:00+00'),
+	(492, 273, 'F5', 'primary', 1, 1.25, '2026-07-17 03:00:00+00'),
+	(493, 274, 'F5', 'primary', -1, 1.25, '2026-07-17 03:00:00+00'),
+	(494, 275, 'F5', 'primary', 1, 1.25, '2026-07-17 03:00:00+00'),
+	(495, 276, 'F5', 'primary', -1, 1.25, '2026-07-17 03:00:00+00'),
+	(496, 277, 'C8', 'primary', 1, 1.25, '2026-07-17 03:00:00+00'),
+	(497, 277, 'C9', 'tradeoff', -1, 0.60, '2026-07-17 03:00:00+00'),
+	(498, 278, 'C8', 'primary', -1, 1.25, '2026-07-17 03:00:00+00'),
+	(499, 278, 'C9', 'tradeoff', 1, 0.60, '2026-07-17 03:00:00+00'),
+	(500, 279, 'C9', 'primary', 1, 1.25, '2026-07-17 03:00:00+00'),
+	(501, 279, 'C8', 'tradeoff', -1, 0.60, '2026-07-17 03:00:00+00'),
+	(502, 280, 'C9', 'primary', -1, 1.25, '2026-07-17 03:00:00+00'),
+	(503, 280, 'C8', 'tradeoff', 1, 0.60, '2026-07-17 03:00:00+00'),
+	(504, 281, 'C1', 'primary', 1, 1.25, '2026-07-17 03:00:00+00'),
+	(505, 282, 'C1', 'primary', -1, 1.25, '2026-07-17 03:00:00+00'),
+	(506, 283, 'C4', 'primary', 1, 1.25, '2026-07-17 03:00:00+00'),
+	(507, 284, 'C4', 'primary', -1, 1.25, '2026-07-17 03:00:00+00'),
+	(508, 285, 'C5', 'primary', 1, 1.25, '2026-07-17 03:00:00+00'),
+	(509, 286, 'C6', 'primary', -1, 1.25, '2026-07-17 03:00:00+00'),
+	(510, 287, 'C5', 'primary', 1, 1.25, '2026-07-17 03:00:00+00'),
+	(511, 287, 'C3', 'tradeoff', -1, 0.60, '2026-07-17 03:00:00+00'),
+	(512, 288, 'C5', 'primary', -1, 1.25, '2026-07-17 03:00:00+00'),
+	(513, 288, 'C3', 'tradeoff', 1, 0.60, '2026-07-17 03:00:00+00');
 
 
 --
@@ -891,10 +924,10 @@ INSERT INTO public.questions VALUES
 	(25, 'C4', 1, 'Local communities should have the final word on matters like zoning, schooling, and policing.', NULL, 29, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
 	(26, 'C4', 1, 'States or provinces should be able to pass laws that differ from national policy.', NULL, 30, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
 	(27, 'C4', 1, 'Decisions made closest to the people affected tend to produce better outcomes.', NULL, 31, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(28, 'C4', 1, 'Regions should be allowed to experiment with different policies rather than follow a single national model.', NULL, 32, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
+	(28, 'C4', 1, 'Taxes should mostly be raised and spent by local and regional governments, not the national one.', NULL, 32, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
 	(29, 'C4', -1, 'National standards are necessary to guarantee equal rights and services everywhere.', NULL, 33, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
 	(30, 'C4', -1, 'Only a strong central government can coordinate responses to large-scale challenges.', NULL, 34, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(31, 'C4', -1, 'Too much local autonomy leads to fragmentation and unequal treatment across regions.', NULL, 35, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
+	(31, 'C4', -1, 'When every region goes its own way, problems that cross borders - pollution, crime, infrastructure - go unsolved.', NULL, 35, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
 	(32, 'C4', -1, 'Some issues are too important to leave to local jurisdictions with varying capacities.', NULL, 36, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
 	(33, 'C5', 1, 'Cultural norms should evolve to reflect new understandings of identity and relationships.', NULL, 37, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
 	(34, 'C5', 1, 'Society benefits when people question inherited customs and experiment with new ways of living.', NULL, 38, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
@@ -908,7 +941,7 @@ INSERT INTO public.questions VALUES
 	(42, 'C6', -1, 'A society that does not put its own members first will eventually be unable to help anyone.', NULL, 45, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
 	(43, 'C6', -1, 'It is reasonable to prioritize people who share your culture or heritage in hiring and assistance.', NULL, 46, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
 	(44, 'C6', -1, 'Strong group identity and mutual obligation within communities produce better outcomes than abstract universalism.', NULL, 60, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(45, 'C6', 1, 'Our obligations to strangers across the world are just as strong as those to our neighbors.', NULL, 63, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
+	(45, 'C6', 1, 'Treating a stranger''s child as no less important than a neighbor''s child is a moral ideal worth striving for.', NULL, 63, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
 	(46, 'C6', 1, 'Moral rules should apply equally to all people regardless of nationality, ethnicity, or religion.', NULL, 64, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
 	(47, 'C6', 1, 'Aid and assistance should be allocated based on need, not on shared identity or proximity.', NULL, 67, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
 	(49, 'C7', -1, 'A nation must control its own borders and immigration without outside interference.', NULL, 47, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
@@ -921,7 +954,7 @@ INSERT INTO public.questions VALUES
 	(57, 'C8', -1, 'Technology tends to create new problems as fast as it solves existing ones.', NULL, 56, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
 	(58, 'C8', -1, 'Society has become dangerously dependent on complex systems that few people understand.', NULL, 57, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
 	(59, 'C8', -1, 'Some technologies—certain weapons, surveillance tools, AI systems—should never have been built.', NULL, 58, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(60, 'C8', -1, 'The unintended consequences of new technologies are often worse than the problems they address.', NULL, 66, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
+	(60, 'C8', -1, 'Complex technologies fail in ways that even their designers cannot predict or control.', NULL, 66, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
 	(61, 'C8', 1, 'Automation and AI will create more prosperity than they destroy over time.', NULL, 61, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
 	(62, 'C8', 1, 'New technologies should generally be deployed quickly; we can address problems as they arise.', NULL, 62, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
 	(63, 'C8', 1, 'Most major problems—health, poverty, climate—can be solved primarily through technological innovation.', NULL, 65, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
@@ -930,8 +963,8 @@ INSERT INTO public.questions VALUES
 	(66, 'C9', -1, 'The natural world exists as a resource for human use and flourishing.', NULL, 70, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
 	(67, 'C9', 1, 'Ecosystems and species have intrinsic value that does not depend on their usefulness to humans.', NULL, 71, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
 	(68, 'C9', 1, 'Economic development should be constrained when it threatens biodiversity or ecosystem health.', NULL, 72, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(69, 'C9', 1, 'Future generations and non-human life deserve moral consideration equal to living humans.', NULL, 73, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(70, 'C9', -1, 'Nature''s primary value lies in the resources and services it provides to human beings.', NULL, 74, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
+	(69, 'C9', 1, 'Animals'' interests should carry moral weight even when protecting them benefits no human.', NULL, 73, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
+	(70, 'C9', -1, 'Human beings matter morally in a way that animals and ecosystems simply do not.', NULL, 74, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
 	(71, 'C9', -1, 'When human well-being and environmental preservation conflict, human needs should come first.', NULL, 75, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
 	(72, 'C9', -1, 'Protecting endangered species is not worth major economic sacrifice.', NULL, 76, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
 	(73, 'C10', 1, 'What counts as right and wrong depends largely on cultural context and historical circumstances.', NULL, 77, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
@@ -950,7 +983,7 @@ INSERT INTO public.questions VALUES
 	(86, 'F1', -1, 'Revolutionary movements usually cause more suffering than the injustices they aimed to correct.', NULL, 94, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
 	(87, 'F2', 1, 'Major institutions—government, media, corporations—routinely mislead the public to serve their own interests.', NULL, 83, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
 	(88, 'F2', 1, 'Official experts often conceal important information or present biased conclusions.', NULL, 84, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
-	(89, 'F2', 1, 'The people who run powerful institutions are more interested in protecting their position than serving the public.', NULL, 85, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
+	(89, 'F2', 1, 'Even well-designed institutions end up serving the industries and interest groups they were meant to oversee.', NULL, 85, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
 	(90, 'F2', -1, 'On balance, the institutions that run society are genuinely trying to do the right thing.', NULL, 87, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
 	(91, 'F2', -1, 'Most professionals—doctors, scientists, judges—can be trusted to act with integrity.', NULL, 88, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
 	(92, 'F2', -1, 'Democratic institutions, despite their flaws, generally produce fair outcomes over time.', NULL, 89, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.674929+00'),
@@ -981,7 +1014,7 @@ INSERT INTO public.questions VALUES
 	(116, 'C5', -1, 'A historic nativity scene on public land should stay up during Christmas, even if some residents object to religious displays.', NULL, 118, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
 	(117, 'C5', 1, 'Workplaces that ask employees to share their preferred pronouns are making a reasonable accommodation for changing social norms.', NULL, 119, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
 	(118, 'C5', -1, 'When a century-old statue becomes controversial, communities should lean toward keeping it with added historical context rather than removing it.', NULL, 120, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(119, 'C6', 1, 'A college scholarship historically limited to one ethnic group should be opened to all qualified students regardless of background.', NULL, 121, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
+	(119, 'C6', 1, 'Universities should award scholarships to the most qualified applicants worldwide, even if that means fewer go to students from our own country.', NULL, 121, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
 	(120, 'C6', -1, 'When affordable housing is limited, long-term residents and their families should get priority over recent arrivals.', NULL, 122, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
 	(121, 'C6', 1, 'If our country has more vaccines than we need, we should donate the surplus based on global need rather than stockpiling for ourselves.', NULL, 123, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
 	(122, 'C6', -1, 'A small business owner isn''t wrong to prefer hiring people from their own community, all else being equal.', NULL, 124, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
@@ -998,16 +1031,16 @@ INSERT INTO public.questions VALUES
 	(133, 'C9', 1, 'Old-growth forest shouldn''t be logged even for well-paying jobs, because some ecosystems can never be replaced once destroyed.', NULL, 135, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
 	(134, 'C9', -1, 'A mining project that would create 500 good jobs should proceed even if it damages a remote wilderness area few people ever visit.', NULL, 136, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
 	(135, 'C10', 1, 'Different cultures can reach opposite conclusions about end-of-life care, and neither position is more objectively correct.', NULL, 137, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(136, 'C10', -1, 'Arranged marriages for teenagers are wrong regardless of whether the practice is accepted in the families'' culture.', NULL, 138, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
+	(136, 'C10', -1, 'If a close friend from another culture defended a practice I find deeply wrong, I would say it is wrong - not just ''different''.', NULL, 138, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
 	(137, 'C10', 1, 'On abortion, I believe reasonable people with good intentions can reach completely different conclusions based on equally valid moral frameworks.', NULL, 139, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
 	(138, 'C10', -1, 'Some business practices are simply unethical everywhere—it''s not just ''cultural differences'' when companies exploit workers in poor countries.', NULL, 140, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
 	(139, 'F1', 1, 'When activists block traffic or disrupt businesses to demand urgent action, their tactics can be justified by the importance of their cause.', NULL, 141, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
 	(140, 'F1', -1, 'A political movement should accept a partial compromise now rather than holding out for everything, even if full victory might come later.', NULL, 142, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
 	(141, 'F1', 1, 'Sometimes you have to break rules to expose injustice—whistleblowers who leak classified documents can be heroes even if they broke the law.', NULL, 143, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(142, 'F1', -1, 'Dramatic political changes usually backfire; lasting progress comes from winning small battles over many years.', NULL, 144, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
+	(142, 'F1', -1, 'I''d rather see a modest reform pass with broad support than a sweeping overhaul rammed through that the next government could reverse.', NULL, 144, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
 	(144, 'F2', -1, 'When a major newspaper retracts a story after discovering errors, it shows the system works—media can correct itself.', NULL, 146, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(145, 'F2', 1, 'Exposed scandals probably represent just a fraction of institutional wrongdoing—most misconduct never comes to light.', NULL, 147, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
-	(146, 'F2', -1, 'Despite their flaws, universities, courts, and scientific institutions are genuinely trying to pursue truth and fairness.', NULL, 148, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
+	(145, 'F2', 1, 'When a big company settles a fraud case without admitting guilt, I assume the misconduct went far beyond what was proven.', NULL, 147, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
+	(146, 'F2', -1, 'When a study passes peer review at a major scientific journal, I take its findings seriously even when they cut against my politics.', NULL, 148, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
 	(147, 'F3', 1, 'If a teenager vandalized my car, I''d prefer they do community service and pay me back directly rather than go through the criminal system.', NULL, 149, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
 	(148, 'F3', -1, 'An executive who defrauded retirees of their savings should go to prison even if they''ve repaid every penny and shown genuine remorse.', NULL, 150, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
 	(149, 'F3', 1, 'For most non-violent crimes, programs that connect offenders with victims and community members work better than jail time.', NULL, 151, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.724525+00'),
@@ -1016,7 +1049,7 @@ INSERT INTO public.questions VALUES
 	(152, 'C1', -1, 'Public transit should be owned and operated by the city, even if private bus companies say they could run the system more cheaply for a profit.', NULL, 154, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
 	(153, 'C1', 1, 'If a supermarket chain replaces most cashiers with self-checkout machines to keep prices low, that tradeoff is acceptable even though it eliminates some jobs.', NULL, 155, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
 	(154, 'C1', -1, 'During a recession, the government should directly subsidize struggling companies to keep workers employed, even if the businesses were poorly managed.', NULL, 156, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(155, 'C2', -1, 'If a city has many vacant luxury condos, I support taxing or converting them into affordable housing even if it reduces returns for investors.', NULL, 157, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
+	(155, 'C2', -1, 'If a city has many vacant luxury condos, I support taxing or converting them into affordable housing even if it reduces returns for investors.', NULL, 157, false, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
 	(156, 'C2', 1, 'I oppose broad student loan forgiveness; borrowers should repay what they agreed to rather than shifting the cost to taxpayers.', NULL, 158, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
 	(157, 'C2', -1, 'I support a yearly wealth tax on multimillionaires to fund universal childcare and healthcare, even if some wealthy people move away.', NULL, 159, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
 	(158, 'C2', 1, 'A flat income tax where everyone pays the same percentage is fairer than higher tax rates on top earners.', NULL, 160, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
@@ -1035,7 +1068,7 @@ INSERT INTO public.questions VALUES
 	(171, 'C6', 1, 'When our country accepts refugees, priority should go to the most vulnerable people globally rather than those from allied or culturally similar nations.', NULL, 173, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
 	(172, 'C6', -1, 'If my country faces a natural disaster, I think we should fully fund domestic recovery before sending major aid to other countries.', NULL, 174, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
 	(173, 'C6', 1, 'I''d rather donate to a charity that fights extreme poverty overseas than one that funds relatively minor improvements in my own neighborhood.', NULL, 175, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(174, 'C6', -1, 'When hiring for competitive jobs, citizens and veterans from my own country should get priority over equally qualified foreign applicants.', NULL, 176, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
+	(174, 'C6', -1, 'Public agencies should buy from suppliers in our own country even when foreign firms offer taxpayers a better price.', NULL, 176, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
 	(175, 'C7', -1, 'I oppose international courts having the power to prosecute my country''s soldiers for actions taken in war.', NULL, 177, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
 	(176, 'C7', 1, 'During serious global pandemics, the World Health Organization should be able to impose binding travel restrictions that member countries must follow.', NULL, 178, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
 	(177, 'C7', -1, 'Our national legislature should set immigration levels on its own; international refugee agreements shouldn''t force us to take more people than we choose.', NULL, 179, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
@@ -1050,9 +1083,9 @@ INSERT INTO public.questions VALUES
 	(186, 'C9', -1, 'In dense cities, converting remaining vacant green lots into affordable housing is an acceptable tradeoff, even if it reduces access to nature.', NULL, 188, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
 	(187, 'C10', 1, 'When two countries handle hate speech very differently, I think each approach can be morally appropriate for its own culture.', NULL, 189, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
 	(188, 'C10', -1, 'Cultural traditions that involve permanently harming children''s bodies, like genital cutting, are wrong everywhere and should be discouraged globally.', NULL, 190, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(189, 'C10', 1, 'I can accept that some societies see the death penalty as morally justified while others reject it; both positions can be ethically valid in context.', NULL, 191, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
+	(189, 'C10', 1, 'If I moved to a country whose laws were built on moral views very different from mine, I would accept its system as no less legitimate than ours.', NULL, 191, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
 	(190, 'C10', -1, 'I believe there are universal human rights that all governments must respect, even when those rights conflict with long-standing local customs.', NULL, 192, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(191, 'F1', 1, 'If peaceful protest keeps being ignored, tactics like occupying buildings or blocking major roads can be justified to force change.', NULL, 193, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
+	(191, 'F1', 1, 'Physically blocking construction of a project you believe is deeply harmful - a pipeline, a prison, a highway - can be a legitimate political tactic.', NULL, 193, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
 	(192, 'F1', -1, 'Even when I''m deeply frustrated with the system, political change should come through elections and courts, not property damage or street clashes.', NULL, 194, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
 	(193, 'F1', 1, 'I admire movements that refuse to compromise on core demands, even if it means they lose in the short term.', NULL, 195, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
 	(194, 'F1', -1, 'I prefer leaders who avoid inflaming tensions and seek incremental agreements, even if that means slower progress on issues I care about.', NULL, 196, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
@@ -1060,20 +1093,20 @@ INSERT INTO public.questions VALUES
 	(196, 'F2', -1, 'When multiple levels of courts uphold a law over many years, I generally trust that the law is constitutional even if I dislike it.', NULL, 198, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
 	(197, 'F2', 1, 'I think official economic statistics and political polls are often manipulated, so I don''t put much stock in them.', NULL, 199, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
 	(198, 'F2', -1, 'If several independent news outlets report the same event, I usually trust the basic facts even if details might be off.', NULL, 200, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(199, 'F3', 1, 'For non-violent drug offenses, I prefer treatment and clearing people''s records over sending them to prison.', NULL, 201, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
+	(199, 'F3', 1, 'Criminal records for non-violent offenses should be sealed after a few years, so people can genuinely start over.', NULL, 201, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
 	(200, 'F3', -1, 'People who repeatedly commit serious violent crimes should receive long mandatory prison sentences, even if rehabilitation programs might work in some cases.', NULL, 202, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
 	(201, 'F3', 1, 'I support giving victims a say in restorative justice programs, even when the law would allow a much harsher sentence.', NULL, 203, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
 	(202, 'F3', -1, 'Publicly naming and shaming serious offenders is important, even after they have completed their prison sentences.', NULL, 204, true, 1.25, 'applied', '2026-07-17 00:17:32.760727+00', '2026-07-17 00:17:32.760727+00'),
-	(203, 'C7', 1, 'I support global rules that crack down on offshore tax havens, even if our own banking sector loses business as a result.', NULL, 205, true, 1.25, 'applied', '2026-07-17 00:17:32.894091+00', '2026-07-17 00:17:32.894091+00'),
+	(203, 'C7', 1, 'Trade agreements should include enforceable minimum labor standards for all member countries, even if that raises prices at home.', NULL, 205, true, 1.25, 'applied', '2026-07-17 00:17:32.894091+00', '2026-07-17 00:17:32.894091+00'),
 	(204, 'C7', -1, 'Our country should be free to offer special tax breaks to attract global companies, even if international bodies say it undercuts poorer nations.', NULL, 206, true, 1.25, 'applied', '2026-07-17 00:17:32.894091+00', '2026-07-17 00:17:32.894091+00'),
 	(205, 'C8', 1, 'I would use an AI assistant for everyday medical questions, even though that means a tech company handles my health information.', NULL, 207, true, 1.25, 'applied', '2026-07-17 00:17:32.894091+00', '2026-07-17 00:17:32.894091+00'),
 	(206, 'C8', -1, 'I avoid smart-home devices like voice assistants, even though they are convenient, because I don''t trust companies with always-on microphones in my house.', NULL, 208, true, 1.25, 'applied', '2026-07-17 00:17:32.894091+00', '2026-07-17 00:17:32.894091+00');
 INSERT INTO public.questions VALUES
 	(207, 'C4', -1, 'The state should be able to override local zoning rules to require that every town allows apartments and affordable housing.', NULL, 209, true, 1.25, 'applied', '2026-07-17 00:17:32.894091+00', '2026-07-17 00:17:32.894091+00'),
 	(208, 'C4', 1, 'A neighborhood should be able to block a homeless shelter from opening on its street, even if the city says the shelter is badly needed.', NULL, 210, true, 1.25, 'applied', '2026-07-17 00:17:32.894091+00', '2026-07-17 00:17:32.894091+00'),
-	(209, 'C7', 1, 'During global health emergencies, international authorities should be able to require standardized digital health passes for travel, even though it expands tracking of ordinary people.', NULL, 211, true, 1.25, 'applied', '2026-07-17 00:17:32.894091+00', '2026-07-17 00:17:32.894091+00'),
+	(209, 'C7', 1, 'To fight cross-border crime, international agencies should be able to require member countries to check travelers against shared biometric watchlists, even though ordinary people end up tracked.', NULL, 211, true, 1.25, 'applied', '2026-07-17 00:17:32.894091+00', '2026-07-17 00:17:32.894091+00'),
 	(210, 'C7', -1, 'Our country should refuse international data-sharing rules that require logging citizens'' travel and communications, even if that makes cross-border crime harder to fight.', NULL, 212, true, 1.25, 'applied', '2026-07-17 00:17:32.894091+00', '2026-07-17 00:17:32.894091+00'),
-	(211, 'C7', 1, 'I support binding international safety limits on advanced AI development, even if they slow down our country''s leading tech companies.', NULL, 213, true, 1.25, 'applied', '2026-07-17 00:17:32.894091+00', '2026-07-17 00:17:32.894091+00'),
+	(211, 'C7', 1, 'Nations should accept binding global limits on editing human embryos, even if it slows medical breakthroughs at home.', NULL, 213, true, 1.25, 'applied', '2026-07-17 00:17:32.894091+00', '2026-07-17 00:17:32.894091+00'),
 	(212, 'C7', -1, 'Our country should push ahead with cutting-edge genetic and AI research even when international bodies call for a global pause.', NULL, 214, true, 1.25, 'applied', '2026-07-17 00:17:32.894091+00', '2026-07-17 00:17:32.894091+00'),
 	(213, 'C10', -1, 'International institutions should pressure countries that criminalize homosexuality to change those laws, even where the laws reflect majority local values.', NULL, 215, true, 1.25, 'applied', '2026-07-17 00:17:32.894091+00', '2026-07-17 00:17:32.894091+00'),
 	(214, 'C10', 1, 'Even when I find another culture''s practices deeply wrong, international bodies shouldn''t force that culture to change.', NULL, 216, true, 1.25, 'applied', '2026-07-17 00:17:32.894091+00', '2026-07-17 00:17:32.894091+00'),
@@ -1089,7 +1122,7 @@ INSERT INTO public.questions VALUES
 	(48, 'C6', 1, 'How much someone''s wellbeing matters shouldn''t depend on where they happen to have been born.', 'Universalists view birthplace as morally arbitrary - suffering matters equally wherever it occurs. Particularists argue that special obligations to family, community, and nation are natural and necessary, and that concern legitimately diminishes with distance.', 59, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.930816+00'),
 	(55, 'C7', 1, 'Countries benefit from joining agreements that let people live and work freely across each other''s borders.', 'Free-movement agreements (like the EU''s) pool a core element of sovereignty. Integrationists argue such arrangements expand opportunity and bind nations together peacefully. Sovereigntists counter that control over who enters and settles is a defining national power that should not be delegated.', 54, true, 1.00, 'conceptual', '2026-07-17 00:17:32.674929+00', '2026-07-17 00:17:32.930816+00'),
 	(143, 'F2', 1, 'When public health officials recommend a new vaccine, I assume politics or money shaped the guidance more than evidence.', NULL, 145, true, 1.25, 'applied', '2026-07-17 00:17:32.724525+00', '2026-07-17 00:17:32.930816+00'),
-	(221, 'F4', 1, 'Courts should be able to strike down laws passed by large democratic majorities when those laws violate fundamental rights.', 'This is the countermajoritarian dilemma: constitutionalists argue rights must be protected even from popular majorities, or democracy devours itself. Majoritarians counter that unelected judges overriding the people''s representatives is itself a failure of democracy.', 223, true, 1.00, 'conceptual', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
+	(221, 'F4', 1, 'Fundamental rights belong in constitutions precisely so that no election result can take them away.', 'Constitutionalists entrench rights beyond the reach of ordinary majorities, arguing that what an election can grant, an election can revoke. Majoritarians counter that binding future voters to past decisions lets the dead govern the living, and that rights are safest when a live majority actively defends them.', 223, true, 1.00, 'conceptual', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
 	(222, 'F4', -1, 'No court, expert body, or institution should be able to block the clearly expressed will of the majority for long.', 'Majoritarians hold that legitimacy flows only from the people, so institutional vetoes must ultimately yield. Constitutionalists argue that durable checks are what distinguish constitutional democracy from mob rule, protecting minorities and long-term interests.', 224, true, 1.00, 'conceptual', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
 	(223, 'F4', 1, 'Some public questions are too technical for popular opinion to settle and are better delegated to qualified experts.', 'Advocates of delegation point to central banking, drug approval, and pandemic response as areas where expertise outperforms popular sentiment. Critics argue expert bodies escape accountability and smuggle value judgments in as technical ones.', 225, true, 1.00, 'conceptual', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
 	(224, 'F4', -1, 'Ordinary citizens, not experts or judges, should make the big decisions about society''s direction - even on complex issues.', 'Democratic populists argue citizens are the rightful authors of their collective life and that "complexity" is often an excuse to exclude them. Constitutionalists respond that good judgment on technical questions requires knowledge most citizens lack the time to acquire.', 226, true, 1.00, 'conceptual', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
@@ -1125,14 +1158,38 @@ INSERT INTO public.questions VALUES
 	(254, 'C3', 1, 'Law-abiding adults should be able to own firearms for self-defense without having to prove a special need.', NULL, 256, true, 1.25, 'applied', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
 	(255, 'C3', -1, 'Requiring licenses, training, and registration for all gun owners is a reasonable public-safety measure.', NULL, 257, true, 1.25, 'applied', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
 	(256, 'C3', -1, 'Courts should be able to temporarily take guns from people shown to be a danger to themselves or others.', NULL, 258, true, 1.25, 'applied', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
-	(257, 'C2', -1, 'Schools and employers should be able to give extra consideration to applicants from groups that faced historical exclusion.', NULL, 259, true, 1.25, 'applied', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
+	(257, 'C2', -1, 'Schools and employers should be able to give extra consideration to applicants from groups that faced historical exclusion.', NULL, 259, false, 1.25, 'applied', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
 	(258, 'C6', 1, 'Admissions and hiring should be strictly colorblind - the same criteria for everyone, regardless of group history.', NULL, 260, true, 1.25, 'applied', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
 	(259, 'C2', -1, 'Communities that were dispossessed through slavery, segregation, or seized land are owed real compensation today.', NULL, 261, true, 1.25, 'applied', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
 	(260, 'C2', 1, 'Preferences based on group identity are unfair to individuals who did nothing wrong, whatever the historical justification.', NULL, 262, true, 1.25, 'applied', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
 	(261, 'C2', 1, 'Public borrowing that pushes today''s costs onto future generations is unfair, even when it funds programs people want now.', NULL, 263, true, 1.25, 'applied', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
 	(262, 'C9', 1, 'Harms to people fifty years from now should weigh as heavily in policy as harms to people today.', NULL, 264, true, 1.25, 'applied', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
 	(263, 'C9', -1, 'It''s reasonable to focus on today''s poverty and disease before spending heavily against risks that mainly affect future generations.', NULL, 265, true, 1.25, 'applied', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
-	(264, 'C5', 1, 'Ending a pregnancy in its early months should be legal, with the decision left to the woman and her doctor.', NULL, 266, true, 1.25, 'applied', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00');
+	(264, 'C5', 1, 'Ending a pregnancy in its early months should be legal, with the decision left to the woman and her doctor.', NULL, 266, true, 1.25, 'applied', '2026-07-17 00:17:32.966753+00', '2026-07-17 00:17:32.966753+00'),
+	(265, 'F4', 1, 'Election district maps should be drawn by independent commissions, not by the party in power.', NULL, 267, true, 1.25, 'applied', '2026-07-17 03:00:00+00', '2026-07-17 03:00:00+00'),
+	(266, 'F4', -1, 'In a genuine emergency, elected leaders should be able to act immediately without waiting for courts or oversight bodies to approve.', NULL, 268, true, 1.25, 'applied', '2026-07-17 03:00:00+00', '2026-07-17 03:00:00+00'),
+	(267, 'F4', 1, 'If most residents vote to ban water fluoridation against overwhelming scientific advice, the city should keep fluoridating.', NULL, 269, true, 1.25, 'applied', '2026-07-17 03:00:00+00', '2026-07-17 03:00:00+00'),
+	(268, 'F4', -1, 'Mega-projects like new airports, rail lines, and power plants should be approved by public vote, not by planning agencies.', NULL, 270, true, 1.25, 'applied', '2026-07-17 03:00:00+00', '2026-07-17 03:00:00+00'),
+	(269, 'F5', 1, 'Backing down from a military commitment invites more aggression than honoring it, whatever the cost.', 'Credibility hawks argue that reneging on commitments teaches adversaries that threats work, making every future crisis more dangerous. Critics call this the commitment trap: fighting unwanted wars to preserve a reputation whose deterrent value is unproven.', 271, true, 1.00, 'conceptual', '2026-07-17 03:00:00+00', '2026-07-17 03:00:00+00'),
+	(270, 'F5', -1, 'A society that celebrates its military too much ends up finding reasons to use it.', 'Critics of militarism argue that glorifying armed force builds political pressure to use it and crowds out diplomatic instincts. Others respond that honoring service sustains the morale and recruitment a credible defense requires, and implies nothing about eagerness for war.', 272, true, 1.00, 'conceptual', '2026-07-17 03:00:00+00', '2026-07-17 03:00:00+00'),
+	(271, 'F5', 1, 'Our country should be willing to strike militarily to stop a genocide, even without UN authorization.', NULL, 273, true, 1.25, 'applied', '2026-07-17 03:00:00+00', '2026-07-17 03:00:00+00'),
+	(272, 'F5', -1, 'We should hold off on military action until international bodies authorize it, even if that means acting too late to help.', NULL, 274, true, 1.25, 'applied', '2026-07-17 03:00:00+00', '2026-07-17 03:00:00+00'),
+	(273, 'F5', 1, 'If our country faced a serious military threat, bringing back mandatory military service would be justified.', NULL, 275, true, 1.25, 'applied', '2026-07-17 03:00:00+00', '2026-07-17 03:00:00+00'),
+	(274, 'F5', -1, 'Even with hostile regimes, keeping embassies open and talking is better than cutting ties and isolating them.', NULL, 276, true, 1.25, 'applied', '2026-07-17 03:00:00+00', '2026-07-17 03:00:00+00'),
+	(275, 'F5', 1, 'Our country should sell weapons to friendly governments, even knowing some deals will end up in conflicts we regret.', NULL, 277, true, 1.25, 'applied', '2026-07-17 03:00:00+00', '2026-07-17 03:00:00+00'),
+	(276, 'F5', -1, 'Our country should close most of its overseas military bases and bring the troops home.', NULL, 278, true, 1.25, 'applied', '2026-07-17 03:00:00+00', '2026-07-17 03:00:00+00'),
+	(277, 'C8', 1, 'Expanding nuclear power is a good climate strategy, even accepting the waste and accident risks that come with it.', NULL, 279, true, 1.25, 'applied', '2026-07-17 03:00:00+00', '2026-07-17 03:00:00+00'),
+	(278, 'C8', -1, 'Even to fight climate change, we shouldn''t deploy planet-scale technologies like solar geoengineering that tinker with systems we barely understand.', NULL, 280, true, 1.25, 'applied', '2026-07-17 03:00:00+00', '2026-07-17 03:00:00+00'),
+	(279, 'C9', 1, 'Removing aging dams to restore wild rivers and salmon runs is worth losing the clean power they generate.', NULL, 281, true, 1.25, 'applied', '2026-07-17 03:00:00+00', '2026-07-17 03:00:00+00'),
+	(280, 'C9', -1, 'Dams that still provide clean power and flood control should be kept, even where removing them would revive lost ecosystems.', NULL, 282, true, 1.25, 'applied', '2026-07-17 03:00:00+00', '2026-07-17 03:00:00+00'),
+	(281, 'C1', 1, 'Private companies financing roads and bridges through tolls will build and maintain them better than government agencies funded by taxes.', NULL, 283, true, 1.25, 'applied', '2026-07-17 03:00:00+00', '2026-07-17 03:00:00+00'),
+	(282, 'C1', -1, 'Projects like high-speed rail are worth building even when no private investor would fund them - only government can build at that scale.', NULL, 284, true, 1.25, 'applied', '2026-07-17 03:00:00+00', '2026-07-17 03:00:00+00'),
+	(283, 'C4', 1, 'Communities should be able to say no to wind farms and transmission lines in their area, even if it slows the national energy transition.', NULL, 285, true, 1.25, 'applied', '2026-07-17 03:00:00+00', '2026-07-17 03:00:00+00'),
+	(284, 'C4', -1, 'The national government should be able to fast-track critical energy and transport projects over local objections.', NULL, 286, true, 1.25, 'applied', '2026-07-17 03:00:00+00', '2026-07-17 03:00:00+00'),
+	(285, 'C5', 1, 'When a community asks to be described by a new name or term, adopting the new language is a matter of respect, not ''political correctness''.', NULL, 287, true, 1.25, 'applied', '2026-07-17 03:00:00+00', '2026-07-17 03:00:00+00'),
+	(286, 'C6', -1, 'It''s fair for a country to favor citizenship applicants who already share its language, culture, or ancestry.', NULL, 288, true, 1.25, 'applied', '2026-07-17 03:00:00+00', '2026-07-17 03:00:00+00'),
+	(287, 'C5', 1, 'Religious slaughter practices should have to meet the same animal-welfare rules as everyone else, with no exemptions.', NULL, 289, true, 1.25, 'applied', '2026-07-17 03:00:00+00', '2026-07-17 03:00:00+00'),
+	(288, 'C5', -1, 'Parents should be free to raise and school their children according to their religious traditions, even when that means opting out of mainstream curriculum requirements.', NULL, 290, true, 1.25, 'applied', '2026-07-17 03:00:00+00', '2026-07-17 03:00:00+00');
 
 
 --
@@ -1167,14 +1224,14 @@ INSERT INTO public.roles VALUES
 -- Name: question_axis_links_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.question_axis_links_id_seq', 480, true);
+SELECT pg_catalog.setval('public.question_axis_links_id_seq', 513, true);
 
 
 --
 -- Name: questions_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.questions_id_seq', 264, true);
+SELECT pg_catalog.setval('public.questions_id_seq', 288, true);
 
 
 --

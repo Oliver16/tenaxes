@@ -1,12 +1,16 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { AXES } from '@/lib/instrument'
+import QuestionDistribution, { getBankDistribution } from '@/components/QuestionDistribution'
 
 export const metadata: Metadata = {
   title: 'Methodology — Polyaxis',
   description:
-    'How Polyaxis works: 15 measured dimensions, a 264-item balanced question bank, tradeoff-based tension analysis, archetype matching, and ongoing psychometric validation.',
+    'How Polyaxis works: 15 measured dimensions, a balanced question bank, tradeoff-based tension analysis, archetype matching, and ongoing psychometric validation.',
 }
+
+// Re-check the live question counts at most once an hour
+export const revalidate = 3600
 
 const coreAxes = Object.values(AXES).filter(a => !(a as { is_facet?: boolean }).is_facet)
 const facetAxes = Object.values(AXES).filter(a => (a as { is_facet?: boolean }).is_facet)
@@ -15,7 +19,9 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   return <h2 className="text-2xl font-bold text-gray-900 mt-12 mb-4">{children}</h2>
 }
 
-export default function MethodologyPage() {
+export default async function MethodologyPage() {
+  const distribution = await getBankDistribution()
+  const totalQuestions = distribution?.totals.total ?? 286
   return (
     <main className="min-h-screen bg-gray-50">
       <div className="max-w-3xl mx-auto px-4 py-16">
@@ -84,8 +90,8 @@ export default function MethodologyPage() {
 
         <SectionTitle>2. The question bank</SectionTitle>
         <p className="text-gray-700 leading-relaxed mb-4">
-          The evaluation contains <strong>264 statements</strong> answered on a five-point
-          agree–disagree scale, in two deliberately different registers:
+          The evaluation contains <strong>{totalQuestions} statements</strong> answered on a
+          five-point agree–disagree scale, in two deliberately different registers:
         </p>
         <ul className="list-disc pl-6 text-gray-700 space-y-2 mb-4">
           <li>
@@ -103,9 +109,30 @@ export default function MethodologyPage() {
         <p className="text-gray-700 leading-relaxed mb-4">
           Every axis has an equal number of items keyed toward each pole, so a tendency to
           agree with things (acquiescence bias) cannot masquerade as an ideology. Question
-          order is shuffled per session, skipping is allowed (skipped items are excluded
-          rather than guessed), and there is no time limit.
+          order is shuffled per session with consecutive questions never probing the same
+          axis, skipping is allowed (skipped items are excluded rather than guessed), and
+          there is no time limit.
         </p>
+
+        {distribution && (
+          <>
+            <h3 className="text-lg font-semibold text-gray-900 mt-6 mb-3">
+              How the questions are distributed
+            </h3>
+            <div className="rounded-lg border border-gray-200 bg-white p-5 mb-4">
+              <QuestionDistribution data={distribution} variant="light" />
+            </div>
+            <p className="text-gray-700 leading-relaxed mb-4">
+              The distribution above is computed from the live question bank, not
+              hand-maintained. Coverage is audited on two levels: <em>topic coverage</em>{' '}
+              (which policy domains the scenarios draw from — economics, liberty, culture,
+              ecology, technology, infrastructure, defense, democratic process, and more)
+              and <em>conflict coverage</em> (which pairs of values the tradeoff scenarios
+              actually force against each other). Every reported value tension is backed by
+              at least three distinct scenarios.
+            </p>
+          </>
+        )}
 
         <SectionTitle>3. Scoring</SectionTitle>
         <p className="text-gray-700 leading-relaxed mb-4">
@@ -205,7 +232,7 @@ export default function MethodologyPage() {
 
         <div className="rounded-lg bg-slate-900 p-8 text-center">
           <p className="text-slate-300 mb-4">
-            264 questions. 15 dimensions. Your contradictions included.
+            {totalQuestions} questions. 15 dimensions. Your contradictions included.
           </p>
           <Link
             href="/survey"
