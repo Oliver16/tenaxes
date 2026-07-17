@@ -30,6 +30,19 @@ Do **not** also run `schema.sql`, the seed files, or the migrations —
 policies, functions, triggers, views, all 15 axes, all 264 questions,
 and all 350 question-axis links).
 
+### Already provisioned from an older `fresh_install.sql`?
+
+Databases created before 2026-07-17 carry a recursive
+`"Admins can view all profiles"` RLS policy on `profiles`. Any read whose
+policy sub-selects `profiles` (including the anonymous survey submit, which
+joins `question_axis_links`) then fails with
+`42P17: infinite recursion detected in policy for relation "profiles"` and
+returns a 500. Fix a live project by running
+`supabase/migrations/20260717000000_fix_profiles_recursion_in_fresh_install.sql`
+once in the SQL Editor — it drops the recursive policy and leaves the
+non-recursive self-policies in place. Fresh installs from the current
+`fresh_install.sql` are already correct.
+
 ## 3. Migrate response data (optional)
 
 Only two tables hold respondent data: `survey_responses` and
@@ -118,7 +131,10 @@ UNION ALL SELECT 'links',         count(*) = 350 FROM question_axis_links
 UNION ALL SELECT 'link roles',    count(DISTINCT role) = 3 FROM question_axis_links
 UNION ALL SELECT 'C10 renamed',   bool_and(name = 'Moral Epistemology') FROM axes WHERE id='C10'
 UNION ALL SELECT 'views',         count(*) = 15 FROM axis_weight_audit
-UNION ALL SELECT 'auth trigger',  count(*) = 1 FROM pg_trigger WHERE tgname='on_auth_user_created';
+UNION ALL SELECT 'auth trigger',  count(*) = 1 FROM pg_trigger WHERE tgname='on_auth_user_created'
+UNION ALL SELECT 'no recursive profiles policy',
+  count(*) = 0 FROM pg_policies
+  WHERE schemaname='public' AND tablename='profiles' AND qual ILIKE '%FROM profiles%';
 ```
 
 Then smoke-test the app: `/survey` should load 264 questions, a
