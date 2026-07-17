@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 import { calculateAxisScoresFromLinks } from '@/lib/scorer'
 import type { QuestionWithLinks, ResponsesMap } from '@/lib/database.types'
 import { requireAdmin } from '@/lib/admin-auth'
+import { BANK_VERSION } from '@/lib/question-bank'
 
 export const dynamic = 'force-dynamic'
 
@@ -64,10 +65,18 @@ export async function GET() {
   if (auth.response) return auth.response
 
   try {
+    const { data: publishedBank } = await supabaseAdmin
+      .from('question_bank_versions')
+      .select('id')
+      .eq('status', 'published')
+      .maybeSingle()
+    const bankVersion = publishedBank?.id || BANK_VERSION
+
     const { data: questionData, error: qError } = await supabaseAdmin
       .from('questions')
       .select('*, question_axis_links (*)')
       .eq('active', true)
+      .eq('bank_version', bankVersion)
 
     if (qError) throw qError
 
@@ -81,6 +90,7 @@ export async function GET() {
     const { data: responseRows, error: rError } = await supabaseAdmin
       .from('survey_responses')
       .select('responses')
+      .eq('bank_version', bankVersion)
       .order('created_at', { ascending: false })
       .limit(MAX_SAMPLE)
 

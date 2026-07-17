@@ -5,8 +5,40 @@ import { BANK_ITEMS, BANK_VERSION } from './question-bank'
 const normalizeQuestion = (q: any): Question => ({
   ...q,
   weight: q.weight ?? 1.0,
-  question_type: q.question_type ?? 'conceptual'
+  question_type: q.question_type ?? 'conceptual',
+  question_axis_links: q.question_axis_links || [],
+  question_metadata: Array.isArray(q.question_metadata)
+    ? q.question_metadata[0] || null
+    : q.question_metadata || null
 })
+
+export type QuestionAxisLinkInput = {
+  axis_id: string
+  role: 'secondary' | 'tradeoff'
+  axis_key: 1 | -1
+  weight: number
+}
+
+export type QuestionMetadataInput = {
+  policy_domain: string
+  latent_conflict?: string
+  actor_level?: string
+  policy_instrument?: string
+  scenario_conditions?: string
+  item_family: 'base' | 'collision' | 'controversy_stress'
+  collision_pair?: string
+}
+
+export type QuestionAxisLink = Omit<QuestionAxisLinkInput, 'role'> & {
+  role: 'primary' | 'secondary' | 'tradeoff'
+  id: number
+  question_id: number
+}
+
+export type QuestionMetadata = QuestionMetadataInput & {
+  question_id: number
+  bank_version: string
+}
 
 export type Question = {
   id: number
@@ -19,6 +51,8 @@ export type Question = {
   weight: number
   question_type: 'conceptual' | 'applied'
   bank_version?: string
+  question_axis_links: QuestionAxisLink[]
+  question_metadata: QuestionMetadata | null
   created_at?: string
   updated_at?: string
 }
@@ -33,6 +67,8 @@ export type QuestionInput = {
   weight?: number
   question_type?: 'conceptual' | 'applied'
   bank_version?: string
+  axis_links?: QuestionAxisLinkInput[]
+  metadata?: QuestionMetadataInput
 }
 
 export type QuestionBankVersion = {
