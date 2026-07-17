@@ -62,7 +62,7 @@ export function ResultsProfileHero({
       : <>Your political style most strongly leans <strong>{poleSideLabel(strongestFacet)}</strong>.</>
     : null
   const consistencySentence = consistency
-    ? <>Your principles and practical choices are <strong>{consistency.band.label.toLowerCase()}</strong>.</>
+    ? <>Your principles/practice alignment is <strong>{consistency.band.label.toLowerCase()}</strong>.</>
     : null
 
   const chips: { label: string; value: string }[] = []
@@ -70,7 +70,7 @@ export function ResultsProfileHero({
   if (strongestCore && Math.abs(strongestCore.score) >= MIXED_THRESHOLD) {
     chips.push({ label: 'Strongest axis', value: strongestCore.name })
   }
-  if (consistency) chips.push({ label: 'Consistency', value: `${consistency.rating}/100 · ${consistency.band.label}` })
+  if (consistency) chips.push({ label: 'Alignment', value: `${consistency.rating}/100 · ${consistency.band.label}` })
   chips.push({ label: 'Coverage', value: `${answeredCount} of ${totalQuestions} answered` })
 
   return (

@@ -7,6 +7,7 @@ import {
   isSampleSession,
   loadSampleResultAnalysis
 } from './sample-result.ts'
+import { computeConsistency } from './consistency.ts'
 
 test('sample analysis is a complete deterministic v2.2 evaluation', () => {
   const sample = buildSampleResultAnalysis()
@@ -57,6 +58,13 @@ test('sample drives the full scoring, archetype, and conflict pipeline', () => {
   assert.ok(sample.conflictCounts.protected > 0)
   assert.ok(sample.conflictCounts.traded_away > 0)
   assert.ok(sample.conflictCounts.inconclusive > 0)
+
+  const alignment = computeConsistency(sample.conceptualScores, sample.appliedScores, {
+    conceptualCoverage: sample.conceptualCoverage,
+    appliedCoverage: sample.appliedCoverage
+  })
+  assert.equal(alignment?.rating, 80)
+  assert.equal(alignment?.band.label, 'Mixed')
 })
 
 test('sample session matching is case-insensitive and narrow', () => {

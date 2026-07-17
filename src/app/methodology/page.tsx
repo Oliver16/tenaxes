@@ -185,6 +185,14 @@ export default async function MethodologyPage() {
               primary weight received a numeric answer. Coverage below 50%, or fewer than eight numeric primary responses, is marked insufficient;
               higher bands are labeled low, moderate, or high by explicit thresholds in the scoring code.
             </p>
+            <p className="mt-4 leading-relaxed">
+              The principles/practice alignment rating compares the conceptual and applied score on every adequately covered shared dimension.
+              It converts their root-mean-square gap to a 0&ndash;100 scale, where identical profiles score 100 and a complete pole reversal everywhere
+              scores 0. Squaring each gap before averaging gives a large local divergence more influence, so it cannot vanish among many small
+              differences. A single 0.50 gap caps the result below &ldquo;Highly aligned,&rdquo; while a 0.75 gap caps it below &ldquo;Broadly aligned.&rdquo;
+              The overall rating is withheld unless at least 12 dimensions have 50% coverage in both registers, and near-neutral profiles are
+              left unrated because proximity to zero is not evidence of a stable alignment.
+            </p>
           </section>
 
           <section id="tensions">
