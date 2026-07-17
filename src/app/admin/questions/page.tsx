@@ -9,6 +9,7 @@ import {
   deleteQuestion,
   fetchAllQuestions,
   getAllAxes,
+  publishQuestionBankVersion,
   reorderQuestions,
   toggleQuestionActive,
   updateQuestion,
@@ -18,6 +19,7 @@ import {
 } from '@/lib/questions'
 import { QuestionEditor } from '@/components/admin/QuestionEditor'
 import { QuestionList } from '@/components/admin/QuestionList'
+import { QuestionBankVersionDialog } from '@/components/admin/QuestionBankVersionDialog'
 
 type TypeFilter = 'all' | 'conceptual' | 'applied'
 type StatusFilter = 'all' | 'active' | 'inactive'
@@ -37,6 +39,8 @@ export default function QuestionsAdminPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null)
   const [isAdding, setIsAdding] = useState(false)
+  const [isCreatingVersion, setIsCreatingVersion] = useState(false)
+  const [publishing, setPublishing] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
@@ -128,6 +132,22 @@ export default function QuestionsAdminPage() {
     } else setError(`Question #${id} could not be updated`)
   }
 
+  const handlePublish = async () => {
+    if (!selectedVersion || selectedVersion.status === 'published') return
+    if (!window.confirm(`Publish ${selectedVersion.id} as the live survey bank? The current live bank will be archived, while its existing results remain pinned to it.`)) return
+    setPublishing(true)
+    setError(null)
+    try {
+      await publishQuestionBankVersion(selectedVersion.id)
+      await loadQuestions(selectedVersion.id)
+      flash(`${selectedVersion.id} is now the live survey bank`)
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Failed to publish question bank')
+    } finally {
+      setPublishing(false)
+    }
+  }
+
   const moveQuestion = async (id: number, direction: -1 | 1) => {
     if (selectedAxis === 'all') return
     const index = activeAxisQuestions.findIndex(question => question.id === id)
@@ -154,6 +174,12 @@ export default function QuestionsAdminPage() {
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <Link href="/admin" className="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 hover:bg-white">← Analytics</Link>
+            {selectedVersion && selectedVersion.status !== 'published' && (
+              <button type="button" onClick={() => void handlePublish()} disabled={publishing || loading || activeCount === 0} className="rounded-lg border border-emerald-300 bg-white px-4 py-2.5 text-sm font-semibold text-emerald-700 shadow-sm hover:bg-emerald-50 disabled:opacity-50">
+                {publishing ? 'Publishing…' : 'Publish version'}
+              </button>
+            )}
+            <button type="button" onClick={() => setIsCreatingVersion(true)} disabled={!bankVersion || loading} className="rounded-lg border border-violet-300 bg-white px-4 py-2.5 text-sm font-semibold text-violet-700 shadow-sm hover:bg-violet-50 disabled:opacity-50">New bank version</button>
             <button type="button" onClick={() => setIsAdding(true)} className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700">+ Add question</button>
           </div>
         </header>
@@ -178,8 +204,9 @@ export default function QuestionsAdminPage() {
               disabled={loading}
               className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-800"
             >
-              {versions.map(version => <option key={version.id} value={version.id}>{version.id} · {version.question_count} questions</option>)}
+              {versions.map(version => <option key={version.id} value={version.id}>{version.id} · {version.status === 'published' ? 'Live' : version.status === 'draft' ? 'Draft' : 'Archived'} · {version.question_count} questions</option>)}
             </select>
+            {selectedVersion && <span className={`mt-2 inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${selectedVersion.status === 'published' ? 'bg-emerald-100 text-emerald-700' : selectedVersion.status === 'draft' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'}`}>{selectedVersion.status === 'published' ? 'Live survey' : selectedVersion.status}</span>}
           </label>
         </section>
 
@@ -271,6 +298,23 @@ export default function QuestionsAdminPage() {
               axes={axes}
               onSave={handleSave}
               onCancel={closeEditor}
+            />
+          </div>
+        </div>
+      )}
+
+      {isCreatingVersion && bankVersion && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-gray-950/60 p-4 backdrop-blur-sm sm:p-8">
+          <div className="mx-auto max-w-2xl rounded-2xl bg-white p-5 shadow-2xl sm:p-7">
+            <QuestionBankVersionDialog
+              sourceVersion={bankVersion}
+              sourceQuestionCount={questions.length}
+              onCancel={() => setIsCreatingVersion(false)}
+              onCreated={async (version, questionCount) => {
+                setIsCreatingVersion(false)
+                await loadQuestions(version)
+                flash(`${version} created with ${questionCount} cloned questions`)
+              }}
             />
           </div>
         </div>

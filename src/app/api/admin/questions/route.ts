@@ -40,7 +40,7 @@ export async function GET(request: Request) {
   const requestedVersion = new URL(request.url).searchParams.get('bankVersion')?.trim()
   const { data: versions, error: versionsError } = await supabaseAdmin
     .from('question_bank_versions')
-    .select('id, name, question_count, created_at')
+    .select('id, name, question_count, status, created_at')
     .order('created_at', { ascending: false })
 
   if (versionsError) {
@@ -143,6 +143,21 @@ export async function POST(request: Request) {
   if (error) {
     console.error('Failed to create question:', error)
     return NextResponse.json({ error: 'Failed to create question' }, { status: 500 })
+  }
+
+  const { error: metadataError } = await supabaseAdmin
+    .from('question_metadata')
+    .insert({
+      question_id: data.id,
+      bank_version: bankVersion,
+      policy_domain: 'uncategorized',
+      item_family: 'base'
+    })
+
+  if (metadataError) {
+    console.error('Failed to create question metadata:', metadataError)
+    await supabaseAdmin.from('questions').delete().eq('id', data.id)
+    return NextResponse.json({ error: 'Failed to create question metadata' }, { status: 500 })
   }
 
   return NextResponse.json(data, { status: 201 })
