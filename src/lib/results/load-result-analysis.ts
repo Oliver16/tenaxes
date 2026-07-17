@@ -45,6 +45,8 @@ export interface ResultAnalysis {
   notSureCount: number
   axisCoverage: AxisCoverage[]
   coverageByAxis: Record<string, AxisCoverage>
+  conceptualCoverage: AxisCoverage[]
+  appliedCoverage: AxisCoverage[]
   conceptualScores: AxisScoreType[]
   appliedScores: AxisScoreType[]
   /** Sorted largest gap first; covers every axis present in both registers. */
@@ -116,10 +118,16 @@ export const loadResultAnalysis = cache(
     ).length
     const notSureCount = Object.values(responses).filter(v => v === null).length
 
+    const conceptualQuestions = questions.filter(q => q.question_type === 'conceptual')
+    const appliedQuestions = questions.filter(q => q.question_type === 'applied')
+
     // Recomputed so historical rows without the stored column still get
-    // confidence labels
+    // confidence labels. Register-specific coverage keeps the ideals/practice
+    // comparison from rating axes supported by too few usable answers.
     const axisCoverage = calculateAxisCoverage(responses, questions)
     const coverageByAxis = Object.fromEntries(axisCoverage.map(c => [c.axis_id, c]))
+    const conceptualCoverage = calculateAxisCoverage(responses, conceptualQuestions)
+    const appliedCoverage = calculateAxisCoverage(responses, appliedQuestions)
 
     const conceptualScores = (result.conceptual_scores || []) as unknown as AxisScoreType[]
     const appliedScores = (result.applied_scores || []) as unknown as AxisScoreType[]
@@ -127,7 +135,6 @@ export const loadResultAnalysis = cache(
     // Recompute tensions from the stored responses rather than reading the
     // stored snapshot, so past sessions benefit from link fixes and
     // analyzer improvements automatically
-    const appliedQuestions = questions.filter(q => q.question_type === 'applied')
     const tensionScores = analyzeTensions(responses, appliedQuestions, axes, conceptualScores)
     const collisionPairs = analyzeCollisionPairs(tensionScores)
 
@@ -177,6 +184,8 @@ export const loadResultAnalysis = cache(
       notSureCount,
       axisCoverage,
       coverageByAxis,
+      conceptualCoverage,
+      appliedCoverage,
       conceptualScores,
       appliedScores,
       axisComparisons,

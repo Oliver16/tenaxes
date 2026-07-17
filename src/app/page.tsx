@@ -17,29 +17,7 @@ export const revalidate = 3600
 
 const coreAxes = Object.values(AXES).filter(axis => !('is_facet' in axis))
 const facetAxes = Object.values(AXES).filter(axis => 'is_facet' in axis)
-
-const resultCards = [
-  {
-    number: '01',
-    title: 'Your political fingerprint',
-    copy: 'A position on every core axis and style facet—not a dot stranded in somebody else’s quadrant.',
-  },
-  {
-    number: '02',
-    title: 'Your ideals under pressure',
-    copy: 'See where the principles you endorse in the abstract survive a concrete cost—and where they do not.',
-  },
-  {
-    number: '03',
-    title: 'Your value hierarchy',
-    copy: 'When liberty, order, equality, sovereignty, ecology, and progress collide, find out which value actually wins.',
-  },
-  {
-    number: '04',
-    title: 'Your closest archetypes',
-    copy: `Compare your full profile with ${FLAVOR_ARCHETYPES.length} political types. The match is a description, not a team assignment.`,
-  },
-]
+const featuredCoreAxes = coreAxes.filter(axis => ['C1', 'C3', 'C5', 'C9'].includes(axis.id))
 
 export default async function Home() {
   const distribution = await getBankDistribution()
@@ -119,7 +97,7 @@ export default async function Home() {
               or one unusually strong opinion.
             </p>
             <div className="mt-8 rounded-2xl border border-amber-300/20 bg-amber-300/5 p-6">
-              <p className="font-semibold text-amber-100">Not feeling faint of heart?</p>
+              <p className="font-semibold text-amber-100">Feeling faint of heart?</p>
               <p className="mt-2 text-sm leading-relaxed text-slate-400">
                 Start now, stop whenever you like, and come back later. Your order and answers are saved locally
                 until you finish.
@@ -155,7 +133,7 @@ export default async function Home() {
         <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6 sm:py-24">
           <div className="max-w-3xl">
             <p className="text-sm font-bold uppercase tracking-[0.2em] text-violet-300">The instrument</p>
-            <h2 className="mt-4 text-4xl font-black tracking-tight sm:text-5xl">Eighteen ways to be politically complicated.</h2>
+            <h2 className="mt-4 text-4xl font-black tracking-tight sm:text-5xl">Politics does not fit on two axes.</h2>
             <p className="mt-5 text-lg leading-relaxed text-slate-400">
               Eleven core axes map the society you want. Seven style facets map how you want power exercised,
               change pursued, knowledge trusted, and conflict handled.
@@ -164,9 +142,9 @@ export default async function Home() {
 
           <div className="mt-12 grid gap-10 lg:grid-cols-[1.45fr_1fr]">
             <div>
-              <h3 className="mb-4 text-xs font-bold uppercase tracking-[0.2em] text-slate-500">11 core axes</h3>
+              <h3 className="mb-4 text-xs font-bold uppercase tracking-[0.2em] text-slate-500">A sample of the 11 core axes</h3>
               <div className="grid gap-3 sm:grid-cols-2">
-                {coreAxes.map(axis => (
+                {featuredCoreAxes.map(axis => (
                   <div key={axis.id} className="rounded-xl border border-white/10 bg-slate-950/50 p-4">
                     <div className="font-semibold text-slate-100">{axis.name}</div>
                     <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
@@ -174,6 +152,13 @@ export default async function Home() {
                     </div>
                   </div>
                 ))}
+                <Link
+                  href="/methodology#architecture"
+                  className="rounded-xl border border-dashed border-violet-300/30 bg-violet-400/5 p-4 transition hover:border-violet-300/60 hover:bg-violet-400/10 sm:col-span-2"
+                >
+                  <div className="font-semibold text-violet-200">And seven more core axes.</div>
+                  <div className="mt-2 text-xs text-slate-400">Review all 18 dimensions in the methodology <span aria-hidden="true">&rarr;</span></div>
+                </Link>
               </div>
             </div>
             <div>
@@ -191,21 +176,8 @@ export default async function Home() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-4 py-20 sm:px-6 sm:py-28">
-        <div className="text-center">
-          <p className="text-sm font-bold uppercase tracking-[0.2em] text-emerald-300">Your payoff</p>
-          <h2 className="mt-4 text-4xl font-black tracking-tight sm:text-5xl">More than a label. Much more than a dot.</h2>
-        </div>
-        <div className="mt-12 grid gap-4 md:grid-cols-2">
-          {resultCards.map(card => (
-            <div key={card.number} className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.06] to-transparent p-7">
-              <div className="text-sm font-black text-blue-400">{card.number}</div>
-              <h3 className="mt-5 text-2xl font-bold">{card.title}</h3>
-              <p className="mt-3 leading-relaxed text-slate-400">{card.copy}</p>
-            </div>
-          ))}
-        </div>
-        <div className="mt-8 flex flex-col gap-6 rounded-2xl border border-blue-400/25 bg-gradient-to-r from-blue-500/10 via-white/[0.04] to-violet-500/10 p-7 sm:flex-row sm:items-center sm:justify-between sm:p-8">
+      <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
+        <div className="flex flex-col gap-6 rounded-2xl border border-blue-400/25 bg-gradient-to-r from-blue-500/10 via-white/[0.04] to-violet-500/10 p-7 sm:flex-row sm:items-center sm:justify-between sm:p-8">
           <div className="max-w-2xl">
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-blue-300">Spoilers allowed</p>
             <h3 className="mt-3 text-2xl font-black sm:text-3xl">
