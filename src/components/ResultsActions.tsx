@@ -8,10 +8,23 @@ type Props = {
   sessionId: string
   coreAxes: AxisScore[]
   topFlavor: FlavorMatch | null
+  /** Compact header mode: small Save/Share/Retake row, no share panel. */
+  compact?: boolean
 }
 
-export function ResultsActions({ sessionId, coreAxes, topFlavor }: Props) {
+export function ResultsActions({ sessionId, coreAxes, topFlavor, compact = false }: Props) {
   const [copySuccess, setCopySuccess] = useState(false)
+  const [linkCopied, setLinkCopied] = useState(false)
+
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.origin + `/results/${sessionId}`)
+      setLinkCopied(true)
+      setTimeout(() => setLinkCopied(false), 2000)
+    } catch (err) {
+      console.error('Failed to copy:', err)
+    }
+  }
 
   const handleCopyText = () => {
     const heading = 'My Polyaxis Results:'
@@ -27,6 +40,31 @@ export function ResultsActions({ sessionId, coreAxes, topFlavor }: Props) {
     navigator.clipboard.writeText(text)
     setCopySuccess(true)
     setTimeout(() => setCopySuccess(false), 2000)
+  }
+
+  if (compact) {
+    return (
+      <div className="flex flex-wrap gap-2 justify-center sm:justify-end">
+        <button
+          onClick={handleCopyText}
+          className="px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+        >
+          {copySuccess ? '✓ Copied' : 'Copy results'}
+        </button>
+        <button
+          onClick={handleCopyLink}
+          className="px-3 py-1.5 text-sm border border-gray-300 hover:border-gray-400 text-gray-700 rounded-lg font-medium transition-colors"
+        >
+          {linkCopied ? '✓ Link copied' : 'Share link'}
+        </button>
+        <Link
+          href="/survey"
+          className="px-3 py-1.5 text-sm border border-gray-300 hover:border-gray-400 text-gray-700 rounded-lg font-medium transition-colors"
+        >
+          Retake
+        </Link>
+      </div>
+    )
   }
 
   return (
