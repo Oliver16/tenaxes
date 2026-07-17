@@ -80,7 +80,7 @@ function ShareSection({ sessionId, topFlavor }: { sessionId: string; topFlavor: 
     }
   }
 
-  const shareText = `I just found out I'm a ${topFlavor?.name || 'political type'}! Take the Polyaxis test to discover yours:`
+  const shareText = `I just found out I'm a ${topFlavor?.name || 'political type'}! Take the Polyaxis evaluation to discover yours:`
   const encodedText = encodeURIComponent(shareText)
   const encodedUrl = encodeURIComponent(shareUrl)
 

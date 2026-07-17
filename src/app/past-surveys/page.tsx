@@ -51,7 +51,7 @@ export default async function PastSurveysPage() {
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Past Surveys</h1>
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">Past Results</h1>
           <p className="text-gray-600">
             View all surveys you've taken and revisit your results
           </p>
@@ -77,13 +77,13 @@ export default async function PastSurveysPage() {
               No surveys yet
             </h2>
             <p className="text-gray-500 mb-6">
-              You haven't taken any surveys while logged in. Take your first survey to see it here.
+              You haven't completed any evaluations while logged in. Take your first one to see it here.
             </p>
             <Link
               href="/survey"
               className="inline-block px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
             >
-              Take Survey
+              Take the Evaluation
             </Link>
           </div>
         ) : (

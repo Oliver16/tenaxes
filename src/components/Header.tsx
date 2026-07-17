@@ -30,11 +30,14 @@ export default function Header() {
               </Link>
               <nav className="hidden md:flex md:gap-6">
                 <Link href="/survey" className="text-sm font-medium text-gray-700 hover:text-gray-900">
-                  Take Survey
+                  Take the Evaluation
+                </Link>
+                <Link href="/methodology" className="text-sm font-medium text-gray-700 hover:text-gray-900">
+                  Methodology
                 </Link>
                 {user && (
                   <Link href="/past-surveys" className="text-sm font-medium text-gray-700 hover:text-gray-900">
-                    Past Surveys
+                    Past Results
                   </Link>
                 )}
                 {isAdmin && (

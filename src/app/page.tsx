@@ -56,6 +56,11 @@ export default async function Home() {
             Start the Evaluation →
           </Link>
           <p className="text-slate-400 text-sm mt-4">~30 minutes • No account required • Worth it</p>
+          <p className="text-slate-500 text-sm mt-2">
+            <Link href="/methodology" className="underline hover:text-slate-300">
+              Read the methodology
+            </Link>
+          </p>
         </div>
 
         {/* Axes Preview */}

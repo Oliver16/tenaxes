@@ -130,7 +130,7 @@ export default async function ResultsPage({
     <div className="container mx-auto py-12 space-y-16">
       {/* Existing: Overall summary */}
       <section>
-        <h1 className="text-4xl font-bold mb-8">Your Political Compass Results</h1>
+        <h1 className="text-4xl font-bold mb-8">Your Polyaxis Profile</h1>
         {/* Existing summary content */}
       </section>
 
