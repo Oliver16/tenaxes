@@ -1,6 +1,12 @@
 import Link from 'next/link'
+import QuestionDistribution, { getBankDistribution } from '@/components/QuestionDistribution'
 
-export default function Home() {
+// Re-check the live question counts at most once an hour
+export const revalidate = 3600
+
+export default async function Home() {
+  const distribution = await getBankDistribution()
+  const totalQuestions = distribution?.totals.total ?? 286
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800">
       {/* Hero Section */}
@@ -12,7 +18,7 @@ export default function Home() {
             </span>
           </h1>
           <p className="text-xl text-slate-300 max-w-2xl mx-auto mb-4">
-            The most rigorous ideological evaluation you can take. 264 questions across
+            The most rigorous ideological evaluation you can take. {totalQuestions} questions across
             11 core axes and 4 style facets — measuring not just what you believe, but
             which values win when they collide, and where your choices contradict your ideals.
           </p>
@@ -25,7 +31,7 @@ export default function Home() {
           >
             Start the Evaluation →
           </Link>
-          <p className="text-slate-400 text-sm mt-4">~30 minutes • No account required • Worth it</p>
+          <p className="text-slate-400 text-sm mt-4">~35 minutes • No account required • Worth it</p>
           <p className="text-slate-500 text-sm mt-2">
             <Link href="/methodology" className="underline hover:text-slate-300">
               Read the methodology
@@ -61,6 +67,21 @@ export default function Home() {
             ))}
           </div>
         </div>
+
+        {/* Question Bank Distribution */}
+        {distribution && (
+          <div className="mb-16">
+            <h2 className="text-2xl font-bold text-white text-center mb-2">A Balanced Question Bank</h2>
+            <p className="text-slate-300 text-center mb-8 max-w-2xl mx-auto">
+              Every dimension is measured in two registers — abstract principles and
+              concrete scenarios with real costs attached. Here is exactly how the
+              questions are distributed.
+            </p>
+            <div className="max-w-3xl mx-auto bg-slate-800/30 rounded-xl border border-slate-700 p-6">
+              <QuestionDistribution data={distribution} variant="dark" />
+            </div>
+          </div>
+        )}
 
         {/* Flavor Archetypes Preview */}
         <div className="mb-16">
@@ -150,7 +171,7 @@ export default function Home() {
       {/* Footer */}
       <footer className="border-t border-slate-800 py-8">
         <div className="max-w-6xl mx-auto px-4 text-center text-slate-500 text-sm">
-          <p>264 questions • 11 core axes • 4 style facets • 33 political archetypes</p>
+          <p>{totalQuestions} questions • 11 core axes • 4 style facets • 33 political archetypes</p>
           <div className="mt-4">
             <a href="/admin" className="text-slate-400 hover:text-slate-300">
               View Analytics →

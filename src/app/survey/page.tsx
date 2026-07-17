@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { AXES } from '@/lib/instrument'
 import { fetchActiveQuestions, type Question } from '@/lib/questions'
 import { nanoid } from 'nanoid'
-import { seededShuffle } from '@/lib/shuffle'
+import { seededShuffleSpaced } from '@/lib/shuffle'
 
 const RESPONSE_OPTIONS = [
   { value: -2, label: 'Strongly Disagree', short: 'SD', color: 'bg-red-600' },
@@ -35,8 +35,9 @@ export default function SurveyPage() {
       const data = await fetchActiveQuestions()
       // Sort by display_order first for consistency
       data.sort((a, b) => a.display_order - b.display_order)
-      // Then shuffle using session ID as seed for per-user randomization
-      const shuffled = seededShuffle(data, sessionId)
+      // Then shuffle using session ID as seed for per-user randomization,
+      // spacing items so no two consecutive questions share an axis
+      const shuffled = seededShuffleSpaced(data, sessionId, q => q.axis_id)
       setQuestions(shuffled)
       setLoading(false)
     }
