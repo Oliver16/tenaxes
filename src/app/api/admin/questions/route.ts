@@ -33,21 +33,68 @@ async function authorize() {
   return requireAdmin()
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const auth = await authorize()
   if (auth.response) return auth.response
 
-  const { data, error } = await supabaseAdmin
-    .from('questions')
-    .select('*')
-    .order('display_order', { ascending: true })
+  const requestedVersion = new URL(request.url).searchParams.get('bankVersion')?.trim()
+  const { data: versions, error: versionsError } = await supabaseAdmin
+    .from('question_bank_versions')
+    .select('id, name, question_count, created_at')
+    .order('created_at', { ascending: false })
 
-  if (error) {
-    console.error('Failed to fetch admin question bank:', error)
+  if (versionsError) {
+    console.error('Failed to fetch question bank versions:', versionsError)
+    return NextResponse.json({ error: 'Failed to fetch question bank versions' }, { status: 500 })
+  }
+
+  const bankVersion = requestedVersion || versions?.[0]?.id || 'v2.2'
+  const knownVersion = (versions || []).some(version => version.id === bankVersion)
+  if (requestedVersion && !knownVersion) {
+    return NextResponse.json({ error: 'Question bank version not found' }, { status: 404 })
+  }
+
+  // Supabase projects commonly cap a single response at 1,000 rows. Fetch in
+  // bounded pages so historical databases never return a silently truncated
+  // bank, while filtering prevents different versions from being mixed.
+  const questions: any[] = []
+  const pageSize = 500
+  for (let from = 0; from < 5000; from += pageSize) {
+    const { data, error } = await supabaseAdmin
+      .from('questions')
+      .select('*')
+      .eq('bank_version', bankVersion)
+      .order('display_order', { ascending: true })
+      .range(from, from + pageSize - 1)
+
+    if (error) {
+      console.error('Failed to fetch admin question bank:', error)
+      return NextResponse.json({ error: 'Failed to fetch questions' }, { status: 500 })
+    }
+    questions.push(...(data || []))
+    if (!data || data.length < pageSize) break
+  }
+
+  const selectedVersion = (versions || []).find(version => version.id === bankVersion)
+  if (selectedVersion && questions.length !== selectedVersion.question_count) {
+    console.warn('Question bank count mismatch', {
+      bankVersion,
+      expected: selectedVersion.question_count,
+      loaded: questions.length
+    })
+  }
+
+  if (questions.length >= 5000) {
     return NextResponse.json({ error: 'Failed to fetch questions' }, { status: 500 })
   }
 
-  return NextResponse.json(data || [])
+  return NextResponse.json({
+    questions,
+    bankVersion,
+    versions: versions || []
+  }, {
+    headers: { 'Cache-Control': 'no-store' }
+  })
 }
 
 export async function POST(request: Request) {

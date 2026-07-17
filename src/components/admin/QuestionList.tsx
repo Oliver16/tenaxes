@@ -1,12 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { Question } from '@/lib/questions'
 
 type Props = {
   questions: Question[]
-  poleNegative: string
-  polePositive: string
+  axisNames: Record<string, string>
+  canReorder: boolean
   onEdit: (question: Question) => void
   onDelete: (id: number) => void
   onToggleActive: (id: number, active: boolean) => void
@@ -14,10 +14,12 @@ type Props = {
   onMoveDown: (id: number) => void
 }
 
+const PAGE_SIZE = 40
+
 export function QuestionList({
   questions,
-  poleNegative,
-  polePositive,
+  axisNames,
+  canReorder,
   onEdit,
   onDelete,
   onToggleActive,
@@ -25,252 +27,103 @@ export function QuestionList({
   onMoveDown
 }: Props) {
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null)
+  const [page, setPage] = useState(1)
+  const pageCount = Math.max(1, Math.ceil(questions.length / PAGE_SIZE))
+
+  useEffect(() => setPage(1), [questions])
+
+  const visibleQuestions = useMemo(
+    () => questions.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [page, questions]
+  )
 
   if (questions.length === 0) {
     return (
-      <div className="text-center py-8 text-gray-500">
-        No questions for this axis yet. Add one above.
+      <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-6 py-12 text-center">
+        <p className="font-medium text-gray-700">No questions match these filters.</p>
+        <p className="mt-1 text-sm text-gray-500">Clear a filter or add a new question.</p>
       </div>
     )
   }
 
-  // Separate active and inactive
-  const activeQuestions = questions.filter(q => q.active)
-  const inactiveQuestions = questions.filter(q => !q.active)
-
   return (
-    <div className="space-y-2">
-      {/* Active Questions */}
-      {activeQuestions.map((question, index) => (
-        <QuestionRow
-          key={question.id}
-          question={question}
-          poleNegative={poleNegative}
-          polePositive={polePositive}
-          isFirst={index === 0}
-          isLast={index === activeQuestions.length - 1}
-          confirmDelete={confirmDelete === question.id}
-          onEdit={() => onEdit(question)}
-          onDelete={() => {
-            if (confirmDelete === question.id) {
-              onDelete(question.id)
-              setConfirmDelete(null)
-            } else {
-              setConfirmDelete(question.id)
-            }
-          }}
-          onCancelDelete={() => setConfirmDelete(null)}
-          onToggleActive={() => onToggleActive(question.id, false)}
-          onMoveUp={() => onMoveUp(question.id)}
-          onMoveDown={() => onMoveDown(question.id)}
-        />
-      ))}
+    <div className="space-y-3">
+      <div className="flex items-center justify-between text-sm text-gray-500">
+        <span>
+          Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, questions.length)} of {questions.length}
+        </span>
+        {pageCount > 1 && <span>Page {page} of {pageCount}</span>}
+      </div>
 
-      {/* Inactive Questions */}
-      {inactiveQuestions.length > 0 && (
-        <div className="mt-6">
-          <h4 className="text-sm font-medium text-gray-500 mb-2 flex items-center gap-2">
-            <span className="w-2 h-2 bg-gray-400 rounded-full"></span>
-            Inactive Questions ({inactiveQuestions.length})
-          </h4>
-          {inactiveQuestions.map((question) => (
-            <QuestionRow
-              key={question.id}
-              question={question}
-              poleNegative={poleNegative}
-              polePositive={polePositive}
-              isFirst={false}
-              isLast={false}
-              isInactive
-              confirmDelete={confirmDelete === question.id}
-              onEdit={() => onEdit(question)}
-              onDelete={() => {
-                if (confirmDelete === question.id) {
-                  onDelete(question.id)
-                  setConfirmDelete(null)
-                } else {
-                  setConfirmDelete(question.id)
-                }
-              }}
-              onCancelDelete={() => setConfirmDelete(null)}
-              onToggleActive={() => onToggleActive(question.id, true)}
-              onMoveUp={() => {}}
-              onMoveDown={() => {}}
-            />
-          ))}
+      {visibleQuestions.map(question => {
+        const position = questions.findIndex(item => item.id === question.id)
+        const deleting = confirmDelete === question.id
+
+        return (
+          <article
+            key={question.id}
+            className={`rounded-xl border p-4 transition ${
+              question.active ? 'border-gray-200 bg-white hover:border-blue-300' : 'border-gray-200 bg-gray-50'
+            }`}
+          >
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+              <button
+                type="button"
+                onClick={() => onEdit(question)}
+                className="min-w-0 flex-1 text-left"
+                aria-label={`Edit question ${question.id}`}
+              >
+                <div className="mb-2 flex flex-wrap items-center gap-2 text-xs">
+                  <span className="rounded bg-gray-900 px-2 py-1 font-mono font-semibold text-white">#{question.id}</span>
+                  <span className="rounded bg-gray-100 px-2 py-1 font-medium text-gray-700">
+                    {question.axis_id} · {axisNames[question.axis_id] || question.axis_id}
+                  </span>
+                  <span className={`rounded px-2 py-1 font-medium ${question.question_type === 'applied' ? 'bg-violet-100 text-violet-700' : 'bg-sky-100 text-sky-700'}`}>
+                    {question.question_type === 'applied' ? 'Applied' : 'Conceptual'}
+                  </span>
+                  <span className={`rounded px-2 py-1 font-medium ${question.active ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-600'}`}>
+                    {question.active ? 'Active' : 'Inactive'}
+                  </span>
+                  <span className="text-gray-400">Order {question.display_order} · Weight {question.weight}</span>
+                </div>
+                <p className={`leading-relaxed text-gray-900 ${question.active ? '' : 'text-gray-500'}`}>{question.text}</p>
+                {question.educational_content && (
+                  <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-gray-500">{question.educational_content}</p>
+                )}
+              </button>
+
+              <div className="flex shrink-0 items-center gap-1 self-end sm:self-start">
+                {canReorder && question.active && (
+                  <>
+                    <button type="button" onClick={() => onMoveUp(question.id)} disabled={position === 0} className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-25" title="Move up" aria-label="Move up">↑</button>
+                    <button type="button" onClick={() => onMoveDown(question.id)} disabled={position === questions.length - 1} className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-25" title="Move down" aria-label="Move down">↓</button>
+                  </>
+                )}
+                <button type="button" onClick={() => onEdit(question)} className="rounded-lg px-3 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50">Edit</button>
+                <button type="button" onClick={() => onToggleActive(question.id, !question.active)} className="rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100">
+                  {question.active ? 'Deactivate' : 'Activate'}
+                </button>
+                {deleting ? (
+                  <>
+                    <button type="button" onClick={() => { onDelete(question.id); setConfirmDelete(null) }} className="rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700">Confirm</button>
+                    <button type="button" onClick={() => setConfirmDelete(null)} className="rounded-lg px-3 py-2 text-sm text-gray-600 hover:bg-gray-100">Cancel</button>
+                  </>
+                ) : (
+                  <button type="button" onClick={() => setConfirmDelete(question.id)} className="rounded-lg px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50">Delete</button>
+                )}
+              </div>
+            </div>
+          </article>
+        )
+      })}
+
+      {pageCount > 1 && (
+        <div className="flex items-center justify-between border-t border-gray-200 pt-4">
+          <button type="button" onClick={() => setPage(current => Math.max(1, current - 1))} disabled={page === 1} className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 disabled:opacity-40">Previous</button>
+          <span className="text-sm text-gray-500">Page {page} of {pageCount}</span>
+          <button type="button" onClick={() => setPage(current => Math.min(pageCount, current + 1))} disabled={page === pageCount} className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 disabled:opacity-40">Next</button>
         </div>
       )}
     </div>
-  )
-}
-
-type QuestionRowProps = {
-  question: Question
-  poleNegative: string
-  polePositive: string
-  isFirst: boolean
-  isLast: boolean
-  isInactive?: boolean
-  confirmDelete: boolean
-  onEdit: () => void
-  onDelete: () => void
-  onCancelDelete: () => void
-  onToggleActive: () => void
-  onMoveUp: () => void
-  onMoveDown: () => void
-}
-
-function QuestionRow({
-  question,
-  poleNegative,
-  polePositive,
-  isFirst,
-  isLast,
-  isInactive,
-  confirmDelete,
-  onEdit,
-  onDelete,
-  onCancelDelete,
-  onToggleActive,
-  onMoveUp,
-  onMoveDown
-}: QuestionRowProps) {
-  return (
-    <div className={`p-3 rounded-lg border ${
-      isInactive 
-        ? 'bg-gray-50 border-gray-200 opacity-60' 
-        : 'bg-white border-gray-200 hover:border-gray-300'
-    } transition-all`}>
-      <div className="flex gap-3">
-        {/* Order & Key indicator */}
-        <div className="flex flex-col items-center gap-1 pt-1">
-          {!isInactive && (
-            <>
-              <button
-                onClick={onMoveUp}
-                disabled={isFirst}
-                className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30"
-                title="Move up"
-              >
-                ▲
-              </button>
-              <span className="text-xs text-gray-400 font-mono">
-                #{question.display_order}
-              </span>
-              <button
-                onClick={onMoveDown}
-                disabled={isLast}
-                className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30"
-                title="Move down"
-              >
-                ▼
-              </button>
-            </>
-          )}
-        </div>
-
-        {/* Key indicator */}
-        <div className="flex-shrink-0 pt-1">
-          <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-            question.key === -1 
-              ? 'bg-red-100 text-red-700' 
-              : 'bg-green-100 text-green-700'
-          }`}>
-            {question.key === -1 ? '←' : '→'}
-          </span>
-        </div>
-
-        {/* Question text */}
-        <div className="flex-1 min-w-0">
-          <p className={`text-gray-800 ${isInactive ? 'line-through' : ''}`}>
-            {question.text}
-          </p>
-          <p className="text-xs text-gray-400 mt-1">
-            Agreement → {question.key === -1 ? poleNegative : polePositive}
-          </p>
-        </div>
-
-        {/* Actions */}
-        <div className="flex items-start gap-1">
-          {confirmDelete ? (
-            <>
-              <button
-                onClick={onDelete}
-                className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
-              >
-                Confirm
-              </button>
-              <button
-                onClick={onCancelDelete}
-                className="px-2 py-1 text-xs text-gray-600 hover:text-gray-800"
-              >
-                Cancel
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                onClick={onEdit}
-                className="p-1.5 text-gray-400 hover:text-blue-600 rounded"
-                title="Edit"
-              >
-                <EditIcon />
-              </button>
-              <button
-                onClick={onToggleActive}
-                className={`p-1.5 rounded ${
-                  isInactive 
-                    ? 'text-gray-400 hover:text-green-600' 
-                    : 'text-gray-400 hover:text-orange-600'
-                }`}
-                title={isInactive ? 'Activate' : 'Deactivate'}
-              >
-                {isInactive ? <CheckIcon /> : <PauseIcon />}
-              </button>
-              <button
-                onClick={onDelete}
-                className="p-1.5 text-gray-400 hover:text-red-600 rounded"
-                title="Delete"
-              >
-                <TrashIcon />
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// Icons
-function EditIcon() {
-  return (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-    </svg>
-  )
-}
-
-function TrashIcon() {
-  return (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-    </svg>
-  )
-}
-
-function PauseIcon() {
-  return (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-    </svg>
-  )
-}
-
-function CheckIcon() {
-  return (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-    </svg>
   )
 }
