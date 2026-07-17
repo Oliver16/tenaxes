@@ -300,7 +300,7 @@ CREATE TABLE public.question_metadata (
     item_family text NOT NULL,
     collision_pair text,
     created_at timestamp with time zone DEFAULT now(),
-    CONSTRAINT question_metadata_item_family_check CHECK ((item_family = ANY (ARRAY['base'::text, 'collision'::text])))
+    CONSTRAINT question_metadata_item_family_check CHECK ((item_family = ANY (ARRAY['base'::text, 'collision'::text, 'controversy_stress'::text])))
 );
 
 COMMENT ON TABLE public.question_metadata IS 'Semantic tags for coverage auditing, adaptive form assembly, and deliberate collision-scenario analysis.';

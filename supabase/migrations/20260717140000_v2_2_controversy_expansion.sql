@@ -12,6 +12,14 @@ ON CONFLICT (id) DO UPDATE SET
   question_count = EXCLUDED.question_count,
   collision_count = EXCLUDED.collision_count;
 
+-- The pre-v2.2 schema restricts item_family to ('base','collision');
+-- widen it before inserting the new controversy_stress metadata rows.
+ALTER TABLE public.question_metadata
+  DROP CONSTRAINT IF EXISTS question_metadata_item_family_check;
+ALTER TABLE public.question_metadata
+  ADD CONSTRAINT question_metadata_item_family_check
+  CHECK (item_family = ANY (ARRAY['base'::text, 'collision'::text, 'controversy_stress'::text]));
+
 ALTER TABLE public.questions ALTER COLUMN bank_version SET DEFAULT 'v2.2';
 ALTER TABLE public.survey_responses ALTER COLUMN bank_version SET DEFAULT 'v2.2';
 ALTER TABLE public.survey_results ALTER COLUMN bank_version SET DEFAULT 'v2.2';
