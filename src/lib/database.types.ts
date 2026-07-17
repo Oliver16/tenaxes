@@ -312,6 +312,7 @@ export interface Database {
           notes: string | null
           question_count: number | null
           collision_count: number | null
+          status: string
           created_at: string | null
         }
         Insert: {
@@ -320,6 +321,7 @@ export interface Database {
           notes?: string | null
           question_count?: number | null
           collision_count?: number | null
+          status?: string
           created_at?: string | null
         }
         Update: {
@@ -328,6 +330,7 @@ export interface Database {
           notes?: string | null
           question_count?: number | null
           collision_count?: number | null
+          status?: string
           created_at?: string | null
         }
         Relationships: []

@@ -1,6 +1,6 @@
 import { supabase } from './supabase'
 import { AXES, type AxisId } from './instrument'
-import { BANK_ITEMS } from './question-bank'
+import { BANK_ITEMS, BANK_VERSION } from './question-bank'
 
 const normalizeQuestion = (q: any): Question => ({
   ...q,
@@ -39,6 +39,7 @@ export type QuestionBankVersion = {
   id: string
   name: string
   question_count: number
+  status: 'draft' | 'published' | 'archived'
   created_at: string
 }
 
@@ -47,6 +48,34 @@ export type AdminQuestionBank = {
   questions: Question[]
   bankVersion: string
   versions: QuestionBankVersion[]
+}
+
+export type CreateQuestionBankVersionInput = {
+  sourceVersion: string
+  version: string
+  name: string
+  notes?: string
+}
+
+export async function createQuestionBankVersion(input: CreateQuestionBankVersionInput): Promise<{ bankVersion: string; questionCount: number }> {
+  const response = await fetch('/api/admin/question-banks', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input)
+  })
+  const body = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(body.error || 'Failed to create question bank version')
+  return body
+}
+
+export async function publishQuestionBankVersion(version: string): Promise<void> {
+  const response = await fetch('/api/admin/question-banks', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ version, action: 'publish' })
+  })
+  const body = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(body.error || 'Failed to publish question bank version')
 }
 
 // Fetch all questions grouped by axis
@@ -83,10 +112,19 @@ export async function fetchAllQuestions(bankVersion?: string): Promise<AdminQues
 
 // Fetch active questions for survey
 export async function fetchActiveQuestions(): Promise<Question[]> {
+  const { data: publishedVersion, error: versionError } = await supabase
+    .from('question_bank_versions')
+    .select('id')
+    .eq('status', 'published')
+    .maybeSingle()
+  const liveBankVersion = (publishedVersion as { id: string } | null)?.id || BANK_VERSION
+  if (versionError) console.warn('Could not resolve published question bank; using the bundled version', versionError)
+
   const { data, error } = await supabase
     .from('questions')
     .select('*')
     .eq('active', true)
+    .eq('bank_version', liveBankVersion)
     .order('display_order', { ascending: true })
 
   if (error) {
@@ -111,10 +149,16 @@ export async function fetchActiveQuestions(): Promise<Question[]> {
 
 // Fetch questions for a specific axis
 export async function fetchQuestionsByAxis(axisId: string): Promise<Question[]> {
+  const { data: publishedVersion } = await supabase
+    .from('question_bank_versions')
+    .select('id')
+    .eq('status', 'published')
+    .maybeSingle()
   const { data, error } = await supabase
     .from('questions')
     .select('*')
     .eq('axis_id', axisId)
+    .eq('bank_version', (publishedVersion as { id: string } | null)?.id || BANK_VERSION)
     .order('display_order', { ascending: true })
 
   if (error) {

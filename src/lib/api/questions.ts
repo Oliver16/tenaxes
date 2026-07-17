@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/client'
 import { QuestionWithLinks } from '@/lib/database.types'
+import { BANK_VERSION } from '@/lib/question-bank'
 
 /**
  * Fetch all active questions with their axis links.
@@ -18,6 +19,15 @@ export async function fetchQuestionsWithLinks(
     return []
   }
   const supabase = createClient()
+  let liveBankVersion = BANK_VERSION
+  if (!options?.bankVersion && !options?.questionIds) {
+    const { data } = await supabase
+      .from('question_bank_versions')
+      .select('id')
+      .eq('status', 'published')
+      .maybeSingle()
+    liveBankVersion = (data as { id: string } | null)?.id || BANK_VERSION
+  }
 
   let query = supabase
     .from('questions')
@@ -41,7 +51,7 @@ export async function fetchQuestionsWithLinks(
     // are the pin: include those exact (possibly inactive) question rows.
     query = query.in('id', options.questionIds)
   } else {
-    query = query.eq('active', true)
+    query = query.eq('active', true).eq('bank_version', liveBankVersion)
   }
 
   const { data, error } = await query.order('display_order', { ascending: true })
@@ -61,6 +71,11 @@ export async function fetchQuestionsByType(
   type: 'conceptual' | 'applied'
 ): Promise<QuestionWithLinks[]> {
   const supabase = createClient()
+  const { data: publishedVersion } = await supabase
+    .from('question_bank_versions')
+    .select('id')
+    .eq('status', 'published')
+    .maybeSingle()
   
   const { data, error } = await supabase
     .from('questions')
@@ -76,6 +91,7 @@ export async function fetchQuestionsByType(
       )
     `)
     .eq('active', true)
+    .eq('bank_version', (publishedVersion as { id: string } | null)?.id || BANK_VERSION)
     .eq('question_type', type)
     .order('display_order', { ascending: true })
   
