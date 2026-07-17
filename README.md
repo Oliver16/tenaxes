@@ -1,12 +1,12 @@
-# TenAxes
+# Polyaxis
 
-A Next.js application with Supabase backend for a 150-item political orientation survey (98 conceptual + 52 applied questions).
+A Next.js application with Supabase backend for a 264-item political orientation survey (110 conceptual + 154 applied questions).
 
 ## Features
 
-- **10 Core Axes**: Economic control, equality, liberty, federalism, culture, group identity, sovereignty, technology, environment, moral foundations
-- **3 Style Facets**: Change strategy, institutional trust, justice style
-- **25+ Political Archetypes**: Automatically matched based on your profile
+- **11 Core Axes**: Economic control, equality, liberty, federalism, culture, group identity, sovereignty, technology, environment, moral epistemology, force & peace
+- **4 Style Facets**: Change strategy, institutional trust, justice style, decision authority
+- **33 Political Archetypes**: Automatically matched based on your profile
 - **Rich Visualizations**: Radar charts, axis scales, flavor bar charts
 - **Admin Analytics Dashboard**: Response trends, population averages, popular types
 - **Anonymous**: No login, no PII collection
@@ -20,10 +20,8 @@ A Next.js application with Supabase backend for a 150-item political orientation
 
 1. Go to [supabase.com](https://supabase.com) and create a new project
 2. Once created, go to **SQL Editor**
-3. Paste the contents of `supabase/schema.sql` and run it
-4. Paste the contents of `supabase/seed.sql` and run it (loads 98 conceptual questions)
-5. Paste the contents of `supabase/seed_applied.sql` and run it (loads 52 applied questions)
-6. Go to **Settings → API** and copy:
+3. Paste the contents of `supabase/fresh_install.sql` and run it once — this installs the complete current state (schema, policies, 15 axes, 264 questions, all links). Do not run `schema.sql`/seeds/migrations separately for a new project; see `docs/supabase-migration.md` for details and for migrating data from an old project.
+4. Go to **Settings → API** and copy:
    - Project URL
    - `anon` public key
 
@@ -64,7 +62,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
 | Route | Description |
 |-------|-------------|
 | `/` | Landing page with feature overview |
-| `/survey` | 150-question questionnaire (98 conceptual + 52 applied) |
+| `/survey` | 264-question questionnaire (110 conceptual + 154 applied) |
 | `/results/[sessionId]` | Individual results with visualizations |
 | `/admin` | Analytics dashboard |
 | `/admin/questions` | Question management (add/edit/delete) |
@@ -92,7 +90,7 @@ npm run dev
 ## Project Structure
 
 ```
-tenaxes/
+polyaxis/
 ├── src/
 │   ├── app/
 │   │   ├── page.tsx              # Landing page
@@ -211,7 +209,7 @@ After running `schema.sql`, seed the default questions:
 
 ## Content provenance
 
-- Archetype descriptions and survey questions were authored specifically for this project by the TenAxes contributors and are original to the repository. No third-party licensed text was incorporated.
+- Archetype descriptions and survey questions were authored specifically for this project by the Polyaxis contributors and are original to the repository. No third-party licensed text was incorporated.
 - If future updates incorporate external wording or data, include clear attribution (source name, URL, and license) in this section and ensure the license permits reuse within this project.
 
 ### Contributor checklist for new archetypes or questions

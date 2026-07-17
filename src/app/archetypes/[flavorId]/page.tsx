@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase-server'
 import { FLAVOR_ARCHETYPES, AXES } from '@/lib/instrument'
+import { buildAxisSummaries, computeFlavorMatches, scoresById } from '@/lib/flavor-matcher'
 import type { SurveyResult, FlavorMatch, AxisScore } from '@/lib/supabase'
 import type { Database } from '@/lib/database.types'
 
@@ -37,20 +38,28 @@ export default async function ArchetypePage({ params, searchParams }: Props) {
       // Type the data explicitly and cast JSONB fields to proper types
       const row = data as Database['public']['Tables']['survey_results']['Row']
 
+      // Older sessions may predate stored summaries/matches; rebuild them
+      // from the raw axis scores so every session gets a character sheet.
+      const rawScores = (row.scores || []) as unknown as { axis_id: string; score: number }[]
+      const summaries = row.core_axes
+        ? { core_axes: row.core_axes as unknown as AxisScore[], facets: (row.facets || []) as unknown as AxisScore[] }
+        : buildAxisSummaries(rawScores)
+      const topFlavors = row.top_flavors
+        ? (row.top_flavors as unknown as FlavorMatch[])
+        : computeFlavorMatches(scoresById(rawScores))
+
       userResults = {
         id: row.id,
         session_id: row.session_id,
         user_id: row.user_id,
-        core_axes: row.core_axes as unknown as AxisScore[],
-        facets: row.facets as unknown as AxisScore[],
-        top_flavors: row.top_flavors as unknown as FlavorMatch[],
+        core_axes: summaries.core_axes,
+        facets: summaries.facets,
+        top_flavors: topFlavors,
         created_at: row.created_at
       }
 
-      userAxes = userResults.core_axes
-      userMatch = userResults.top_flavors.find(
-        f => f.flavor_id === flavorId
-      ) || null
+      userAxes = [...summaries.core_axes, ...summaries.facets]
+      userMatch = topFlavors.find(f => f.flavor_id === flavorId) || null
     }
   }
 
@@ -138,16 +147,16 @@ export default async function ArchetypePage({ params, searchParams }: Props) {
                     <div
                       className="h-full flex items-center justify-end pr-3 text-white text-sm font-semibold"
                       style={{
-                        width: `${((userMatch.affinity + 1) / 2) * 100}%`,
+                        width: `${Math.max(userMatch.affinity, 0) * 100}%`,
                         backgroundColor: archetype.color,
                       }}
                     >
-                      {Math.round(((userMatch.affinity + 1) / 2) * 100)}%
+                      {userMatch.affinity > 0 ? `${Math.round(userMatch.affinity * 100)}%` : ''}
                     </div>
                   </div>
                 </div>
                 <span className="text-lg font-semibold text-gray-700 dark:text-gray-300">
-                  {userMatch.match_strength} Match
+                  {userMatch.affinity < -0.1 ? 'Opposed' : `${userMatch.match_strength} Match`}
                 </span>
               </div>
             </div>
@@ -299,10 +308,11 @@ export default async function ArchetypePage({ params, searchParams }: Props) {
                 Overall Match Calculation
               </h3>
               <p className="text-sm text-blue-800 dark:text-blue-300">
-                Your {Math.round(((userMatch.affinity + 1) / 2) * 100)}% match with {archetype.name} was
+                Your {Math.round(Math.max(userMatch.affinity, 0) * 100)}% match with {archetype.name} was
                 calculated by measuring how closely your positions on each axis align with this archetype's
                 ideal positions, weighted by the importance of each dimension. The closer your positions
-                align with the archetype's core dimensions, the stronger your match.
+                align with the archetype's core dimensions, the stronger your match
+                {userMatch.affinity < 0 ? ' — your positions currently lean against this archetype' : ''}.
               </p>
             </div>
           </section>
@@ -315,7 +325,7 @@ export default async function ArchetypePage({ params, searchParams }: Props) {
               See Your Personal Match
             </h3>
             <p className="text-sm text-yellow-800 dark:text-yellow-300 mb-4">
-              Take the TenAxes survey to see how your positions align with this archetype
+              Take the Polyaxis evaluation to see how your positions align with this archetype
               and get a personalized explanation of your match.
             </p>
             <Link

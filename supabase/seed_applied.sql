@@ -96,7 +96,7 @@ INSERT INTO questions (id, axis_id, key, text, display_order, active, weight, qu
 -- =====================
 -- F2: Institutional Trust (Trusting ↔ Skeptical)
 -- =====================
-(143, 'F2', 1, 'When public health officials recommend a new vaccine, I want to see independent verification before fully accepting their guidance.', 145, true, 1.25, 'applied'),
+(143, 'F2', 1, 'When public health officials recommend a new vaccine, I assume politics or money shaped the guidance more than evidence.', 145, true, 1.25, 'applied'),
 (144, 'F2', -1, 'When a major newspaper retracts a story after discovering errors, it shows the system works—media can correct itself.', 146, true, 1.25, 'applied'),
 (145, 'F2', 1, 'Exposed scandals probably represent just a fraction of institutional wrongdoing—most misconduct never comes to light.', 147, true, 1.25, 'applied'),
 (146, 'F2', -1, 'Despite their flaws, universities, courts, and scientific institutions are genuinely trying to pursue truth and fairness.', 148, true, 1.25, 'applied'),

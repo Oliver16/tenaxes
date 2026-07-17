@@ -4,11 +4,11 @@ import { AuthProvider } from '@/contexts/AuthContext'
 import Header from '@/components/Header'
 
 export const metadata: Metadata = {
-  title: 'TenAxes',
-  description: 'A 98-item survey measuring political orientation across 10 core axes and 3 behavioral facets.',
+  title: 'Polyaxis',
+  description: 'The most rigorous ideological evaluation you can take: 264 questions measuring political orientation across 11 core axes and 4 style facets, including the value tensions where your beliefs collide.',
   openGraph: {
-    title: 'TenAxes',
-    description: 'Discover your political profile across 10 dimensions',
+    title: 'Polyaxis',
+    description: 'A 264-question ideological evaluation across 15 dimensions — no four-quadrant shortcuts',
     type: 'website',
   },
 }

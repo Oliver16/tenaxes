@@ -1,5 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { fetchQuestionsWithLinks } from '@/lib/api/questions'
+import { analyzeTensions } from '@/lib/tension-analyzer'
+import { buildAxisSummaries, computeFlavorMatches, scoresById } from '@/lib/flavor-matcher'
 import { ResultsActions } from '@/components/ResultsActions'
 import { SaveResultsPrompt } from '@/components/SaveResultsPrompt'
 import { CoreAxesRadar } from '@/components/charts/CoreAxesRadar'
@@ -8,7 +10,7 @@ import { FlavorList, FlavorBarChart } from '@/components/charts/FlavorCharts'
 import { AxisDrillDown } from '@/components/AxisDrillDown'
 import { ValueTensionsSection } from '@/components/results/ValueTensionsSection'
 import { AxisCollisionDetails } from '@/components/results/AxisCollisionDetails'
-import { CollisionScore, AxisScore as AxisScoreType, Database } from '@/lib/database.types'
+import { AxisScore as AxisScoreType, Database } from '@/lib/database.types'
 import type { AxisScore as LegacyAxisScore, FlavorMatch } from '@/lib/supabase'
 import type { Question } from '@/lib/questions'
 
@@ -65,13 +67,21 @@ export default async function ResultsPage({
 
   const axes = (axesData || []) as Axis[]
 
-  // Stored profile summary (radar chart, axis scales, archetype matches)
-  const coreAxes = (surveyResult.core_axes || []) as unknown as LegacyAxisScore[]
-  const facets = (surveyResult.facets || []) as unknown as LegacyAxisScore[]
-  const topFlavors = (surveyResult.top_flavors || []) as unknown as FlavorMatch[]
-
-  // Collision / tension analysis
-  const collisionScores = (surveyResult.collision_pairs || []) as unknown as CollisionScore[]
+  // Profile summary (radar chart, axis scales, archetype matches). Older
+  // sessions may predate stored summaries; rebuild them from raw scores so
+  // every session gets the current archetypes and labels.
+  const rawScores = (surveyResult.scores || []) as unknown as { axis_id: string; score: number }[]
+  const summaries = surveyResult.core_axes
+    ? {
+        core_axes: surveyResult.core_axes as unknown as LegacyAxisScore[],
+        facets: (surveyResult.facets || []) as unknown as LegacyAxisScore[]
+      }
+    : buildAxisSummaries(rawScores)
+  const coreAxes = summaries.core_axes
+  const facets = summaries.facets
+  const topFlavors = surveyResult.top_flavors
+    ? (surveyResult.top_flavors as unknown as FlavorMatch[])
+    : computeFlavorMatches(scoresById(rawScores))
 
   // Responses map
   const responses = (surveyResult.responses || {}) as Record<number, number>
@@ -86,6 +96,12 @@ export default async function ResultsPage({
   // Conceptual vs applied scores, for the "Talk the Talk vs Walk the Walk" comparison
   const conceptualScores = (surveyResult.conceptual_scores || []) as unknown as AxisScoreType[]
   const appliedScores = (surveyResult.applied_scores || []) as unknown as AxisScoreType[]
+
+  // Recompute tensions from the stored responses rather than reading the
+  // stored snapshot, so past sessions benefit from link fixes and analyzer
+  // improvements automatically
+  const appliedQuestions = questions.filter(q => q.question_type === 'applied')
+  const tensionScores = analyzeTensions(responses, appliedQuestions, axes, conceptualScores)
 
   const conceptualByAxis = Object.fromEntries(conceptualScores.map(s => [s.axis_id, s.score]))
   const appliedByAxis = Object.fromEntries(appliedScores.map(s => [s.axis_id, s.score]))
@@ -114,7 +130,7 @@ export default async function ResultsPage({
       <div className="max-w-5xl mx-auto space-y-6">
         {/* Header */}
         <div className="text-center mb-2">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">Your Political Profile</h1>
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">Your Polyaxis Profile</h1>
           <p className="text-gray-600">
             Based on your {responseCount} responses ({conceptualCount} conceptual, {appliedCount} practical)
           </p>
@@ -126,7 +142,7 @@ export default async function ResultsPage({
           <section className="bg-white rounded-xl shadow-lg p-6">
             <h2 className="text-2xl font-bold text-gray-800 mb-2">Core Axes Overview</h2>
             <p className="text-gray-500 text-sm mb-4">
-              Your position across 10 dimensions. Outer edge = stronger position, center = neutral.
+              Your position across the core dimensions. Outer edge = stronger position, center = neutral.
             </p>
             <CoreAxesRadar axes={coreAxes} />
           </section>
@@ -144,7 +160,7 @@ export default async function ResultsPage({
                 <AxisCollisionDetails
                   axisId={axis.axis_id}
                   axisName={axis.name}
-                  collisions={collisionScores}
+                  tensions={tensionScores}
                 />
               </div>
             ))}
@@ -158,7 +174,7 @@ export default async function ResultsPage({
               Political Style
             </h2>
             <p className="text-gray-500 text-sm mb-6">
-              How you pursue your beliefs — your approach to change, trust in institutions, and views on justice.
+              How you pursue your beliefs — your approach to change, trust in institutions, views on justice, and who should decide.
             </p>
             {facets.map(axis => (
               <div key={axis.axis_id}>
@@ -166,7 +182,7 @@ export default async function ResultsPage({
                 <AxisCollisionDetails
                   axisId={axis.axis_id}
                   axisName={axis.name}
-                  collisions={collisionScores}
+                  tensions={tensionScores}
                 />
               </div>
             ))}
@@ -175,11 +191,9 @@ export default async function ResultsPage({
 
         {/* Value Tensions - which values you prioritize when they collide */}
         <ValueTensionsSection
-          collisions={collisionScores}
-          questions={questions}
+          tensions={tensionScores}
+          questions={appliedQuestions}
           responses={responses}
-          conceptualScores={conceptualScores}
-          appliedScores={appliedScores}
         />
 
         {/* Talk the Talk vs Walk the Walk - Conceptual vs Practical Comparison */}
