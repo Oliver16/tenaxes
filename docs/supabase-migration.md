@@ -8,7 +8,7 @@ project is paused or expiring) and moving existing data across.
 > `axes` table it never creates, three files fight over
 > `question_axis_links`, and the historical link migration contains a
 > duplicate-key bug. `supabase/fresh_install.sql` replaces all of that:
-> the current file installs the v2.0 comprehensive bank
+> the current file installs the v2.1 comprehensive bank
 > (18 constructs, 300 questions, 348 links, 48 collision scenarios,
 > semantic coverage metadata) and carries built-in validation DO blocks
 > that abort the transaction if any count or pole-balance invariant
@@ -29,6 +29,17 @@ Do **not** also run `schema.sql`, the seed files, or the migrations —
 `fresh_install.sql` contains the complete current state (tables, RLS
 policies, functions, triggers, views, all 18 constructs, all 300 questions,
 and all 348 question-axis links).
+
+### Upgrading a live v2.0 database to v2.1
+
+Run `supabase/migrations/20260717060000_v2_1_comprehension_revision.sql`
+once in the SQL Editor. It inserts the v2.1 bank as question IDs 301-600,
+deactivates (without deleting) v2.0, switches bank-version defaults to
+v2.1, adds `survey_results.response_coverage` / `not_sure_count`, and
+makes versioned question text publicly readable so anonymous historical
+result pages can still load inactive v2.0 items. The transaction
+validates its own counts and aborts on any mismatch. Afterwards run
+`supabase/v2_1_post_install_checks.sql` to verify.
 
 ### Already provisioned from an older `fresh_install.sql`?
 

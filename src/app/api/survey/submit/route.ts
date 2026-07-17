@@ -1,20 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { calculateAxisScoresFromLinks } from '@/lib/scorer'
+import { calculateAxisScoresFromLinks, calculateAxisCoverage } from '@/lib/scorer'
 import { analyzeTensions } from '@/lib/tension-analyzer'
 import { buildAxisSummaries, computeFlavorMatches, scoresById } from '@/lib/flavor-matcher'
 import { fetchQuestionsWithLinks } from '@/lib/api/questions'
-import type { Database } from '@/lib/database.types'
+import type { Database, ResponsesMap } from '@/lib/database.types'
 
 type Axis = Database['public']['Tables']['axes']['Row']
 type SurveyResultInsert = Database['public']['Tables']['survey_results']['Insert']
 
+const VALID_RESPONSES = new Set([-2, -1, 0, 1, 2])
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { responses, question_order, bank_version } = body
+    const { responses: rawResponses, question_order, bank_version } = body
 
-    if (!responses || typeof responses !== 'object') {
+    if (!rawResponses || typeof rawResponses !== 'object' || Array.isArray(rawResponses)) {
       return NextResponse.json(
         { error: 'Invalid responses format' },
         { status: 400 }
@@ -27,16 +29,48 @@ export async function POST(request: NextRequest) {
         : null
 
     const supabase = await createClient()
-    
-    // Fetch questions with links
-    const questions = await fetchQuestionsWithLinks()
 
-    // The bank version these responses belong to. The client sends what it
-    // showed; the active bank is the fallback.
+    // The bank version these responses belong to: score exactly the bank
+    // the client showed, never "whatever is active now".
+    const clientBankVersion = typeof bank_version === 'string' && bank_version ? bank_version : null
+    const questions = clientBankVersion
+      ? await fetchQuestionsWithLinks({ bankVersion: clientBankVersion })
+      : await fetchQuestionsWithLinks()
+
+    if (questions.length === 0) {
+      return NextResponse.json({ error: 'Unknown bank version' }, { status: 400 })
+    }
+
     const bankVersion: string | null =
-      (typeof bank_version === 'string' && bank_version) ||
-      (questions[0] as { bank_version?: string })?.bank_version ||
+      clientBankVersion ??
+      (questions[0] as { bank_version?: string })?.bank_version ??
       null
+
+    // Validate every response: known question id from this bank, and a
+    // value in -2..2 or null ("not sure"). Reject anything else.
+    const knownIds = new Set(questions.map(q => q.id))
+    const responses: ResponsesMap = {}
+    for (const [key, value] of Object.entries(rawResponses as Record<string, unknown>)) {
+      const id = Number(key)
+      if (!Number.isInteger(id) || !knownIds.has(id)) {
+        return NextResponse.json(
+          { error: `Unknown question id ${key} for bank ${bankVersion}` },
+          { status: 400 }
+        )
+      }
+      if (value === null) {
+        responses[id] = null
+      } else if (typeof value === 'number' && VALID_RESPONSES.has(value)) {
+        responses[id] = value as ResponsesMap[number]
+      } else {
+        return NextResponse.json(
+          { error: `Invalid response value for question ${key}` },
+          { status: 400 }
+        )
+      }
+    }
+
+    const notSureCount = Object.values(responses).filter(v => v === null).length
     
     // Fetch axes metadata
     const { data, error: axesError } = await supabase
@@ -86,6 +120,9 @@ export async function POST(request: NextRequest) {
     const { core_axes, facets } = buildAxisSummaries(allScores, axes)
     const topFlavors = computeFlavorMatches(scoresById(allScores))
 
+    // Per-axis answer coverage (null/missing excluded, numeric 0 counted)
+    const responseCoverage = calculateAxisCoverage(responses, questions)
+
     // Create session ID
     const sessionId = crypto.randomUUID()
 
@@ -113,6 +150,8 @@ export async function POST(request: NextRequest) {
       core_axes: core_axes as any,
       facets: facets as any,
       top_flavors: topFlavors as any,
+      response_coverage: responseCoverage as any,
+      not_sure_count: notSureCount,
       completed_at: new Date().toISOString()
     }
 

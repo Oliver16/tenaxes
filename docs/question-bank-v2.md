@@ -73,3 +73,26 @@ group currently has exactly one scenario, so per-probe confidence stays
 "low" by construction; the next expansion should deepen existing pairs to
 2–3 scenarios per signature before adding new pairs. C2, C5, C6, C9
 carry the fewest tradeoff endpoints among core axes.
+
+## v2.1 addendum — comprehension revision (2026-07-17)
+
+v2.1 revises wording only; the logical bank (axes, keys, weights,
+ordering, 348 links, 24 mirrored collision pairs) is unchanged and was
+re-verified against v2.0 during integration. Per question: a technical
+proposition plus an "In other words, ..." restatement; 152 scenarios add
+an explicit "Assume that ..." premise (stored in educational_content);
+21 items received material wording corrections (see the bundle change
+log); two near-consensus C10 anchors were replaced with harder boundary
+cases.
+
+Response model (v2.1 contract): numeric -2..2 are scored, `0` is a
+genuine "neither/balanced" answer that counts toward coverage, `null` is
+an explicit "Not sure / need more information" excluded from both the
+scoring numerator and denominator, and a missing key is unanswered.
+Results store per-axis `response_coverage` with confidence bands (high
+>= 0.80, moderate >= 0.65, low >= 0.50, otherwise insufficient — also
+insufficient below 8 numeric primary items).
+
+v2.0 and v2.1 wordings are not assumed psychometrically interchangeable:
+live databases keep v2.0 rows (deactivated) and every response/result row
+carries its bank version.

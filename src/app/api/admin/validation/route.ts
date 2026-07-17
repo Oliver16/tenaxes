@@ -102,14 +102,15 @@ export async function GET() {
     for (const q of questions) {
       keyedValues[q.id] = responseSets.map(rs => {
         const r = rs[q.id]
-        return r === undefined ? null : r * q.key
+        // v2.1: null means "not sure" and is excluded like unanswered
+        return typeof r !== 'number' ? null : r * q.key
       })
     }
 
     const items: ItemValidation[] = questions.map(q => {
       const raw = responseSets
         .map(rs => rs[q.id])
-        .filter((r): r is number => r !== undefined)
+        .filter((r): r is number => typeof r === 'number')
       const answered = raw.length
       const mean = answered > 0 ? raw.reduce((a, b) => a + b, 0) / answered : 0
       const sd = Math.sqrt(variance(raw))

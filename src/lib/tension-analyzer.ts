@@ -213,7 +213,9 @@ export function analyzeTensions(
 
     for (const entry of group.entries) {
       const r = responses[entry.question.id]
-      if (r === undefined) continue
+      // v2.1: null ("not sure") probes are ignored; numeric 0 stays an
+      // answered neutral probe.
+      if (typeof r !== 'number') continue
 
       const term = r * entry.key_a * orient
       if (term > 0) winsA++
@@ -447,7 +449,7 @@ export function getTensionQuestionDetails(
   return group.entries
     .map(entry => {
       const r = responses[entry.question.id]
-      if (r === undefined) return null
+      if (typeof r !== 'number') return null
 
       const term = r * entry.key_a * orient
       const winner: TensionQuestionDetail['winner'] =

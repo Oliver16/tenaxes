@@ -8,12 +8,18 @@ import { fetchActiveQuestions, type Question } from '@/lib/questions'
 import { nanoid } from 'nanoid'
 import { seededShuffleSpaced } from '@/lib/shuffle'
 
-const RESPONSE_OPTIONS = [
-  { value: -2, label: 'Strongly Disagree', short: 'SD', color: 'bg-red-600' },
-  { value: -1, label: 'Disagree', short: 'D', color: 'bg-red-400' },
-  { value: 0, label: 'Neutral', short: 'N', color: 'bg-gray-400' },
-  { value: 1, label: 'Agree', short: 'A', color: 'bg-green-400' },
-  { value: 2, label: 'Strongly Agree', short: 'SA', color: 'bg-green-600' },
+// v2.1 response contract: 0 is a genuine "in between" answer that gets
+// scored; null is an explicit "not sure" that is recorded but excluded
+// from scoring. Missing keys mean the question wasn't answered yet.
+type SurveyResponseValue = number | null
+
+const RESPONSE_OPTIONS: { value: SurveyResponseValue; label: string; color: string }[] = [
+  { value: -2, label: 'Strongly Disagree', color: 'bg-red-600' },
+  { value: -1, label: 'Disagree', color: 'bg-red-400' },
+  { value: 0, label: 'Neither / genuinely balanced', color: 'bg-gray-400' },
+  { value: 1, label: 'Agree', color: 'bg-green-400' },
+  { value: 2, label: 'Strongly Agree', color: 'bg-green-600' },
+  { value: null, label: 'Not sure / need more information', color: 'bg-blue-300' },
 ]
 
 // The 300-question evaluation is meant to be completable across several
@@ -24,8 +30,9 @@ const DRAFT_KEY = 'polyaxis-survey-draft-v1'
 
 type SurveyDraft = {
   sessionId: string
-  responses: Record<number, number>
+  responses: Record<number, SurveyResponseValue>
   currentIndex: number
+  bankVersion?: string
   savedAt: string
 }
 
@@ -41,6 +48,16 @@ function loadDraft(): SurveyDraft | null {
     return draft
   } catch {
     return null
+  }
+}
+
+/** Split "Technical sentence. In other words, plain sentence." for display. */
+function splitQuestionText(text: string): { technical: string; plain: string | null } {
+  const marker = text.indexOf('In other words,')
+  if (marker === -1) return { technical: text, plain: null }
+  return {
+    technical: text.slice(0, marker).trim(),
+    plain: text.slice(marker).trim()
   }
 }
 
@@ -61,14 +78,18 @@ export default function SurveyPage() {
   const [sessionId] = useState(() => draft?.sessionId ?? nanoid(12))
   const [questions, setQuestions] = useState<Question[]>([])
   const [loading, setLoading] = useState(true)
-  const [responses, setResponses] = useState<Record<number, number>>(() => draft?.responses ?? {})
+  const [responses, setResponses] = useState<Record<number, SurveyResponseValue>>(() => draft?.responses ?? {})
   const [currentIndex, setCurrentIndex] = useState(() => draft?.currentIndex ?? 0)
   const [resumed] = useState(() => !!draft && Object.keys(draft.responses).length > 0)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const bankVersion = questions[0]?.bank_version
+
   // Persist progress after every answer so a reload or a later sitting
-  // picks up exactly where this one left off
+  // picks up exactly where this one left off. null ("not sure") answers
+  // survive the JSON round-trip; the bank version is stored so a draft
+  // from a retired bank is never resumed against a different one.
   useEffect(() => {
     if (loading) return
     try {
@@ -76,12 +97,13 @@ export default function SurveyPage() {
         sessionId,
         responses,
         currentIndex,
+        bankVersion,
         savedAt: new Date().toISOString()
       } satisfies SurveyDraft))
     } catch {
       // storage full/unavailable - the survey still works, just without resume
     }
-  }, [sessionId, responses, currentIndex, loading])
+  }, [sessionId, responses, currentIndex, bankVersion, loading])
 
   // Fetch questions from database and randomize order per session
   useEffect(() => {
@@ -93,11 +115,21 @@ export default function SurveyPage() {
       // Then shuffle using session ID as seed for per-user randomization,
       // spacing items so no two consecutive questions share an axis
       const shuffled = seededShuffleSpaced(data, sessionId, q => q.axis_id)
+
+      // A resumed draft only applies to the bank it was answered on; a
+      // draft from another bank version starts over.
+      const activeBank = shuffled[0]?.bank_version
+      if (draft?.bankVersion && activeBank && draft.bankVersion !== activeBank) {
+        setResponses({})
+        setCurrentIndex(0)
+      }
+
       setQuestions(shuffled)
       setCurrentIndex(idx => Math.min(idx, Math.max(shuffled.length - 1, 0)))
       setLoading(false)
     }
     loadQuestions()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId])
 
   const currentItem = questions[currentIndex]
@@ -105,7 +137,7 @@ export default function SurveyPage() {
   const percent = questions.length > 0 ? Math.round((answeredCount / questions.length) * 100) : 0
   const isComplete = questions.length > 0 && answeredCount === questions.length
 
-  const handleResponse = useCallback((value: number) => {
+  const handleResponse = useCallback((value: SurveyResponseValue) => {
     if (!currentItem) return
     setResponses(prev => ({ ...prev, [currentItem.id]: value }))
     if (currentIndex < questions.length - 1) {
@@ -200,6 +232,12 @@ export default function SurveyPage() {
           <p className="text-gray-400 text-sm mt-1">
             Progress is saved on this device, so you can finish in more than one sitting.
           </p>
+          <p className="text-gray-500 text-sm mt-2 max-w-xl mx-auto">
+            Choose <span className="font-medium">&ldquo;Neither / genuinely balanced&rdquo;</span> when
+            you understand the question and your view falls between the two sides. Choose{' '}
+            <span className="font-medium">&ldquo;Not sure / need more information&rdquo;</span> when you
+            would need more facts or don&apos;t understand the issue well enough to decide.
+          </p>
           {resumed && (
             <p className="text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 inline-block mt-2">
               Welcome back — your earlier answers were restored.
@@ -233,18 +271,26 @@ export default function SurveyPage() {
               </span>
             </div>
             
-            <p className="text-lg text-gray-800 mb-6 leading-relaxed">
-              {currentItem.text}
-            </p>
+            {(() => {
+              const { technical, plain } = splitQuestionText(currentItem.text)
+              return (
+                <div className="mb-6">
+                  <p className="text-lg text-gray-800 leading-relaxed">{technical}</p>
+                  {plain && (
+                    <p className="text-base text-gray-600 leading-relaxed mt-2">{plain}</p>
+                  )}
+                </div>
+              )
+            })()}
 
-            {/* Educational Content */}
+            {/* Assumption / factual premise (kept visible, never a tooltip) */}
             {currentItem.educational_content && (
-              <div className="mb-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="mb-8 p-4 bg-slate-50 border border-slate-200 rounded-lg">
                 <div className="flex items-start gap-2">
-                  <svg className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <svg className="w-5 h-5 text-slate-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                   </svg>
-                  <div className="text-sm text-blue-900 leading-relaxed whitespace-pre-wrap">
+                  <div className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
                     {currentItem.educational_content}
                   </div>
                 </div>
@@ -323,13 +369,15 @@ export default function SurveyPage() {
               key={item.id}
               onClick={() => setCurrentIndex(idx)}
               className={`w-6 h-6 text-xs rounded ${
-                responses[item.id] !== undefined
+                responses[item.id] === null
+                  ? 'bg-sky-300 text-sky-900'
+                  : responses[item.id] !== undefined
                   ? 'bg-blue-500 text-white'
                   : idx === currentIndex
                   ? 'bg-blue-200 text-blue-800'
                   : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
               }`}
-              title={`Question ${idx + 1}`}
+              title={`Question ${idx + 1}${responses[item.id] === null ? ' — not sure' : ''}`}
             >
               {idx + 1}
             </button>

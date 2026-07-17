@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { fetchQuestionsWithLinks } from '@/lib/api/questions'
 import { analyzeTensions, analyzeCollisionPairs } from '@/lib/tension-analyzer'
+import { calculateAxisCoverage } from '@/lib/scorer'
 import { buildAxisSummaries, computeFlavorMatches, scoresById } from '@/lib/flavor-matcher'
 import { ResultsActions } from '@/components/ResultsActions'
 import { SaveResultsPrompt } from '@/components/SaveResultsPrompt'
@@ -88,15 +89,23 @@ export default async function ResultsPage({
     ? (surveyResult.top_flavors as unknown as FlavorMatch[])
     : computeFlavorMatches(scoresById(rawScores))
 
-  // Responses map
-  const responses = (surveyResult.responses || {}) as Record<number, number>
+  // Responses map. v2.1 encoding: numeric answers are scored, explicit
+  // null means "not sure" (recorded, never scored), missing means
+  // unanswered.
+  const responses = (surveyResult.responses || {}) as Record<number, number | null>
   const responseCount = Object.keys(responses).length
   const conceptualCount = questions.filter(
-    q => q.question_type === 'conceptual' && responses[q.id] !== undefined
+    q => q.question_type === 'conceptual' && typeof responses[q.id] === 'number'
   ).length
   const appliedCount = questions.filter(
-    q => q.question_type === 'applied' && responses[q.id] !== undefined
+    q => q.question_type === 'applied' && typeof responses[q.id] === 'number'
   ).length
+  const notSureCount = Object.values(responses).filter(v => v === null).length
+
+  // Per-axis answer coverage; recomputed so historical rows without the
+  // stored column still get confidence labels
+  const axisCoverage = calculateAxisCoverage(responses, questions)
+  const coverageByAxis = Object.fromEntries(axisCoverage.map(c => [c.axis_id, c]))
 
   // Conceptual vs applied scores, for the "Talk the Talk vs Walk the Walk" comparison
   const conceptualScores = (surveyResult.conceptual_scores || []) as unknown as AxisScoreType[]
@@ -141,8 +150,14 @@ export default async function ResultsPage({
         <div className="text-center mb-2">
           <h1 className="text-3xl font-bold text-gray-800 mb-2">Your Polyaxis Profile</h1>
           <p className="text-gray-600">
-            Based on your {responseCount} responses ({conceptualCount} conceptual, {appliedCount} practical)
+            Based on your {responseCount} responses ({conceptualCount} conceptual, {appliedCount} practical
+            {notSureCount > 0 ? `, ${notSureCount} not sure` : ''})
           </p>
+          {notSureCount > 0 && (
+            <p className="text-xs text-gray-400 mt-1">
+              &ldquo;Not sure&rdquo; answers are recorded but never scored — they reduce coverage instead of faking a position.
+            </p>
+          )}
           <p className="text-sm text-gray-400 mt-1">Session: {params.sessionId}</p>
         </div>
 
@@ -166,6 +181,17 @@ export default async function ResultsPage({
             {coreAxes.map(axis => (
               <div key={axis.axis_id}>
                 <AxisScale axis={axis} />
+                {(() => {
+                  const cov = coverageByAxis[axis.axis_id]
+                  if (!cov || cov.confidence === 'high') return null
+                  return (
+                    <p className={`text-xs mt-1 ${cov.confidence === 'insufficient' ? 'text-red-600' : 'text-gray-500'}`}>
+                      {cov.confidence === 'insufficient'
+                        ? `Insufficient data for a reliable position (${cov.answered_primary_items} of ${cov.available_primary_items} items answered) — treat this score as indicative only.`
+                        : `${Math.round(cov.coverage * 100)}% of this axis's items answered · ${cov.confidence} confidence`}
+                    </p>
+                  )
+                })()}
                 <AxisCollisionDetails
                   axisId={axis.axis_id}
                   axisName={axis.name}
@@ -191,6 +217,17 @@ export default async function ResultsPage({
             {facets.map(axis => (
               <div key={axis.axis_id}>
                 <AxisScale axis={axis} />
+                {(() => {
+                  const cov = coverageByAxis[axis.axis_id]
+                  if (!cov || cov.confidence === 'high') return null
+                  return (
+                    <p className={`text-xs mt-1 ${cov.confidence === 'insufficient' ? 'text-red-600' : 'text-gray-500'}`}>
+                      {cov.confidence === 'insufficient'
+                        ? `Insufficient data for a reliable position (${cov.answered_primary_items} of ${cov.available_primary_items} items answered) — treat this score as indicative only.`
+                        : `${Math.round(cov.coverage * 100)}% of this axis's items answered · ${cov.confidence} confidence`}
+                    </p>
+                  )
+                })()}
                 <AxisCollisionDetails
                   axisId={axis.axis_id}
                   axisName={axis.name}
