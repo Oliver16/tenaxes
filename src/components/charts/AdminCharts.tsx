@@ -25,7 +25,8 @@ const COLORS = [
 export function ResponsesOverTimeChart({ data }: { data: DailyCount[] }) {
   const formattedData = data.map(d => ({
     ...d,
-    displayDate: new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    // d.date is a UTC calendar day; format it in UTC so it isn't shifted a day back
+    displayDate: new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
   }))
 
   return (

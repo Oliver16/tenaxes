@@ -165,7 +165,7 @@ export default function AdminPage() {
           {/* Responses Over Time */}
           <div className="bg-white rounded-xl shadow p-6">
             <h2 className="text-lg font-bold text-gray-800 mb-4">Responses Over Time</h2>
-            <p className="text-sm text-gray-500 mb-4">Daily submissions (last 30 days)</p>
+            <p className="text-sm text-gray-500 mb-4">Daily submissions (last 30 days, UTC, all banks)</p>
             {data.dailyCounts.length > 0 ? (
               <ResponsesOverTimeChart data={data.dailyCounts} />
             ) : (
@@ -178,7 +178,7 @@ export default function AdminPage() {
           {/* Flavor Popularity */}
           <div className="bg-white rounded-xl shadow p-6">
             <h2 className="text-lg font-bold text-gray-800 mb-4">Most Common Political Types</h2>
-            <p className="text-sm text-gray-500 mb-4">Weighted by ranking (top match = 5 pts, etc.)</p>
+            <p className="text-sm text-gray-500 mb-4">Weighted by ranking (top match = 5 pts, etc.) · bank {data.bank}</p>
             {data.flavorPopularity.length > 0 ? (
               <FlavorPopularityChart data={data.flavorPopularity} />
             ) : (
@@ -193,7 +193,7 @@ export default function AdminPage() {
         <div className="bg-white rounded-xl shadow p-6 mb-6">
           <h2 className="text-lg font-bold text-gray-800 mb-4">Average Scores by Axis</h2>
           <p className="text-sm text-gray-500 mb-4">
-            Population mean for each dimension. Red = negative pole, Green = positive pole.
+            Population mean for each dimension on bank {data.bank}. Red = negative pole, Green = positive pole.
           </p>
           {data.axisAggregates.length > 0 ? (
             <AxisDistributionChart data={data.axisAggregates} />

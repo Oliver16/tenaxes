@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 import type { AnalyticsData } from '@/lib/analytics'
 import { aggregateByDay, computeAxisAggregates, computeFlavorPopularity } from '@/lib/analytics-utils'
 import { requireAdmin } from '@/lib/admin-auth'
+import { resolveBank } from '@/lib/admin/bank-scope'
 
 export const dynamic = 'force-dynamic'
 
@@ -49,23 +50,20 @@ export async function GET() {
 
     const dailyCounts = aggregateByDay(responseData || [])
 
-    // Axis aggregates - fetch all results and compute
+    // Score aggregates are only comparable within one bank (axis ids have
+    // changed meaning between versions, e.g. F5), so they cover the live bank.
+    const { bank } = await resolveBank(null)
+
     const { data: resultsData, error: resultsError } = await supabaseAdmin
       .from('survey_results')
-      .select('core_axes, facets')
+      .select('core_axes, facets, top_flavors')
+      .eq('bank_version', bank)
 
     if (resultsError) throw resultsError
 
     const axisAggregates = computeAxisAggregates(resultsData || [])
 
-    // Flavor popularity
-    const { data: flavorData, error: flavorError } = await supabaseAdmin
-      .from('survey_results')
-      .select('top_flavors')
-
-    if (flavorError) throw flavorError
-
-    const flavorPopularity = computeFlavorPopularity(flavorData || [])
+    const flavorPopularity = computeFlavorPopularity(resultsData || [])
 
     // Recent sessions
     const { data: recentData, error: recentError } = await supabaseAdmin
@@ -79,6 +77,7 @@ export async function GET() {
     const recentSessions = (recentData || []).map(r => r.session_id)
 
     const payload: AnalyticsData = {
+      bank,
       totalResponses: totalResponses || 0,
       responsesLast7Days: responsesLast7Days || 0,
       responsesLast30Days: responsesLast30Days || 0,
