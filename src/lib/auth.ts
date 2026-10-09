@@ -8,13 +8,27 @@ export type User = {
 }
 
 /**
+ * Where the magic link should land. Defaults to the page the user is on
+ * (so e.g. a results page can auto-link the result after sign-in) rather
+ * than the site root.
+ *
+ * NOTE: Supabase only honors this URL if it matches the project's
+ * Authentication > URL Configuration > Redirect URLs allow-list;
+ * otherwise it silently falls back to the project's Site URL. See
+ * SETUP_AUTH.md for the required dashboard configuration.
+ */
+function magicLinkRedirectTo(): string | undefined {
+  return typeof window !== 'undefined' ? window.location.href : undefined
+}
+
+/**
  * Sign up a new user with email (magic link)
  */
 export async function signUpWithEmail(email: string) {
   const { data, error } = await supabase.auth.signInWithOtp({
     email,
     options: {
-      emailRedirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
+      emailRedirectTo: magicLinkRedirectTo(),
     }
   })
 
@@ -33,7 +47,7 @@ export async function signInWithEmail(email: string) {
   const { data, error } = await supabase.auth.signInWithOtp({
     email,
     options: {
-      emailRedirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
+      emailRedirectTo: magicLinkRedirectTo(),
     }
   })
 
