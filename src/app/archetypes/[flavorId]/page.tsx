@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase-server'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 import { FLAVOR_ARCHETYPES, AXES } from '@/lib/instrument'
 import { buildAxisSummaries, computeFlavorMatches, scoresById } from '@/lib/flavor-matcher'
 import { isSampleSession, loadSampleResultAnalysis } from '@/lib/results/sample-result'
@@ -34,8 +34,8 @@ export default async function ArchetypePage({ params, searchParams }: Props) {
   }
 
   if (sessionId && !isSampleSession(sessionId)) {
-    const supabase = await createClient()
-    const { data, error } = await supabase
+    // Server-only read by exact session ID; results are not anon-readable.
+    const { data, error } = await supabaseAdmin
       .from('survey_results')
       .select('*')
       .eq('session_id', sessionId)

@@ -14,7 +14,9 @@ const state = {
   bankVersion: 'v2.2',
   lastBuildArgs: null,
   parentLookupCount: 0,
-  beforePendingInsert: null
+  beforePendingInsert: null,
+  globalDailyLimit: 1000,
+  clientDailyLimit: 1000
 }
 
 const truncatedHeadline = 'A market- and property-oriented, culturally traditional, sovereignist profile with constitutional constraints and strong willingness to make bounded exceptions for infrastructure, security, and high-'
@@ -68,6 +70,8 @@ function reset(nextHash) {
   state.lastBuildArgs = null
   state.parentLookupCount = 0
   state.beforePendingInsert = null
+  state.globalDailyLimit = 1000
+  state.clientDailyLimit = 1000
 }
 
 function recursivelyContains(value, expected) {
@@ -242,7 +246,9 @@ mock.module(new URL('./config.ts', base), {
     DEFAULT_CLARIFICATION_LINEAGE_MAX_ANSWERS: 10,
     DEFAULT_CLARIFICATION_LINEAGE_MAX_CHARS: 8000,
     generationAttemptLimit: () => 6,
-    generationLimit: () => 3
+    generationLimit: () => 3,
+    globalDailyAttemptLimit: () => state.globalDailyLimit,
+    clientDailyAttemptLimit: () => state.clientDailyLimit
   }
 })
 mock.module(new URL('./providers/index.ts', base), {
@@ -431,6 +437,41 @@ test('Next route orchestrates success, cache, repair, pending, caps, and parent 
     assert.equal(state.rows[0].status, 'failed')
     assert.equal(state.rows[0].error_code, 'timeout')
     assert.equal(state.rows.some(row => row.status === 'pending'), false)
+  })
+
+  await t.test('global daily cap stops generation across sessions without a provider call', async () => {
+    reset('hash-global-cap')
+    state.globalDailyLimit = 2
+    state.rows.push(
+      analysisRow({ id: 'other-completed', session_id: 'session-other', input_hash: 'other-1' }),
+      analysisRow({ id: 'other-failed', session_id: 'session-other', input_hash: 'other-2', status: 'failed' })
+    )
+    const response = await POST(request({ action: 'generate' }), { params: { sessionId: 'session-1' } })
+    assert.equal(response.status, 429)
+    assert.equal(state.providerCalls, 0)
+    assert.equal(state.rows.some(row => row.session_id === 'session-1'), false, 'rejected claim is released')
+  })
+
+  await t.test('per-visitor daily cap follows the requester across sessions, not other visitors', async () => {
+    reset('hash-client-cap')
+    const previousSecret = process.env.SUPABASE_SERVICE_ROLE_KEY
+    process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-secret'
+    state.clientDailyLimit = 1
+    const fromIp = (ip, sessionId) => POST(new Request(`http://localhost/api/results/${sessionId}/ai-analysis`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-forwarded-for': ip },
+      body: JSON.stringify({ action: 'generate' })
+    }), { params: { sessionId } })
+    try {
+      assert.equal((await fromIp('203.0.113.7', 'session-a')).status, 201)
+      assert.match(state.rows[0].deterministic_signals.client_hash, /^[0-9a-f]{32}$/)
+      assert.equal((await fromIp('203.0.113.7', 'session-b')).status, 429)
+      assert.equal((await fromIp('198.51.100.1', 'session-b')).status, 201)
+      assert.equal(state.providerCalls, 2)
+    } finally {
+      if (previousSecret === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY
+      else process.env.SUPABASE_SERVICE_ROLE_KEY = previousSecret
+    }
   })
 
   await t.test('a refinement parent owned by another session is rejected', async () => {

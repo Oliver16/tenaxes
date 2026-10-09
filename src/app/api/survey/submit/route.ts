@@ -127,8 +127,9 @@ export async function POST(request: NextRequest) {
     // Create session ID
     const sessionId = crypto.randomUUID()
 
-    // First, insert into survey_responses (required for foreign key constraint)
-    const { error: responseError } = await (supabase
+    // Survey tables are not writable with the public anon key; results are
+    // stored server-side only. First insert survey_responses (FK parent).
+    const { error: responseError } = await (supabaseAdmin
       .from('survey_responses') as any)
       .insert({
         session_id: sessionId,
@@ -156,7 +157,7 @@ export async function POST(request: NextRequest) {
       completed_at: new Date().toISOString()
     }
 
-    const { data: result, error: insertError } = await (supabase
+    const { error: insertError } = await (supabaseAdmin
       .from('survey_results') as any)
       .insert(insertData)
       .select()

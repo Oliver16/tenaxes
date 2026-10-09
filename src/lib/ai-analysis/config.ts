@@ -8,6 +8,8 @@ export const DEFAULT_CLARIFICATION_LINEAGE_MAX_ANSWERS = 10
 export const DEFAULT_CLARIFICATION_LINEAGE_MAX_CHARS = 8000
 export const DEFAULT_GENERATION_LIMIT = 3
 export const DEFAULT_GENERATION_ATTEMPT_LIMIT = 6
+export const DEFAULT_GLOBAL_DAILY_ATTEMPT_LIMIT = 50
+export const DEFAULT_CLIENT_DAILY_ATTEMPT_LIMIT = 10
 export const DEFAULT_ANALYSIS_TIMEOUT_MS = 240000
 export const MAX_ANALYSIS_TIMEOUT_MS = 240000
 export const ANALYSIS_ROUTE_MAX_DURATION_MS = 300000
@@ -34,6 +36,16 @@ export function generationAttemptLimit(): number {
     generationLimit(),
     positiveInteger(process.env.AI_ANALYSIS_MAX_ATTEMPTS, DEFAULT_GENERATION_ATTEMPT_LIMIT)
   )
+}
+
+/** Provider attempts across all results in a rolling 24 hours. */
+export function globalDailyAttemptLimit(): number {
+  return positiveInteger(process.env.AI_ANALYSIS_GLOBAL_DAILY_LIMIT, DEFAULT_GLOBAL_DAILY_ATTEMPT_LIMIT)
+}
+
+/** Provider attempts from one requester (hashed IP) in a rolling 24 hours. */
+export function clientDailyAttemptLimit(): number {
+  return positiveInteger(process.env.AI_ANALYSIS_CLIENT_DAILY_LIMIT, DEFAULT_CLIENT_DAILY_ATTEMPT_LIMIT)
 }
 
 export function analysisTimeoutMs(): number {
