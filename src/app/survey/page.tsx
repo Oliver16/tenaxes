@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { AXES } from '@/lib/instrument'
@@ -33,7 +33,30 @@ type SurveyDraft = {
   responses: Record<number, SurveyResponseValue>
   currentIndex: number
   bankVersion?: string
+  /** Question ids shown on screen / passed over unanswered (for admin analytics). */
+  viewedIds?: number[]
+  skippedIds?: number[]
+  /** Analytics row id; renewed when a draft is reset onto a new bank. */
+  trackingId?: string
   savedAt: string
+}
+
+// Progress beacons let admins see skips and drop-off; they carry question
+// ids only, never answer values.
+const PROGRESS_SYNC_DELAY_MS = 5000
+
+function sendProgress(payload: Record<string, unknown>) {
+  try {
+    void fetch('/api/survey/progress', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      // Lets the final beacon survive the tab being closed
+      keepalive: true
+    }).catch(() => {})
+  } catch {
+    // tracking is best-effort
+  }
 }
 
 function loadDraft(): SurveyDraft | null {
@@ -76,11 +99,16 @@ export default function SurveyPage() {
   // session ID once on mount for deterministic question randomization
   const [draft] = useState(loadDraft)
   const [sessionId] = useState(() => draft?.sessionId ?? nanoid(12))
+  // Separate from sessionId (which seeds the shuffle) so a sitting restarted
+  // on a new bank gets its own tracking row instead of rewriting the old one
+  const [trackingId, setTrackingId] = useState(() => draft?.trackingId ?? draft?.sessionId ?? nanoid(12))
   const [questions, setQuestions] = useState<Question[]>([])
   const [loading, setLoading] = useState(true)
   const [responses, setResponses] = useState<Record<number, SurveyResponseValue>>(() => draft?.responses ?? {})
   const [currentIndex, setCurrentIndex] = useState(() => draft?.currentIndex ?? 0)
   const [resumed] = useState(() => !!draft && Object.keys(draft.responses).length > 0)
+  const [viewedIds, setViewedIds] = useState<number[]>(() => draft?.viewedIds ?? [])
+  const [skippedIds, setSkippedIds] = useState<number[]>(() => draft?.skippedIds ?? [])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -98,12 +126,15 @@ export default function SurveyPage() {
         responses,
         currentIndex,
         bankVersion,
+        viewedIds,
+        skippedIds,
+        trackingId,
         savedAt: new Date().toISOString()
       } satisfies SurveyDraft))
     } catch {
       // storage full/unavailable - the survey still works, just without resume
     }
-  }, [sessionId, responses, currentIndex, bankVersion, loading])
+  }, [sessionId, responses, currentIndex, bankVersion, viewedIds, skippedIds, trackingId, loading])
 
   // Fetch questions from database and randomize order per session
   useEffect(() => {
@@ -122,6 +153,9 @@ export default function SurveyPage() {
       if (draft?.bankVersion && activeBank && draft.bankVersion !== activeBank) {
         setResponses({})
         setCurrentIndex(0)
+        setViewedIds([])
+        setSkippedIds([])
+        setTrackingId(nanoid(12))
       }
 
       setQuestions(shuffled)
@@ -137,6 +171,51 @@ export default function SurveyPage() {
   const percent = questions.length > 0 ? Math.round((answeredCount / questions.length) * 100) : 0
   const isComplete = questions.length > 0 && answeredCount === questions.length
 
+  // Record each question the moment it is shown
+  useEffect(() => {
+    if (!currentItem) return
+    setViewedIds(prev => (prev.includes(currentItem.id) ? prev : [...prev, currentItem.id]))
+  }, [currentItem])
+
+  // Debounced progress beacon, plus an immediate one when the tab is hidden
+  // (the most reliable signal that someone is leaving mid-survey).
+  const progressRef = useRef<Record<string, unknown> | null>(null)
+  progressRef.current = questions.length > 0 && bankVersion && viewedIds.length > 0 ? {
+    client_session_id: trackingId,
+    bank_version: bankVersion,
+    question_count: questions.length,
+    answered_ids: Object.keys(responses).map(Number),
+    not_sure_ids: Object.entries(responses).filter(([, v]) => v === null).map(([k]) => Number(k)),
+    skipped_ids: skippedIds,
+    viewed_ids: viewedIds,
+    last_question_id: currentItem?.id ?? null
+  } : null
+
+  useEffect(() => {
+    if (!progressRef.current) return
+    const timer = setTimeout(() => {
+      if (progressRef.current) sendProgress(progressRef.current)
+    }, PROGRESS_SYNC_DELAY_MS)
+    return () => clearTimeout(timer)
+  }, [responses, skippedIds, viewedIds, currentIndex])
+
+  useEffect(() => {
+    const flush = () => {
+      if (document.visibilityState === 'hidden' && progressRef.current) sendProgress(progressRef.current)
+    }
+    document.addEventListener('visibilitychange', flush)
+    return () => document.removeEventListener('visibilitychange', flush)
+  }, [])
+
+  // Moving off a question without answering it counts as a skip, whether
+  // via Skip, Previous, or the quick-nav grid.
+  const goTo = useCallback((index: number) => {
+    if (currentItem && !(currentItem.id in responses) && index !== currentIndex) {
+      setSkippedIds(prev => (prev.includes(currentItem.id) ? prev : [...prev, currentItem.id]))
+    }
+    setCurrentIndex(index)
+  }, [currentItem, currentIndex, responses])
+
   const handleResponse = useCallback((value: SurveyResponseValue) => {
     if (!currentItem) return
     setResponses(prev => ({ ...prev, [currentItem.id]: value }))
@@ -147,15 +226,15 @@ export default function SurveyPage() {
 
   const handlePrevious = useCallback(() => {
     if (currentIndex > 0) {
-      setCurrentIndex(prev => prev - 1)
+      goTo(currentIndex - 1)
     }
-  }, [currentIndex])
+  }, [currentIndex, goTo])
 
   const handleSkip = useCallback(() => {
     if (currentIndex < questions.length - 1) {
-      setCurrentIndex(prev => prev + 1)
+      goTo(currentIndex + 1)
     }
-  }, [currentIndex, questions.length])
+  }, [currentIndex, questions.length, goTo])
 
   const handleSubmit = useCallback(async () => {
     if (!isComplete) return
@@ -174,7 +253,8 @@ export default function SurveyPage() {
           // The order questions were actually presented in, for
           // randomization analysis and reproducibility
           question_order: questions.map(q => q.id),
-          bank_version: questions[0]?.bank_version
+          bank_version: questions[0]?.bank_version,
+          client_session_id: trackingId
         }),
       })
 
@@ -197,7 +277,7 @@ export default function SurveyPage() {
       setError(errorMessage)
       setIsSubmitting(false)
     }
-  }, [isComplete, responses, questions, router, user, sessionId])
+  }, [isComplete, responses, questions, router, user, sessionId, trackingId])
 
   // Loading state
   if (loading) {
@@ -367,7 +447,7 @@ export default function SurveyPage() {
           {questions.map((item, idx) => (
             <button
               key={item.id}
-              onClick={() => setCurrentIndex(idx)}
+              onClick={() => goTo(idx)}
               className={`w-6 h-6 text-xs rounded ${
                 responses[item.id] === null
                   ? 'bg-sky-300 text-sky-900'

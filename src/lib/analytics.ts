@@ -18,6 +18,8 @@ export type FlavorPopularity = {
 }
 
 export type AnalyticsData = {
+  /** Bank that axis averages and type popularity are computed over. */
+  bank: string
   totalResponses: number
   responsesLast7Days: number
   responsesLast30Days: number
