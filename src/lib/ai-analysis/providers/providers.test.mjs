@@ -3,8 +3,13 @@ import test, { mock } from 'node:test'
 
 import { OpenAIAnalysisProvider } from './openai.ts'
 import { AnthropicAnalysisProvider } from './anthropic.ts'
-import { AnalysisProviderError, summarizeProviderAttempts } from './provider.ts'
-import { configuredModel } from './index.ts'
+// Take the error class from index.ts's runtime exports rather than importing
+// './provider.ts' directly: tsx loads the adapters' extensionless './provider'
+// and this file's './provider.ts' as separate module instances, which breaks
+// instanceof checks. (`export *` is not statically visible to ESM importers of
+// the CJS-transpiled index.ts, hence the default import.)
+import providerIndex, { configuredModel } from './index.ts'
+const { AnalysisProviderError, summarizeProviderAttempts } = providerIndex
 import {
   ANALYSIS_FINALIZATION_RESERVE_MS, ANALYSIS_ROUTE_MAX_DURATION_MS,
   analysisAttemptTimeoutMs, analysisTimeoutMs, DEFAULT_ANALYSIS_TIMEOUT_MS, MAX_ANALYSIS_TIMEOUT_MS
@@ -54,8 +59,15 @@ test('OpenAI adapter rejects malformed structured output', async () => {
 test('OpenAI adapter enforces its abort timeout even when a mocked SDK hangs', async () => {
   const client = { responses: { create: async () => new Promise(() => {}) } }
   const provider = new OpenAIAnalysisProvider({ apiKey: 'test', model: 'openai-test', client, timeoutMs: 15 })
-  await assert.rejects(provider.generate(input, 'provisional'), error =>
-    error instanceof AnalysisProviderError && error.code === 'timeout')
+  // AbortSignal.timeout() uses an unref'd timer, so keep the event loop alive
+  // until it fires; otherwise Node ends the run with the promise still pending.
+  const keepAlive = setTimeout(() => {}, 1000)
+  try {
+    await assert.rejects(provider.generate(input, 'provisional'), error =>
+      error instanceof AnalysisProviderError && error.code === 'timeout')
+  } finally {
+    clearTimeout(keepAlive)
+  }
 })
 
 test('provider adapters use the validated timeout configuration', async () => {

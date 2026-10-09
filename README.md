@@ -100,18 +100,16 @@ thresholds, caching, and evaluation.
 
 ## Local Development
 
+Develop against a local Supabase stack (requires Docker) so nothing touches
+the live database. Full guide: [`docs/local-development.md`](docs/local-development.md).
+
 ```bash
-# Install dependencies
 npm install
+npm run db:start   # local Supabase from fresh_install.sql; writes .env.development.local
+npm run db:admin   # local admin: admin@polyaxis.local / polyaxis-admin
+npm run dev        # http://localhost:3000  (Studio: http://127.0.0.1:54323)
 
-# Copy environment template
-cp .env.example .env.local
-# Edit .env.local with your Supabase credentials
-
-# Run development server
-npm run dev
-
-# Open http://localhost:3000
+npm run check      # lint + typecheck + tests before pushing
 ```
 
 ---

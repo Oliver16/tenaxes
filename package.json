@@ -10,7 +10,16 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "node --conditions=react-server --experimental-test-module-mocks --import tsx --test"
+    "test": "node --conditions=react-server --experimental-test-module-mocks --import tsx --test",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run lint && npm run typecheck && npm test",
+    "db:start": "npx --yes supabase@2.120.0 start && bash scripts/local-env.sh",
+    "db:stop": "npx --yes supabase@2.120.0 stop",
+    "db:status": "npx --yes supabase@2.120.0 status",
+    "db:reset": "npx --yes supabase@2.120.0 db reset",
+    "db:env": "bash scripts/local-env.sh",
+    "db:admin": "node scripts/local-create-admin.mjs",
+    "db:security-check": "node scripts/local-security-check.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.112.1",
