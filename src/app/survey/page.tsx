@@ -36,6 +36,8 @@ type SurveyDraft = {
   /** Question ids shown on screen / passed over unanswered (for admin analytics). */
   viewedIds?: number[]
   skippedIds?: number[]
+  /** Analytics row id; renewed when a draft is reset onto a new bank. */
+  trackingId?: string
   savedAt: string
 }
 
@@ -97,6 +99,9 @@ export default function SurveyPage() {
   // session ID once on mount for deterministic question randomization
   const [draft] = useState(loadDraft)
   const [sessionId] = useState(() => draft?.sessionId ?? nanoid(12))
+  // Separate from sessionId (which seeds the shuffle) so a sitting restarted
+  // on a new bank gets its own tracking row instead of rewriting the old one
+  const [trackingId, setTrackingId] = useState(() => draft?.trackingId ?? draft?.sessionId ?? nanoid(12))
   const [questions, setQuestions] = useState<Question[]>([])
   const [loading, setLoading] = useState(true)
   const [responses, setResponses] = useState<Record<number, SurveyResponseValue>>(() => draft?.responses ?? {})
@@ -123,12 +128,13 @@ export default function SurveyPage() {
         bankVersion,
         viewedIds,
         skippedIds,
+        trackingId,
         savedAt: new Date().toISOString()
       } satisfies SurveyDraft))
     } catch {
       // storage full/unavailable - the survey still works, just without resume
     }
-  }, [sessionId, responses, currentIndex, bankVersion, viewedIds, skippedIds, loading])
+  }, [sessionId, responses, currentIndex, bankVersion, viewedIds, skippedIds, trackingId, loading])
 
   // Fetch questions from database and randomize order per session
   useEffect(() => {
@@ -149,6 +155,7 @@ export default function SurveyPage() {
         setCurrentIndex(0)
         setViewedIds([])
         setSkippedIds([])
+        setTrackingId(nanoid(12))
       }
 
       setQuestions(shuffled)
@@ -174,7 +181,7 @@ export default function SurveyPage() {
   // (the most reliable signal that someone is leaving mid-survey).
   const progressRef = useRef<Record<string, unknown> | null>(null)
   progressRef.current = questions.length > 0 && bankVersion && viewedIds.length > 0 ? {
-    client_session_id: sessionId,
+    client_session_id: trackingId,
     bank_version: bankVersion,
     question_count: questions.length,
     answered_ids: Object.keys(responses).map(Number),
@@ -247,7 +254,7 @@ export default function SurveyPage() {
           // randomization analysis and reproducibility
           question_order: questions.map(q => q.id),
           bank_version: questions[0]?.bank_version,
-          client_session_id: sessionId
+          client_session_id: trackingId
         }),
       })
 
@@ -270,7 +277,7 @@ export default function SurveyPage() {
       setError(errorMessage)
       setIsSubmitting(false)
     }
-  }, [isComplete, responses, questions, router, user, sessionId])
+  }, [isComplete, responses, questions, router, user, sessionId, trackingId])
 
   // Loading state
   if (loading) {
