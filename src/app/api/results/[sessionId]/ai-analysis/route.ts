@@ -8,8 +8,9 @@ import {
 } from '@/lib/ai-analysis/api-policy'
 import {
   AI_ANALYSIS_SCHEMA_VERSION, analysisAttemptTimeoutMs, analysisPromptVersion, analysisTimeoutMs,
-  generationAttemptLimit, generationLimit
+  clientDailyAttemptLimit, generationAttemptLimit, generationLimit, globalDailyAttemptLimit
 } from '@/lib/ai-analysis/config'
+import { aiAnalysisClientKey } from '@/lib/ai-analysis/client-key'
 import { validateAnalysisEvidence } from '@/lib/ai-analysis/evidence-validator'
 import { hashAnalysisInput } from '@/lib/ai-analysis/hash'
 import { loadAIAnalysisContext } from '@/lib/ai-analysis/load-ai-analysis-context'
@@ -152,8 +153,9 @@ export async function POST(request: NextRequest, { params }: { params: { session
       return NextResponse.json({ error: 'Generation limit reached. Try again later.' }, { status: 429 })
     }
 
+    const clientHash = aiAnalysisClientKey(request.headers, process.env.SUPABASE_SERVICE_ROLE_KEY)
     const insert = await (supabaseAdmin.from('result_ai_analyses') as any).insert({
-      session_id: params.sessionId, parent_analysis_id: parent?.id ?? null,
+      session_id: params.sessionId, parent_analysis_id: parent?.id ?? null, client_hash: clientHash,
       user_id: source.resultAnalysis.result.user_id, stage: body.action === 'refine' ? 'refined' : 'provisional',
       status: 'pending', provider: config.provider, model: config.model,
       prompt_version: config.promptVersion, schema_version: AI_ANALYSIS_SCHEMA_VERSION,
@@ -188,6 +190,15 @@ export async function POST(request: NextRequest, { params }: { params: { session
       await releaseUnusedPendingClaim(pendingId)
       pendingId = null
       return NextResponse.json({ error: 'Generation limit reached. Try again later.' }, { status: 429 })
+    }
+    // Per-session caps alone do not bound spend: survey submission is
+    // anonymous, so new sessions are free. Counted after our claim exists so
+    // concurrent requests see each other; a rejected claim is deleted.
+    if (await dailyAttemptCapReached(clientHash)) {
+      await releaseUnusedPendingClaim(pendingId)
+      pendingId = null
+      safeLog('daily_cap', params.sessionId, { success: false })
+      return NextResponse.json({ error: 'AI analysis is at capacity right now. Please try again tomorrow.' }, { status: 429 })
     }
 
     const provider = createAnalysisProvider()
@@ -394,6 +405,21 @@ async function remainingGenerations(sessionId: string): Promise<number> {
     completedResult.count ?? 0, generationLimit(),
     attemptResult.count ?? 0, generationAttemptLimit()
   )
+}
+
+async function dailyAttemptCapReached(clientHash: string | null): Promise<boolean> {
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+  const attempts = () => (supabaseAdmin.from('result_ai_analyses') as any)
+    .select('id', { count: 'exact', head: true })
+    .in('status', ['pending', 'completed', 'failed']).gte('created_at', since)
+  const [globalResult, clientResult] = await Promise.all([
+    attempts(),
+    clientHash ? attempts().eq('client_hash', clientHash) : Promise.resolve(null)
+  ])
+  if (globalResult.error || clientResult?.error) throw new Error('daily_cap_read_failed')
+  // Counts include this request's own pending claim.
+  return (globalResult.count ?? 0) > globalDailyAttemptLimit() ||
+    (!!clientResult && (clientResult.count ?? 0) > clientDailyAttemptLimit())
 }
 
 async function expireAbandonedPending(sessionId: string) {

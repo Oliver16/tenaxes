@@ -59,6 +59,7 @@ AI analysis is off by default. To try it locally, add a provider key and model t
 | `npm run db:reset` | wipe the local DB and reinstall it from `fresh_install.sql` (then rerun `db:admin`) |
 | `npm run db:status` | show local URLs and keys |
 | `npm run db:admin -- email pw` | create or promote a local admin (refuses non-local URLs) |
+| `npm run db:security-check` | end-to-end data-access checks (needs `npm run dev` running) |
 
 ## Making database changes
 

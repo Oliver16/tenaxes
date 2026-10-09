@@ -18,7 +18,8 @@
     "db:status": "npx --yes supabase@2.120.0 status",
     "db:reset": "npx --yes supabase@2.120.0 db reset",
     "db:env": "bash scripts/local-env.sh",
-    "db:admin": "node scripts/local-create-admin.mjs"
+    "db:admin": "node scripts/local-create-admin.mjs",
+    "db:security-check": "node scripts/local-security-check.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.112.1",

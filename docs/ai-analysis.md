@@ -58,6 +58,8 @@ name already begins with `NEXT_PUBLIC_` for the normal Supabase browser client.
 | `ANTHROPIC_ANALYSIS_MODEL` | Explicit Anthropic model ID | empty |
 | `AI_ANALYSIS_MAX_REGENERATIONS` | Maximum completed generations per session in a rolling 24 hours | `3` |
 | `AI_ANALYSIS_MAX_ATTEMPTS` | Maximum completed or failed provider attempts per session in the same window | `6` |
+| `AI_ANALYSIS_GLOBAL_DAILY_LIMIT` | Maximum provider attempts across all results in a rolling 24 hours | `50` |
+| `AI_ANALYSIS_CLIENT_DAILY_LIMIT` | Maximum provider attempts from one requester (hashed IP) in a rolling 24 hours | `10` |
 | `AI_ANALYSIS_CONTEXT_MAX_CHARS` | Maximum initial free-form context length | `2000` |
 | `AI_ANALYSIS_TIMEOUT_MS` | Per-provider-attempt abort timeout in milliseconds (capped at four minutes) | `240000` |
 | `RUN_LIVE_AI_EVALS` | Opt-in switch for development-only provider evaluations | `false` |
@@ -241,6 +243,22 @@ After a route acquires the pending reservation, it rechecks both the exact cache
 and rolling allowances before creating the provider client. This closes the
 window where an earlier request completes or fails while a later request was
 waiting to claim the session, avoiding a duplicate charge or stale cap decision.
+
+Per-session limits alone do not bound spend, because survey submission is
+anonymous and every new session starts with a fresh allowance. Two more rolling
+24-hour caps are checked after the pending claim exists, so concurrent requests
+count each other:
+
+- `AI_ANALYSIS_CLIENT_DAILY_LIMIT` counts attempts from one requester. The
+  requester key is an HMAC of the client IP (`src/lib/ai-analysis/client-key.ts`,
+  keyed with the service-role secret) stored in `result_ai_analyses.client_hash`;
+  the raw IP is never stored. It keeps one visitor from exhausting the shared
+  budget. Requests with no client IP skip this cap.
+- `AI_ANALYSIS_GLOBAL_DAILY_LIMIT` counts all pending, completed, and failed
+  attempts. It is the hard backstop against many-IP abuse; keep it below the
+  daily spend you accept, independent of the provider-side spending cap.
+
+A rejected claim is deleted, so refusals do not consume allowance.
 
 Changing UI code does not invalidate a report. Changing evidence, user context,
 provider/model, prompt version, or schema version does. A report generated under

@@ -1,5 +1,6 @@
 import { cache } from 'react'
 import { createClient } from '@/lib/supabase/server'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 import { fetchQuestionsWithLinks } from '@/lib/api/questions'
 import { analyzeTensions, analyzeCollisionPairs, type CollisionPairSummary } from '@/lib/tension-analyzer'
 import { calculateAxisCoverage } from '@/lib/scorer'
@@ -75,7 +76,9 @@ export const loadResultAnalysis = cache(
 
     const supabase = await createClient()
 
-    const { data, error } = await (supabase
+    // Results are not readable with the public anon key (so they cannot be
+    // listed); the session ID in the URL is the capability, matched exactly.
+    const { data, error } = await (supabaseAdmin
       .from('survey_results')
       .select('*')
       .eq('session_id', sessionId)
@@ -89,7 +92,7 @@ export const loadResultAnalysis = cache(
     // Very old result rows can predate the duplicated responses/scores
     // columns even though their canonical survey_responses row still exists.
     if (Object.keys(responses).length === 0) {
-      const { data: storedResponse } = await (supabase
+      const { data: storedResponse } = await (supabaseAdmin
         .from('survey_responses')
         .select('responses, bank_version')
         .eq('session_id', sessionId)
