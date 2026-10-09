@@ -2836,21 +2836,8 @@ REVOKE ALL ON FUNCTION public.refresh_question_bank_version_counts(text) FROM PU
 GRANT EXECUTE ON FUNCTION public.refresh_question_bank_version_counts(text) TO service_role;
 
 -- =====================================================
--- AI analysis daily caps: requester key column
--- (mirrors migrations/20261009110000_add_ai_analysis_client_hash.sql)
--- =====================================================
--- client_hash is an HMAC of the requester's IP
--- (never the raw address); rows from before this migration have NULL.
-ALTER TABLE public.result_ai_analyses ADD COLUMN IF NOT EXISTS client_hash text;
-CREATE INDEX IF NOT EXISTS idx_result_ai_analyses_created
-  ON public.result_ai_analyses (created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_result_ai_analyses_client_created
-  ON public.result_ai_analyses (client_hash, created_at DESC)
-  WHERE client_hash IS NOT NULL;
-
--- =====================================================
 -- Lock down survey data
--- (mirrors migrations/20261009110100_lock_down_survey_data.sql)
+-- (mirrors migrations/20261009110000_lock_down_survey_data.sql)
 -- =====================================================
 -- 1. Replace every policy on the two survey tables with an explicit set.
 -- Production databases have been provisioned from different historical

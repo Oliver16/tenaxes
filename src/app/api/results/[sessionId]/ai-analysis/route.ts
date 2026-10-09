@@ -155,7 +155,7 @@ export async function POST(request: NextRequest, { params }: { params: { session
 
     const clientHash = aiAnalysisClientKey(request.headers, process.env.SUPABASE_SERVICE_ROLE_KEY)
     const insert = await (supabaseAdmin.from('result_ai_analyses') as any).insert({
-      session_id: params.sessionId, parent_analysis_id: parent?.id ?? null, client_hash: clientHash,
+      session_id: params.sessionId, parent_analysis_id: parent?.id ?? null,
       user_id: source.resultAnalysis.result.user_id, stage: body.action === 'refine' ? 'refined' : 'provisional',
       status: 'pending', provider: config.provider, model: config.model,
       prompt_version: config.promptVersion, schema_version: AI_ANALYSIS_SCHEMA_VERSION,
@@ -163,6 +163,8 @@ export async function POST(request: NextRequest, { params }: { params: { session
       context_json: { general_context: generalContext ?? null, clarification_answers: clarificationAnswers },
       deterministic_signals: {
         result_fingerprint: currentResultFingerprint,
+        // Server-only requester key for the per-visitor daily cap (never the raw IP).
+        ...(clientHash ? { client_hash: clientHash } : {}),
         topic_signals: input.topic_signals, candidate_tensions: input.candidate_tensions
       }
     }).select('id').single()
@@ -414,7 +416,7 @@ async function dailyAttemptCapReached(clientHash: string | null): Promise<boolea
     .in('status', ['pending', 'completed', 'failed']).gte('created_at', since)
   const [globalResult, clientResult] = await Promise.all([
     attempts(),
-    clientHash ? attempts().eq('client_hash', clientHash) : Promise.resolve(null)
+    clientHash ? attempts().contains('deterministic_signals', { client_hash: clientHash }) : Promise.resolve(null)
   ])
   if (globalResult.error || clientResult?.error) throw new Error('daily_cap_read_failed')
   // Counts include this request's own pending claim.

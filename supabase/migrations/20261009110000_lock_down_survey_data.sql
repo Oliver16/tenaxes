@@ -4,7 +4,6 @@
 -- Apply AFTER deploying the app version that reads and writes results through
 -- the server-side service-role client (src/lib/supabase-admin.ts). Older app
 -- code reads results with the public anon key and would stop working.
--- 20261009110000_add_ai_analysis_client_hash.sql must already have run.
 --
 -- 1. survey_results / survey_responses can no longer be listed, read, or
 --    written with the public anon key. Result pages load by exact session ID

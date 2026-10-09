@@ -251,8 +251,8 @@ count each other:
 
 - `AI_ANALYSIS_CLIENT_DAILY_LIMIT` counts attempts from one requester. The
   requester key is an HMAC of the client IP (`src/lib/ai-analysis/client-key.ts`,
-  keyed with the service-role secret) stored in `result_ai_analyses.client_hash`;
-  the raw IP is never stored. It keeps one visitor from exhausting the shared
+  keyed with the service-role secret) stored server-side in
+  `deterministic_signals.client_hash`; the raw IP is never stored. It keeps one visitor from exhausting the shared
   budget. Requests with no client IP skip this cap.
 - `AI_ANALYSIS_GLOBAL_DAILY_LIMIT` counts all pending, completed, and failed
   attempts. It is the hard backstop against many-IP abuse; keep it below the

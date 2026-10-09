@@ -61,23 +61,16 @@ Apply migrations in this order when upgrading from v2.1:
 3. `20260717180000_add_result_ai_analysis.sql`
 4. `ai_analysis_post_install_checks.sql`
 
-### Locking down survey data and capping AI spend (2026-10-09)
+### Locking down survey data (2026-10-09)
 
-Two migrations, run in the SQL Editor around one deploy, in this order:
+`20261009110000_lock_down_survey_data.sql` removes public read/write access to
+`survey_results` and `survey_responses`, makes `link_result_to_user` and
+`get_user_results` act only for the calling user, and makes the aggregate
+survey views server-only.
 
-1. `20261009110000_add_ai_analysis_client_hash.sql`: adds
-   `result_ai_analyses.client_hash` and indexes for the AI daily caps. It only
-   adds things, so the currently deployed app is unaffected.
-2. Deploy the app (merge to `main`). The new code stores results and reads
-   them with the service role, and it enforces the AI daily caps.
-3. `20261009110100_lock_down_survey_data.sql`: removes public read/write
-   access to `survey_results` and `survey_responses`, makes
-   `link_result_to_user` and `get_user_results` act only for the calling user,
-   and makes the aggregate survey views server-only.
-
-Running step 3 before step 2 breaks result pages and survey submission.
-Running step 2 before step 1 breaks AI generation. Both migrations are
-idempotent. Afterwards, a request with only the anon key to
+**Run it only after** the app version that stores and reads results with the
+service role is deployed; earlier app code reads results with the anon key and
+would break. It is idempotent. Afterwards, with only the anon key,
 `/rest/v1/survey_results?select=session_id` must return `[]`.
 
 ### Upgrading a live v2.0 database to v2.1

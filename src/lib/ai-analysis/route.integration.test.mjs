@@ -464,7 +464,7 @@ test('Next route orchestrates success, cache, repair, pending, caps, and parent 
     }), { params: { sessionId } })
     try {
       assert.equal((await fromIp('203.0.113.7', 'session-a')).status, 201)
-      assert.match(state.rows[0].client_hash, /^[0-9a-f]{32}$/)
+      assert.match(state.rows[0].deterministic_signals.client_hash, /^[0-9a-f]{32}$/)
       assert.equal((await fromIp('203.0.113.7', 'session-b')).status, 429)
       assert.equal((await fromIp('198.51.100.1', 'session-b')).status, 201)
       assert.equal(state.providerCalls, 2)
