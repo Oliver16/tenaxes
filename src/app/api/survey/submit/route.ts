@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 import { calculateAxisScoresFromLinks, calculateAxisCoverage } from '@/lib/scorer'
 import { analyzeTensions } from '@/lib/tension-analyzer'
 import { buildAxisSummaries, computeFlavorMatches, scoresById } from '@/lib/flavor-matcher'
@@ -14,7 +15,7 @@ const VALID_RESPONSES = new Set([-2, -1, 0, 1, 2])
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { responses: rawResponses, question_order, bank_version } = body
+    const { responses: rawResponses, question_order, bank_version, client_session_id } = body
 
     if (!rawResponses || typeof rawResponses !== 'object' || Array.isArray(rawResponses)) {
       return NextResponse.json(
@@ -162,7 +163,28 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (insertError) throw insertError
-    
+
+    // Close out the progress-tracking row for this sitting (best-effort;
+    // a tracking failure must never fail a saved submission).
+    if (typeof client_session_id === 'string' && /^[A-Za-z0-9_-]{8,64}$/.test(client_session_id)) {
+      try {
+        const now = new Date().toISOString()
+        const { error: trackingError } = await supabaseAdmin
+          .from('survey_sessions')
+          .update({
+            completed_at: now,
+            last_activity_at: now,
+            result_session_id: sessionId,
+            answered_ids: Object.keys(responses).map(Number),
+            not_sure_ids: Object.entries(responses).filter(([, v]) => v === null).map(([k]) => Number(k))
+          })
+          .eq('client_session_id', client_session_id)
+        if (trackingError) console.error('Failed to mark survey session complete:', trackingError.message)
+      } catch (trackingError) {
+        console.error('Survey session tracking unavailable:', trackingError)
+      }
+    }
+
     return NextResponse.json({
       success: true,
       sessionId: sessionId,

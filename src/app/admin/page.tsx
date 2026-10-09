@@ -11,6 +11,10 @@ import {
   FlavorPopularityChart,
   StatCard
 } from '@/components/charts/AdminCharts'
+import type { EngagementReport } from '@/lib/admin/question-stats'
+import { pct } from '@/components/admin/QuestionInsights'
+
+type EngagementSummary = EngagementReport & { bank: string; tracking_available: boolean }
 
 export default function AdminPage() {
   const { user, isAdmin, loading: authLoading } = useAuth()
@@ -18,6 +22,7 @@ export default function AdminPage() {
   const [data, setData] = useState<AnalyticsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [engagement, setEngagement] = useState<EngagementSummary | null>(null)
 
   useEffect(() => {
     if (!authLoading && (!user || !isAdmin)) {
@@ -39,6 +44,11 @@ export default function AdminPage() {
       setLoading(false)
     }
     load()
+    // Question-level engagement is a secondary panel; it never blocks the page
+    fetch('/api/admin/engagement')
+      .then(res => (res.ok ? res.json() : null))
+      .then(setEngagement)
+      .catch(() => setEngagement(null))
   }, [user, isAdmin])
 
   // Show loading while checking authentication
@@ -105,6 +115,12 @@ export default function AdminPage() {
               Manage Questions →
             </Link>
             <Link
+              href="/admin/engagement"
+              className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm"
+            >
+              Engagement →
+            </Link>
+            <Link
               href="/admin/validation"
               className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm"
             >
@@ -141,6 +157,8 @@ export default function AdminPage() {
             subtitle="responses"
           />
         </div>
+
+        {engagement && <QuestionAttention data={engagement} />}
 
         {/* Charts Row 1 */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
@@ -246,5 +264,61 @@ export default function AdminPage() {
         </div>
       </div>
     </main>
+  )
+}
+
+function QuestionAttention({ data }: { data: EngagementSummary }) {
+  const f = data.funnel
+  const mostSkipped = data.items
+    .filter(i => i.viewed >= 5 && i.skipped > 0)
+    .sort((a, b) => b.skip_rate - a.skip_rate)
+    .slice(0, 5)
+  const mostNotSure = data.items
+    .filter(i => i.responses > 0 && i.not_sure > 0)
+    .sort((a, b) => b.not_sure_rate - a.not_sure_rate)
+    .slice(0, 5)
+
+  const list = (items: typeof mostSkipped, value: (i: (typeof mostSkipped)[number]) => string, empty: string) =>
+    items.length === 0 ? (
+      <p className="text-sm text-gray-400 py-4">{empty}</p>
+    ) : (
+      <ol className="space-y-2">
+        {items.map(i => (
+          <li key={i.question_id} className="flex gap-3 text-sm">
+            <span className="font-mono text-gray-700 w-12 shrink-0 text-right">{value(i)}</span>
+            <span className="text-gray-400 w-8 shrink-0">{i.axis_id}</span>
+            <span className="text-gray-700 line-clamp-2">{i.text}</span>
+          </li>
+        ))}
+      </ol>
+    )
+
+  return (
+    <div className="bg-white rounded-xl shadow p-6 mb-6">
+      <div className="flex flex-wrap justify-between items-start gap-2 mb-4">
+        <div>
+          <h2 className="text-lg font-bold text-gray-800">Questions Needing Attention</h2>
+          <p className="text-sm text-gray-500">
+            Bank {data.bank}
+            {f.started > 0 && <> · {pct(f.completed / f.started)} of {f.started} started surveys submitted, {f.abandoned} abandoned</>}
+          </p>
+        </div>
+        <Link href="/admin/engagement" className="text-blue-600 hover:text-blue-800 text-sm">
+          Full engagement report →
+        </Link>
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div>
+          <h3 className="text-sm font-semibold text-gray-600 mb-2">Most skipped</h3>
+          {list(mostSkipped, i => pct(i.skip_rate), data.tracking_available
+            ? 'No skip data yet — tracking starts with new survey sittings.'
+            : 'Skip tracking needs the survey_sessions migration.')}
+        </div>
+        <div>
+          <h3 className="text-sm font-semibold text-gray-600 mb-2">Most &ldquo;not sure&rdquo;</h3>
+          {list(mostNotSure, i => pct(i.not_sure_rate), 'No "not sure" answers yet.')}
+        </div>
+      </div>
+    </div>
   )
 }
